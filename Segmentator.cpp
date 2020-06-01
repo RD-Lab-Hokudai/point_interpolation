@@ -323,11 +323,7 @@ vector<Eigen::Vector2i> get_convex_hull(vector<Eigen::Vector2i> uvs)
     return ch;
 }
 
-double segmentation(int color_segment_k, int color_size_min, double gaussian_sigma, int neighbors, int point_segment_k, point_size_min, double color_rate)
-{
-}
-
-int main(int argc, char *argv[])
+double segmentation(int color_segment_k, int color_size_min, double gaussian_sigma, int point_neighbors, int point_segment_k, int point_size_min, double color_rate)
 {
     auto start = chrono::system_clock::now();
 
@@ -341,15 +337,11 @@ int main(int argc, char *argv[])
 
     shared_ptr<UnionFind> color_segments;
     { // Image segmentation
-        const int segment_k = 40;
-        const int segment_size_min = 10;
-        const double segment_sigma = 0.5;
-
         auto blured = cv::Mat();
-        cv::GaussianBlur(img, blured, cv::Size(3, 3), segment_sigma);
+        cv::GaussianBlur(img, blured, cv::Size(3, 3), gaussian_sigma);
         img = blured;
         auto graph = make_shared<Graph>(&img);
-        color_segments = graph->segmentate(segment_k, segment_size_min);
+        color_segments = graph->segmentate(color_segment_k, color_size_min);
         int segment_cnt = 0;
         for (int i = 0; i < img.rows; i++)
         {
@@ -428,8 +420,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    const int neighbors = 6;
-    geometry::KDTreeSearchParamKNN kdtree_param(neighbors);
+    geometry::KDTreeSearchParamKNN kdtree_param(point_neighbors);
     { // Remove unstable points
         for (int i = 0; i < 3; i++)
         {
@@ -443,9 +434,9 @@ int main(int argc, char *argv[])
             auto tree = make_shared<geometry::KDTreeFlann>(*filtered_ptr);
             for (int j = 0; j < filtered_ptr->points_.size(); j++)
             {
-                vector<int> indexes(neighbors);
-                vector<double> dists(neighbors);
-                tree->SearchKNN(filtered_ptr->points_[j], neighbors, indexes, dists);
+                vector<int> indexes(point_neighbors);
+                vector<double> dists(point_neighbors);
+                tree->SearchKNN(filtered_ptr->points_[j], point_neighbors, indexes, dists);
                 double criteria = 0;
                 for (int k = 0; k < indexes.size(); k++)
                 {
@@ -476,12 +467,9 @@ int main(int argc, char *argv[])
     vector<vector<vector<int>>> bound(height, vector<vector<int>>(width));
     map<int, Eigen::VectorXd> interpolation_params;
     { // Point segmentation and interpolation
-        double color_rate = 1.0;
-        int segment_k = 1;
-        int segment_size_min = 3;
         filtered_ptr->EstimateNormals(kdtree_param);
-        auto graph = make_shared<Graph>(filtered_ptr, neighbors, color_rate);
-        auto unionFind = graph->segmentate(segment_k, segment_size_min);
+        auto graph = make_shared<Graph>(filtered_ptr, point_neighbors, color_rate);
+        auto unionFind = graph->segmentate(point_segment_k, point_size_min);
 
         map<int, vector<int>> segments;
         for (int i = 0; i < filtered_ptr->points_.size(); i++)
@@ -671,8 +659,6 @@ int main(int argc, char *argv[])
                 }
             }
         }
-
-        cv::imshow("range", range_img);
     }
 
     auto interpolated_ptr = make_shared<geometry::PointCloud>();
@@ -730,10 +716,9 @@ int main(int argc, char *argv[])
                 }
             }
         }
-
-        cv::imshow("interpolated_range", interpolated_range_img);
     }
 
+    double error_res = 0;
     { // Evaluation
         double error = 0;
         int cnt = 0;
@@ -748,12 +733,14 @@ int main(int argc, char *argv[])
                 }
             }
         }
-        cout << "Error = " << error / cnt << endl;
+        cout << "count=" << cnt << endl;
+        error_res = error / cnt;
     }
 
     auto end = chrono::system_clock::now();
     double time = (double)(chrono::duration_cast<chrono::microseconds>(end - start).count() / 1000);
     cout << "Time[ms] = " << time << endl;
+    return error_res;
 
     /*
     Eigen::MatrixXd front(4, 4);
@@ -772,6 +759,10 @@ int main(int argc, char *argv[])
 
     visualization::DrawGeometries({pcd_ptr, interpolated_ptr}, "PointCloud", 1600, 900);
     */
+}
 
+int main(int argc, char *argv[])
+{
+    cout << segmentation(40, 10, 0.5, 6, 1, 3, 1) << endl;
     return 0;
 }
