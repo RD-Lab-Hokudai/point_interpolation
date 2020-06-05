@@ -98,7 +98,7 @@ class Graph
         return diff_normal + k * diff_color;
     }
 
-    double get_threshold(int k, int size)
+    double get_threshold(double k, int size)
     {
         return 1.0 * k / size;
     }
@@ -128,7 +128,7 @@ public:
         }
     }
 
-    Graph(shared_ptr<geometry::PointCloud> pcd_ptr, int neighbors, double k)
+    Graph(shared_ptr<geometry::PointCloud> pcd_ptr, int neighbors, double color_rate)
     {
         length = pcd_ptr->points_.size();
         auto tree = make_shared<geometry::KDTreeFlann>(*pcd_ptr);
@@ -146,13 +146,13 @@ public:
                 }
 
                 double diff = get_point_diff(pcd_ptr->normals_[i], pcd_ptr->normals_[to],
-                                             pcd_ptr->colors_[i], pcd_ptr->colors_[to], k);
+                                             pcd_ptr->colors_[i], pcd_ptr->colors_[to], color_rate);
                 edges.emplace_back(diff, i, to);
             }
         }
     }
 
-    shared_ptr<UnionFind> segmentate(int k, int min_size)
+    shared_ptr<UnionFind> segmentate(double k, int min_size)
     {
         auto unionFind = make_shared<UnionFind>(length);
         vector<double> thresholds;
@@ -323,12 +323,12 @@ vector<Eigen::Vector2i> get_convex_hull(vector<Eigen::Vector2i> uvs)
     return ch;
 }
 
-double segmentation(int color_segment_k, int color_size_min, double gaussian_sigma, int point_neighbors, int point_segment_k, int point_size_min, double color_rate)
+double segmentation(double color_segment_k, int color_size_min, double gaussian_sigma, int point_neighbors, double point_segment_k, int point_size_min, double color_rate)
 {
     auto start = chrono::system_clock::now();
 
-    const string file_name = "../81.pcd";
-    const string img_path = "../81.png";
+    const string file_name = "../2271.pcd";
+    const string img_path = "../2271.png";
 
     auto img = cv::imread(img_path);
     const int width = img.cols;
@@ -358,7 +358,7 @@ double segmentation(int color_segment_k, int color_size_min, double gaussian_sig
                 img.at<cv::Vec3b>(i, j)[2] = color[2];
             }
         }
-        cout << "Segments: " << segment_cnt << endl;
+        // cout << "Segments: " << segment_cnt << endl;
     }
 
     geometry::PointCloud pointcloud;
@@ -371,6 +371,7 @@ double segmentation(int color_segment_k, int color_size_min, double gaussian_sig
     *pcd_ptr = pointcloud;
     auto filtered_ptr = make_shared<geometry::PointCloud>();
     vector<vector<double>> base_z(height, vector<double>(width));
+    vector<vector<double>> filtered_z(height, vector<double>(width));
     { // Down sampling
         vector<double> tans;
         double PI = acos(-1);
@@ -411,6 +412,7 @@ double segmentation(int color_segment_k, int color_size_min, double gaussian_sig
                             img.at<cv::Vec3b>(v, u)[1] = 0;
                             img.at<cv::Vec3b>(v, u)[2] = 0;
                         }
+                        filtered_z[v][u] = pcd_ptr->points_[i][2];
                     }
                     base_z[v][u] = pcd_ptr->points_[i][2];
                 }
@@ -670,7 +672,7 @@ double segmentation(int color_segment_k, int color_size_min, double gaussian_sig
             for (int j = 0; j < width; j++)
             {
                 int root = color_segments->root(i * width + j);
-                if (pixel_surface_map.find(root) != pixel_surface_map.end())
+                if (base_z[i][j] > 0 && pixel_surface_map.find(root) != pixel_surface_map.end())
                 {
                     int val = (int)(filtered_ptr->colors_[*pixel_surface_map[root].begin()][0] * 255);
                     interpolated_range_img.at<cv::Vec3b>(i, j)[0] = val % 256;
@@ -694,7 +696,7 @@ double segmentation(int color_segment_k, int color_size_min, double gaussian_sig
                     }
                     else
                     {
-                        // 判別式0未満になりうる
+                        // 判別式0未満になりうる これを改善することが鍵か
                         z = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
                     }
 
@@ -726,7 +728,7 @@ double segmentation(int color_segment_k, int color_size_min, double gaussian_sig
         {
             for (int j = 0; j < width; j++)
             {
-                if (base_z[i][j] > 0 && interpolated_z[i][j] > 0)
+                if (base_z[i][j] > 0 && filtered_z[i][j] == 0 && interpolated_z[i][j] > 0)
                 {
                     error += abs((base_z[i][j] - interpolated_z[i][j]) / base_z[i][j]);
                     cnt++;
@@ -740,7 +742,6 @@ double segmentation(int color_segment_k, int color_size_min, double gaussian_sig
     auto end = chrono::system_clock::now();
     double time = (double)(chrono::duration_cast<chrono::microseconds>(end - start).count() / 1000);
     cout << "Time[ms] = " << time << endl;
-    return error_res;
 
     /*
     Eigen::MatrixXd front(4, 4);
@@ -751,18 +752,68 @@ double segmentation(int color_segment_k, int color_size_min, double gaussian_sig
     pcd_ptr->Transform(front);
     filtered_ptr->Transform(front);
     interpolated_ptr->Transform(front);
-    cout << interpolated_ptr->points_.size() << endl;
 
     cv::imshow("image", img);
     cv::imwrite("emoi.png", img);
     cv::waitKey(0);
 
     visualization::DrawGeometries({pcd_ptr, interpolated_ptr}, "PointCloud", 1600, 900);
-    */
+*/
+
+    return error_res;
 }
 
 int main(int argc, char *argv[])
 {
-    cout << segmentation(40, 10, 0.5, 6, 1, 3, 1) << endl;
+    // Best
+    cout << segmentation(28, 15, 0.5, 6, 0.9, 3, 0.5) << endl;
+    //cout << segmentation(28, 15, 0.5, 6, 2.8, 3, 0) << endl;
+
+    /*
+    double best_error = 100;
+    double best_color_segment_k = 40;
+    int best_color_size_min = 3;
+    for (double color_segment_k = 10; color_segment_k < 100; color_segment_k += 1)
+    {
+        for (int color_size_min = 1; color_size_min < 20; color_size_min += 1)
+        {
+            double error = segmentation(color_segment_k, color_size_min, 0.5, 6, 2.8, 3, 2.1);
+            if (best_error > error)
+            {
+                best_error = error;
+                best_color_segment_k = color_segment_k;
+                best_color_size_min = color_size_min;
+                cout << "Error = " << error << endl;
+            }
+        }
+    }
+
+    cout << "Color segment k = " << best_color_segment_k << endl;
+    cout << "Color segment min = " << best_color_size_min << endl;
+    */
+
+    /*
+    double best_error = 100;
+    double best_rate = 0;
+    double best_point_segment_k = 0;
+    for (double color_rate = 0; color_rate < 10; color_rate += 0.1)
+    {
+        for (double point_segment_k = 0; point_segment_k < 3; point_segment_k += 0.1)
+        {
+            double error = segmentation(28, 15, 0.5, 6, point_segment_k, 3, color_rate);
+            if (best_error > error)
+            {
+                best_error = error;
+                best_rate = color_rate;
+                best_point_segment_k = point_segment_k;
+                cout << "Error = " << error << endl;
+            }
+        }
+    }
+
+    cout << "Color rate = " << best_rate << endl;
+    cout << "Point segment k = " << best_point_segment_k << endl;
+    */
+
     return 0;
 }

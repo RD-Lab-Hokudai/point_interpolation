@@ -39,6 +39,7 @@ int main(int argc, char *argv[])
     int length = width * height;
     vector<cv::Vec3b> params_x(length);
     Eigen::VectorXd params_z(length);
+    vector<vector<double>> base_z(height, vector<double>(width));
 
     geometry::PointCloud pointcloud;
     auto pcd_ptr = make_shared<geometry::PointCloud>();
@@ -49,7 +50,6 @@ int main(int argc, char *argv[])
 
     *pcd_ptr = pointcloud;
     auto filtered_ptr = make_shared<geometry::PointCloud>();
-    vector<vector<double>> base_z(height, vector<double>(width));
     for (int i = 0; i < pcd_ptr->points_.size(); i++)
     {
         double x = pcd_ptr->points_[i][1];
@@ -67,16 +67,13 @@ int main(int argc, char *argv[])
                 if (index % 4 == 0)
                 {
                     filtered_ptr->points_.emplace_back(pcd_ptr->points_[i]);
-                    //img.at<cv::Vec3b>(v, u)[0] = 255;
-                    //img.at<cv::Vec3b>(v, u)[1] = 0;
-                    //img.at<cv::Vec3b>(v, u)[2] = 0;
                     params_z[v * width + u] = pcd_ptr->points_[i][2];
                 }
                 base_z[v][u] = pcd_ptr->points_[i][2];
             }
         }
 
-        pcd_ptr->points_[i][0] += 100;
+        pcd_ptr->points_[i][0] += 5;
     }
 
     for (int i = 0; i < height; i++)
@@ -87,14 +84,17 @@ int main(int argc, char *argv[])
         }
     }
 
-    double k = 10;
-    double c = 1000;
-    int w_trim = width;
+    double k = 3;
+    double c = 0.01;
+    int w_trim = 10;
     int h_trim = height;
     int length_trim = w_trim * h_trim;
     Eigen::VectorXd z_trim(length_trim);
+    Eigen::VectorXd y_res(length_trim);
     Eigen::SparseMatrix<double> W(length_trim, length_trim);
     vector<Eigen::Triplet<double>> W_triplets;
+    double z_sum = 0;
+    int z_cnt = 0;
     for (int i = 0; i < h_trim; i++)
     {
         for (int j = 0; j < w_trim; j++)
@@ -103,9 +103,21 @@ int main(int argc, char *argv[])
             {
                 z_trim[i * w_trim + j] = params_z[i * width + j];
                 W_triplets.emplace_back(i * w_trim + j, i * w_trim + j, k);
+                y_res[i * w_trim + j] = params_z[i * width + j];
+                z_sum += params_z[i * width + j];
+                z_cnt++;
             }
         }
     }
+    /*
+    for (int i = 0; i < length_trim; i++)
+    {
+        if (y_res[i] == 0)
+        {
+            y_res[i] = z_sum / z_cnt;
+        }
+    }
+    */
     W.setFromTriplets(W_triplets.begin(), W_triplets.end());
 
     Eigen::SparseMatrix<double> S(length_trim, length_trim);
@@ -145,34 +157,14 @@ int main(int argc, char *argv[])
     Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Lower | Eigen::Upper> cg;
     cg.compute(A);
     cout << cg.info() << endl;
-    Eigen::VectorXd y_res = cg.solve(b);
+    y_res = cg.solveWithGuess(b, y_res);
     cout << cg.info() << endl;
     cout << cg.iterations() << " " << cg.error() << endl;
-    auto end = std::chrono::system_clock::now(); // 計測終了時刻を保存
-    auto dur = end - start;                      // 要した時間を計算
-    auto msec = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
-    // 要した時間をミリ秒（1/1000秒）に変換して表示
-    std::cout << msec << " milli sec \n";
-
-    /*
-    Eigen::SparseQR<Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int>> solver;
-    solver.compute(A);
-    if (solver.info() != Eigen::Success)
-    {
-        cout << solver.info() << endl;
-        return 0;
-    }
-    auto y_res = solver.solve(b);
-    if (solver.info() != Eigen::Success)
-    {
-        cout << solver.info() << endl;
-        return 0;
-    }
-    */
 
     auto color_mrf_ptr = make_shared<geometry::PointCloud>();
-    vector<vector<double>> interpolated_z(height, vector<double>(width));
     cout << "interpolate" << endl;
+    double interpolation_error = 0;
+    int base_cnt = 0;
     for (int i = 0; i < h_trim; i++)
     {
         for (int j = 0; j < w_trim; j++)
@@ -181,39 +173,19 @@ int main(int argc, char *argv[])
             double x = z * (j - width / 2) / f_x;
             double y = z * (i - height / 2) / f_x;
             color_mrf_ptr->points_.emplace_back(Eigen::Vector3d(x, y, z));
-            interpolated_z[i][j] = z;
-        }
-    }
-    cout << color_mrf_ptr->points_.size() << endl;
-    cout << "done" << endl;
-    auto other_mrf_ptr = make_shared<geometry::PointCloud>();
-    for (int i = 0; i < h_trim; i++)
-    {
-        for (int j = 0; j < w_trim; j++)
-        {
-            double z = params_z[i * width + j];
-            double x = z * (j - width / 2) / f_x;
-            double y = z * (i - height / 2) / f_x;
-            color_mrf_ptr->points_.emplace_back(Eigen::Vector3d(x + 100, y, z));
-        }
-    }
-
-    { // Evaluation
-        double error = 0;
-        int cnt = 0;
-        for (int i = 0; i < height; i++)
-        {
-            for (int j = 0; j < width; j++)
+            if (base_z[i][j] > 0 && z > 0)
             {
-                if (base_z[i][j] > 0 && interpolated_z[i][j] > 0)
-                {
-                    error += abs((base_z[i][j] - interpolated_z[i][j]) / base_z[i][j]);
-                    cnt++;
-                }
+                interpolation_error += abs((base_z[i][j] - z) / base_z[i][j]);
+                base_cnt++;
             }
         }
-        cout << "Error = " << error / cnt << endl;
     }
+    cout << "Error = " << interpolation_error / base_cnt << endl;
+
+    auto end = chrono::system_clock::now(); // 計測終了時刻を保存
+    auto msec = chrono::duration_cast<chrono::milliseconds>(end - start).count();
+    // 要した時間をミリ秒（1/1000秒）に変換して表示
+    cout << msec << " milli sec \n";
 
     Eigen::MatrixXd front(4, 4);
     front << 1, 0, 0, 0,
@@ -224,10 +196,10 @@ int main(int argc, char *argv[])
     filtered_ptr->Transform(front);
     color_mrf_ptr->Transform(front);
 
-    cv::imshow("a", img);
-    cv::waitKey();
+    //cv::imshow("a", img);
+    //cv::waitKey();
 
-    visualization::DrawGeometries({color_mrf_ptr}, "PointCloud", 1600, 900);
+    visualization::DrawGeometries({pcd_ptr, color_mrf_ptr}, "PointCloud", 1600, 900);
 
     return 0;
 }
