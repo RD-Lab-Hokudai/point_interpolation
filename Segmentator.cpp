@@ -327,8 +327,8 @@ double segmentation(double color_segment_k, int color_size_min, double gaussian_
 {
     auto start = chrono::system_clock::now();
 
-    const string file_name = "../2271.pcd";
-    const string img_path = "../2271.png";
+    const string file_name = "../3037.pcd";
+    const string img_path = "../3037.png";
 
     auto img = cv::imread(img_path);
     const int width = img.cols;
@@ -674,46 +674,51 @@ double segmentation(double color_segment_k, int color_size_min, double gaussian_
                 int root = color_segments->root(i * width + j);
                 if (base_z[i][j] > 0 && pixel_surface_map.find(root) != pixel_surface_map.end())
                 {
-                    int val = (int)(filtered_ptr->colors_[*pixel_surface_map[root].begin()][0] * 255);
-                    interpolated_range_img.at<cv::Vec3b>(i, j)[0] = val % 256;
-                    interpolated_range_img.at<cv::Vec3b>(i, j)[1] = (val / 256) % 256;
-                    interpolated_range_img.at<cv::Vec3b>(i, j)[2] = (val / 256 / 256) % 256;
-
-                    auto params = interpolation_params[*pixel_surface_map[root].begin()];
-                    double coef_a = (j - width / 2) / f_x;
-                    double coef_b = (i - height / 2) / f_x;
-                    double a = params[0] * coef_a * coef_a + params[1] * coef_b * coef_b + params[2] * coef_a * coef_b;
-                    double b = params[3] * coef_a + params[4] * coef_b + 1;
-                    double c = -params[5];
-
-                    double x = 0;
-                    double y = 0;
-                    double z = 0;
-
-                    if (a == 0)
+                    for (auto itr = pixel_surface_map[root].begin(); itr != pixel_surface_map[root].end(); itr++)
                     {
-                        z = -c / b;
-                    }
-                    else
-                    {
-                        // 判別式0未満になりうる これを改善することが鍵か
-                        z = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
-                    }
+                        auto params = interpolation_params[*itr];
+                        double coef_a = (j - width / 2) / f_x;
+                        double coef_b = (i - height / 2) / f_x;
+                        double a = params[0] * coef_a * coef_a + params[1] * coef_b * coef_b + params[2] * coef_a * coef_b;
+                        double b = params[3] * coef_a + params[4] * coef_b + 1;
+                        double c = -params[5];
 
-                    x = coef_a * z;
-                    y = coef_b * z;
+                        double x = 0;
+                        double y = 0;
+                        double z = 0;
 
-                    if (z > 0 && z < 100)
-                    {
-                        double color = img.at<cv::Vec3b>(i, j)[0] / 255.0;
-                        interpolated_ptr->points_.emplace_back(x, y, z);
-                        interpolated_ptr->colors_.emplace_back(color, color, color);
-                        interpolated_z[i][j] = z;
-                    }
-                    else
-                    {
-                        //cout << params << endl;
-                        //cout << x << " " << y << " " << z << endl;
+                        if (a == 0)
+                        {
+                            z = -c / b;
+                        }
+                        else
+                        {
+                            // 判別式0未満になりうる これを改善することが鍵か
+                            // なぜ0未満になる？
+                            // あてはまりそうな面だけ選ぶ？
+                            z = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
+                        }
+
+                        x = coef_a * z;
+                        y = coef_b * z;
+
+                        if (z > 0 && z < 100)
+                        {
+                            double color = img.at<cv::Vec3b>(i, j)[0] / 255.0;
+                            interpolated_ptr->points_.emplace_back(x, y, z);
+                            interpolated_ptr->colors_.emplace_back(color, color, color);
+                            interpolated_z[i][j] = z;
+                            int val = (int)(filtered_ptr->colors_[*itr][0] * 255);
+                            interpolated_range_img.at<cv::Vec3b>(i, j)[0] = val % 256;
+                            interpolated_range_img.at<cv::Vec3b>(i, j)[1] = (val / 256) % 256;
+                            interpolated_range_img.at<cv::Vec3b>(i, j)[2] = (val / 256 / 256) % 256;
+                            break;
+                        }
+                        else
+                        {
+                            //cout << params << endl;
+                            //cout << root << " " << b * b - 4 * a * c << " " << a << " " << b << " " << c << " " << x << " " << y << " " << z << endl;
+                        }
                     }
                 }
             }
@@ -724,6 +729,7 @@ double segmentation(double color_segment_k, int color_size_min, double gaussian_
     { // Evaluation
         double error = 0;
         int cnt = 0;
+        int cannot_cnt = 0;
         for (int i = 0; i < height; i++)
         {
             for (int j = 0; j < width; j++)
@@ -733,9 +739,14 @@ double segmentation(double color_segment_k, int color_size_min, double gaussian_
                     error += abs((base_z[i][j] - interpolated_z[i][j]) / base_z[i][j]);
                     cnt++;
                 }
+                if (base_z[i][j] > 0 && filtered_z[i][j] == 0)
+                {
+                    cannot_cnt++;
+                }
             }
         }
         cout << "count=" << cnt << endl;
+        cout << "cannot count=" << cannot_cnt - cnt << endl;
         error_res = error / cnt;
     }
 
@@ -766,8 +777,8 @@ double segmentation(double color_segment_k, int color_size_min, double gaussian_
 int main(int argc, char *argv[])
 {
     // Best
-    cout << segmentation(28, 15, 0.5, 6, 0.9, 3, 0.5) << endl;
-    //cout << segmentation(28, 15, 0.5, 6, 2.8, 3, 0) << endl;
+    //cout << segmentation(10, 8, 0.5, 6, 0.9, 3, 0.5) << endl;
+    cout << segmentation(28, 15, 0.5, 6, 2.8, 3, 2.1) << endl;
 
     /*
     double best_error = 100;
@@ -777,7 +788,7 @@ int main(int argc, char *argv[])
     {
         for (int color_size_min = 1; color_size_min < 20; color_size_min += 1)
         {
-            double error = segmentation(color_segment_k, color_size_min, 0.5, 6, 2.8, 3, 2.1);
+            double error = segmentation(color_segment_k, color_size_min, 0.5, 6, 0.9, 3, 0.5);
             if (best_error > error)
             {
                 best_error = error;

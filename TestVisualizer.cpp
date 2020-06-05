@@ -575,6 +575,10 @@ int main(int argc, char *argv[])
 
                 interpolated_ptr->points_.emplace_back(Eigen::Vector3d(x, y, z));
                 poses[i][j] << x, y, z;
+                if (z < 0 || z > 100)
+                {
+                    cout << x << y << z << endl;
+                }
             }
         }
     }
