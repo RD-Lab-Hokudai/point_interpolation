@@ -18,12 +18,19 @@ const int width = 882;
 const int height = 560;
 const double f_x = width / 2 * 1.01;
 
-int main(int argc, char *argv[])
+void segmentate(int data_no, int w_trim, bool see_res = false)
 {
-    const string img_name = "../2271.png";
-    auto img = cv::imread(img_name);
+    string img_path = "../" + to_string(data_no) + ".png";
+    string pcd_path = "../" + to_string(data_no) + ".pcd";
 
-    const string file_name = "../2271.pcd";
+    auto img = cv::imread(img_path);
+    geometry::PointCloud pointcloud;
+    auto pcd_ptr = make_shared<geometry::PointCloud>();
+    if (!io::ReadPointCloud(pcd_path, pointcloud))
+    {
+        cout << "Cannot read" << endl;
+    }
+    *pcd_ptr = pointcloud;
 
     vector<double> tans;
     double PI = acos(-1);
@@ -40,14 +47,6 @@ int main(int argc, char *argv[])
     vector<cv::Vec3b> params_x(length);
     Eigen::VectorXd params_z(length);
 
-    geometry::PointCloud pointcloud;
-    auto pcd_ptr = make_shared<geometry::PointCloud>();
-    if (!io::ReadPointCloud(file_name, pointcloud))
-    {
-        cout << "Cannot read" << endl;
-    }
-
-    *pcd_ptr = pointcloud;
     auto filtered_ptr = make_shared<geometry::PointCloud>();
     vector<vector<double>> base_z(height, vector<double>(width));
     for (int i = 0; i < pcd_ptr->points_.size(); i++)
@@ -67,9 +66,6 @@ int main(int argc, char *argv[])
                 if (index % 4 == 0)
                 {
                     filtered_ptr->points_.emplace_back(pcd_ptr->points_[i]);
-                    //img.at<cv::Vec3b>(v, u)[0] = 255;
-                    //img.at<cv::Vec3b>(v, u)[1] = 0;
-                    //img.at<cv::Vec3b>(v, u)[2] = 0;
                     params_z[v * width + u] = pcd_ptr->points_[i][2];
                 }
                 base_z[v][u] = pcd_ptr->points_[i][2];
@@ -87,9 +83,10 @@ int main(int argc, char *argv[])
         }
     }
 
-    double k = 10;
-    double c = 10000;
-    int w_trim = 300;
+    //double k = 0.1;
+    //double c = 100;
+    double k = 0.1;
+    double c = 100;
     int h_trim = height;
     int length_trim = w_trim * h_trim;
     Eigen::VectorXd z_trim(length_trim);
@@ -113,8 +110,6 @@ int main(int argc, char *argv[])
     int dires = 4;
     int dx[4] = {1, -1, 0, 0};
     int dy[4] = {0, 0, 1, -1};
-    //int dx[8] = {1, 1, 0, -1, -1, -1, 0, 1};
-    //int dy[8] = {0, 1, 1, 1, 0, -1, -1, -1};
     for (int i = 0; i < h_trim; i++)
     {
         for (int j = 0; j < w_trim; j++)
@@ -138,41 +133,19 @@ int main(int argc, char *argv[])
     }
     S.setFromTriplets(S_triplets.begin(), S_triplets.end());
     Eigen::SparseMatrix<double> A = S.transpose() * S + W.transpose() * W;
-    cout << "A" << endl;
     Eigen::VectorXd b = W.transpose() * W * z_trim;
-    cout << "calculated" << endl;
     auto start = chrono::system_clock::now();
     Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Lower | Eigen::Upper> cg;
     cg.compute(A);
-    cout << cg.info() << endl;
     Eigen::VectorXd y_res = cg.solve(b);
-    cout << cg.info() << endl;
-    cout << cg.iterations() << " " << cg.error() << endl;
     auto end = std::chrono::system_clock::now(); // 計測終了時刻を保存
     auto dur = end - start;                      // 要した時間を計算
     auto msec = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
     // 要した時間をミリ秒（1/1000秒）に変換して表示
     std::cout << msec << " milli sec \n";
 
-    /*
-    Eigen::SparseQR<Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int>> solver;
-    solver.compute(A);
-    if (solver.info() != Eigen::Success)
-    {
-        cout << solver.info() << endl;
-        return 0;
-    }
-    auto y_res = solver.solve(b);
-    if (solver.info() != Eigen::Success)
-    {
-        cout << solver.info() << endl;
-        return 0;
-    }
-    */
-
     auto color_mrf_ptr = make_shared<geometry::PointCloud>();
     vector<vector<double>> interpolated_z(height, vector<double>(width));
-    cout << "interpolate" << endl;
     for (int i = 0; i < h_trim; i++)
     {
         for (int j = 0; j < w_trim; j++)
@@ -186,8 +159,7 @@ int main(int argc, char *argv[])
             interpolated_z[i][j] = z;
         }
     }
-    cout << color_mrf_ptr->points_.size() << endl;
-    cout << "done" << endl;
+
     auto other_mrf_ptr = make_shared<geometry::PointCloud>();
     for (int i = 0; i < h_trim; i++)
     {
@@ -219,23 +191,38 @@ int main(int argc, char *argv[])
                 }
             }
         }
+        cout << "W trim = " << w_trim << endl;
         cout << "Error = " << error / cnt << endl;
         cout << "Cannot cnt = " << cannot_cnt - cnt << endl;
     }
 
-    Eigen::MatrixXd front(4, 4);
-    front << 1, 0, 0, 0,
-        0, -1, 0, 0,
-        0, 0, -1, 0,
-        0, 0, 0, 1;
-    pcd_ptr->Transform(front);
-    filtered_ptr->Transform(front);
-    color_mrf_ptr->Transform(front);
+    if (see_res)
+    {
+        Eigen::MatrixXd front(4, 4);
+        front << 1, 0, 0, 0,
+            0, -1, 0, 0,
+            0, 0, -1, 0,
+            0, 0, 0, 1;
+        pcd_ptr->Transform(front);
+        filtered_ptr->Transform(front);
+        color_mrf_ptr->Transform(front);
 
-    cv::imshow("a", img);
-    cv::waitKey();
+        cv::imshow("img", img);
+        visualization::DrawGeometries({color_mrf_ptr}, "PointCloud", 1600, 900);
+    }
+}
 
-    visualization::DrawGeometries({color_mrf_ptr}, "PointCloud", 1600, 900);
+int main(int argc, char *argv[])
+{
+    vector<int> data_nos = {81, 2271, 3037};
+    for (int i = 0; i < 3; i++)
+    {
+        for (int w_trim = 100; w_trim < width; w_trim += 100)
+        {
+            segmentate(data_nos[i], w_trim, false);
+        }
+        segmentate(data_nos[i], width, false);
+    }
 
     return 0;
 }
