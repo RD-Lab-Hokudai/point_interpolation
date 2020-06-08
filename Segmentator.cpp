@@ -323,12 +323,12 @@ vector<Eigen::Vector2i> get_convex_hull(vector<Eigen::Vector2i> uvs)
     return ch;
 }
 
-double segmentation(double color_segment_k, int color_size_min, double gaussian_sigma, int point_neighbors, double point_segment_k, int point_size_min, double color_rate)
+double segmentation(double color_segment_k, int color_size_min, double gaussian_sigma, int point_neighbors, double point_segment_k, int point_size_min, double color_rate, int data_no)
 {
     auto start = chrono::system_clock::now();
 
-    const string file_name = "../3037.pcd";
-    const string img_path = "../3037.png";
+    const string file_name = "../" + to_string(data_no) + ".pcd";
+    const string img_path = "../" + to_string(data_no) + ".png";
 
     auto img = cv::imread(img_path);
     const int width = img.cols;
@@ -754,7 +754,6 @@ double segmentation(double color_segment_k, int color_size_min, double gaussian_
     double time = (double)(chrono::duration_cast<chrono::microseconds>(end - start).count() / 1000);
     cout << "Time[ms] = " << time << endl;
 
-    /*
     Eigen::MatrixXd front(4, 4);
     front << 1, 0, 0, 0,
         0, -1, 0, 0,
@@ -769,7 +768,6 @@ double segmentation(double color_segment_k, int color_size_min, double gaussian_
     cv::waitKey(0);
 
     visualization::DrawGeometries({pcd_ptr, interpolated_ptr}, "PointCloud", 1600, 900);
-*/
 
     return error_res;
 }
@@ -777,8 +775,56 @@ double segmentation(double color_segment_k, int color_size_min, double gaussian_
 int main(int argc, char *argv[])
 {
     // Best
+    cout << segmentation(30, 0, 0.5, 6, 2, 3, 0, 81) << endl;
+    cout << segmentation(30, 0, 0.5, 6, 2, 3, 0, 2271) << endl;
+    cout << segmentation(30, 0, 0.5, 6, 2, 3, 0, 3037) << endl;
     //cout << segmentation(10, 8, 0.5, 6, 0.9, 3, 0.5) << endl;
-    cout << segmentation(28, 15, 0.5, 6, 2.8, 3, 2.1) << endl;
+    //cout << segmentation(28, 15, 0.5, 6, 2.8, 3, 2.1) << endl;
+
+    /*
+    double best_error = 100;
+    double best_color_segment_k = 1;
+    int best_color_size_min = 1;
+    double best_point_segment_k = 1;
+    double best_color_rate = 0.1;
+    vector<int> data_nos = {81, 2271, 3037};
+    // 2020/6/7 best params : 0 1 2 0
+    // 2020/6/8 best params : 2 0 2 0
+
+    for (double color_segment_k = 0; color_segment_k < 5; color_segment_k += 1)
+    {
+        for (int color_size_min = 0; color_size_min < 10; color_size_min += 1)
+        {
+            for (double point_segment_k = 0; point_segment_k < 10; point_segment_k += 1)
+            {
+                for (double color_rate = 0; color_rate < 10; color_rate += 1)
+                {
+                    double error = 0;
+                    for (int i = 0; i < data_nos.size(); i++)
+                    {
+                        error += segmentation(color_segment_k, color_size_min, 0.5, 6, point_segment_k, 3, color_rate, data_nos[i]);
+                    }
+                    error /= data_nos.size();
+
+                    if (best_error > error)
+                    {
+                        best_error = error;
+                        best_color_segment_k = color_segment_k;
+                        best_color_size_min = color_size_min;
+                        best_point_segment_k = point_segment_k;
+                        best_color_rate = color_rate;
+                        cout << "Error = " << error << endl;
+                    }
+                }
+            }
+        }
+    }
+
+    cout << "Color segment k = " << best_color_segment_k << endl;
+    cout << "Color size min = " << best_color_size_min << endl;
+    cout << "Point segment k = " << best_point_segment_k << endl;
+    cout << "Color rate = " << best_color_rate << endl;
+    */
 
     /*
     double best_error = 100;
