@@ -20,10 +20,10 @@ const double f_x = width / 2 * 1.01;
 
 int main(int argc, char *argv[])
 {
-    const string img_name = "../3037.png";
+    const string img_name = "../2271.png";
     auto img = cv::imread(img_name);
 
-    const string file_name = "../3037.pcd";
+    const string file_name = "../2271.pcd";
 
     vector<double> tans;
     double PI = acos(-1);
@@ -88,8 +88,8 @@ int main(int argc, char *argv[])
     }
 
     double k = 10;
-    double c = 1000;
-    int w_trim = width;
+    double c = 10000;
+    int w_trim = 300;
     int h_trim = height;
     int length_trim = w_trim * h_trim;
     Eigen::VectorXd z_trim(length_trim);
@@ -178,6 +178,8 @@ int main(int argc, char *argv[])
         for (int j = 0; j < w_trim; j++)
         {
             double z = y_res[i * w_trim + j];
+            z = min(z, 100.0);
+            z = max(z, 0.0);
             double x = z * (j - width / 2) / f_x;
             double y = z * (i - height / 2) / f_x;
             color_mrf_ptr->points_.emplace_back(Eigen::Vector3d(x, y, z));
@@ -201,18 +203,24 @@ int main(int argc, char *argv[])
     { // Evaluation
         double error = 0;
         int cnt = 0;
+        int cannot_cnt = 0;
         for (int i = 0; i < height; i++)
         {
-            for (int j = 0; j < width; j++)
+            for (int j = 0; j < w_trim; j++)
             {
-                if (base_z[i][j] > 0 && interpolated_z[i][j] > 0)
+                if (base_z[i][j] > 0 && params_z[i * width + j] == 0 && interpolated_z[i][j] > 0)
                 {
                     error += abs((base_z[i][j] - interpolated_z[i][j]) / base_z[i][j]);
                     cnt++;
                 }
+                if (base_z[i][j] > 0 && params_z[i * width + j] == 0)
+                {
+                    cannot_cnt++;
+                }
             }
         }
         cout << "Error = " << error / cnt << endl;
+        cout << "Cannot cnt = " << cannot_cnt - cnt << endl;
     }
 
     Eigen::MatrixXd front(4, 4);

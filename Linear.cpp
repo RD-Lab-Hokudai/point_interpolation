@@ -20,10 +20,11 @@ const double f_x = width / 2 * 1.01;
 
 int main(int argc, char *argv[])
 {
-    const string img_name = "../2271.png";
-    auto img = cv::imread(img_name);
+    const string img_name = "../81.png";
+    const string file_name = "../81.pcd";
+    const bool vertical = true;
 
-    const string file_name = "../2271.pcd";
+    auto img = cv::imread(img_name);
 
     vector<double> tans;
     double PI = acos(-1);
@@ -79,91 +80,185 @@ int main(int argc, char *argv[])
 
     auto start = chrono::system_clock::now();
     vector<vector<double>> interpolated_z(height, vector<double>(width));
-    for (int j = 0; j < width; j++)
+    if (vertical)
     {
-        vector<int> up(height, -1);
-        for (int i = 0; i < height; i++)
+        for (int j = 0; j < width; j++)
         {
-            if (filtered_z[i][j] > 0)
+            vector<int> up(height, -1);
+            for (int i = 0; i < height; i++)
             {
-                up[i] = i;
+                if (filtered_z[i][j] > 0)
+                {
+                    up[i] = i;
+                }
+                else if (i > 0)
+                {
+                    up[i] = up[i - 1];
+                }
             }
-            else if (i > 0)
+
+            vector<int> down(height, -1);
+            for (int i = height - 1; i >= 0; i--)
             {
-                up[i] = up[i - 1];
+                if (filtered_z[i][j] > 0)
+                {
+                    down[i] = i;
+                }
+                else if (i + 1 < width)
+                {
+                    down[i] = down[i + 1];
+                }
+            }
+
+            for (int i = 0; i < height; i++)
+            {
+                if (up[i] == -1 && down[i] == -1)
+                {
+                    interpolated_z[i][j] = -1;
+                }
+                else if (up[i] == -1 || down[i] == -1 || up[i] == i)
+                {
+                    interpolated_z[i][j] = filtered_z[max(up[i], down[i])][j];
+                }
+                else
+                {
+                    interpolated_z[i][j] = (filtered_z[down[i]][j] * (i - up[i]) + filtered_z[up[i]][j] * (down[i] - i)) / (down[i] - up[i]);
+                }
             }
         }
-
-        vector<int> down(height, -1);
-        for (int i = height - 1; i >= 0; i--)
-        {
-            if (filtered_z[i][j] > 0)
-            {
-                down[i] = i;
-            }
-            else if (i + 1 < width)
-            {
-                down[i] = down[i + 1];
-            }
-        }
-
         for (int i = 0; i < height; i++)
         {
-            if (up[i] == -1 && down[i] == -1)
+            vector<int> left(width, -1);
+            for (int j = 0; j < width; j++)
             {
-                interpolated_z[i][j] = -1;
+                if (interpolated_z[i][j] > 0)
+                {
+                    left[j] = j;
+                }
+                else if (j > 0)
+                {
+                    left[j] = left[j - 1];
+                }
             }
-            else if (up[i] == -1 || down[i] == -1 || up[i] == i)
+
+            vector<int> right(width, -1);
+            for (int j = width - 1; j >= 0; j--)
             {
-                interpolated_z[i][j] = base_z[max(up[i], down[i])][j];
+                if (interpolated_z[i][j] > 0)
+                {
+                    right[j] = j;
+                }
+                else if (j + 1 < width)
+                {
+                    right[j] = right[j + 1];
+                }
             }
-            else
+
+            for (int j = 0; j < width; j++)
             {
-                interpolated_z[i][j] = (base_z[down[i]][j] * (i - up[i]) + base_z[up[i]][j] * (down[i] - i)) / (down[i] - up[i]);
+                if (left[j] == -1 && right[j] == -1)
+                {
+                    interpolated_z[i][j] = -1;
+                }
+                else if (left[j] == -1 || right[j] == -1 || left[j] == j)
+                {
+                    interpolated_z[i][j] = interpolated_z[i][max(left[j], right[j])];
+                }
+                else
+                {
+                    interpolated_z[i][j] = (interpolated_z[i][right[j]] * (j - left[j]) + interpolated_z[i][left[j]] * (right[j] - j)) / (right[j] - left[j]);
+                }
             }
         }
     }
-    for (int i = 0; i < height; i++)
+    else
     {
-        vector<int> left(width, -1);
-        for (int j = 0; j < width; j++)
+        for (int i = 0; i < height; i++)
         {
-            if (filtered_z[i][j] > 0)
+            vector<int> left(width, -1);
+            for (int j = 0; j < width; j++)
             {
-                left[j] = j;
+                if (filtered_z[i][j] > 0)
+                {
+                    left[j] = j;
+                }
+                else if (j > 0)
+                {
+                    left[j] = left[j - 1];
+                }
             }
-            else if (j > 0)
+
+            vector<int> right(width, -1);
+            for (int j = width - 1; j >= 0; j--)
             {
-                left[j] = left[j - 1];
+                if (filtered_z[i][j] > 0)
+                {
+                    right[j] = j;
+                }
+                else if (j + 1 < width)
+                {
+                    right[j] = right[j + 1];
+                }
+            }
+
+            for (int j = 0; j < width; j++)
+            {
+                if (left[j] == -1 && right[j] == -1)
+                {
+                    interpolated_z[i][j] = -1;
+                }
+                else if (left[j] == -1 || right[j] == -1 || left[j] == j)
+                {
+                    interpolated_z[i][j] = filtered_z[i][max(left[j], right[j])];
+                }
+                else
+                {
+                    interpolated_z[i][j] = (filtered_z[i][right[j]] * (j - left[j]) + filtered_z[i][left[j]] * (right[j] - j)) / (right[j] - left[j]);
+                }
             }
         }
-
-        vector<int> right(width, -1);
-        for (int j = width - 1; j >= 0; j--)
-        {
-            if (filtered_z[i][j] > 0)
-            {
-                right[j] = j;
-            }
-            else if (j + 1 < width)
-            {
-                right[j] = right[j + 1];
-            }
-        }
-
         for (int j = 0; j < width; j++)
         {
-            if (left[j] == -1 && right[j] == -1)
+            vector<int> up(height, -1);
+            for (int i = 0; i < height; i++)
             {
-                interpolated_z[i][j] = -1;
+                if (interpolated_z[i][j] > 0)
+                {
+                    up[i] = i;
+                }
+                else if (i > 0)
+                {
+                    up[i] = up[i - 1];
+                }
             }
-            else if (left[j] == -1 || right[j] == -1 || left[j] == j)
+
+            vector<int> down(height, -1);
+            for (int i = height - 1; i >= 0; i--)
             {
-                interpolated_z[i][j] = base_z[i][max(left[j], right[j])];
+                if (interpolated_z[i][j] > 0)
+                {
+                    down[i] = i;
+                }
+                else if (i + 1 < width)
+                {
+                    down[i] = down[i + 1];
+                }
             }
-            else
+
+            for (int i = 0; i < height; i++)
             {
-                interpolated_z[i][j] = (base_z[i][right[j]] * (j - left[j]) + base_z[i][left[j]] * (right[j] - j)) / (right[j] - left[j]);
+                if (up[i] == -1 && down[i] == -1)
+                {
+                    interpolated_z[i][j] = -1;
+                }
+                else if (up[i] == -1 || down[i] == -1 || up[i] == i)
+                {
+                    interpolated_z[i][j] = interpolated_z[max(up[i], down[i])][j];
+                }
+                else
+                {
+                    interpolated_z[i][j] = (interpolated_z[down[i]][j] * (i - up[i]) + interpolated_z[up[i]][j] * (down[i] - i)) / (down[i] - up[i]);
+                }
             }
         }
     }
@@ -197,6 +292,7 @@ int main(int argc, char *argv[])
     { // Evaluation
         double error = 0;
         int cnt = 0;
+        int cannot_cnt = 0;
         for (int i = 0; i < height; i++)
         {
             for (int j = 0; j < width; j++)
@@ -206,10 +302,14 @@ int main(int argc, char *argv[])
                     error += abs((base_z[i][j] - interpolated_z[i][j]) / base_z[i][j]);
                     cnt++;
                 }
+                if (base_z[i][j] > 0 && filtered_z[i][j] == 0)
+                {
+                    cannot_cnt++;
+                }
             }
         }
         cout << error << endl;
-        cout << cnt << endl;
+        cout << "cannot cnt = " << cannot_cnt - cnt << endl;
         cout << "Error = " << error / cnt << endl;
     }
 
