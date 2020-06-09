@@ -20,8 +20,8 @@ const double f_x = width / 2 * 1.01;
 
 int main(int argc, char *argv[])
 {
-    const string img_name = "../81.png";
-    const string file_name = "../81.pcd";
+    const string img_name = "../3037.png";
+    const string file_name = "../3037.pcd";
     const bool vertical = true;
 
     auto img = cv::imread(img_name);
@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
                 {
                     down[i] = i;
                 }
-                else if (i + 1 < width)
+                else if (i + 1 < height)
                 {
                     down[i] = down[i + 1];
                 }

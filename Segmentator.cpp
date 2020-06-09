@@ -323,52 +323,38 @@ vector<Eigen::Vector2i> get_convex_hull(vector<Eigen::Vector2i> uvs)
     return ch;
 }
 
-double segmentation(double color_segment_k, int color_size_min, double gaussian_sigma, int point_neighbors, double point_segment_k, int point_size_min, double color_rate, int data_no)
+double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, double color_segment_k, int color_size_min, double gaussian_sigma, int point_neighbors, double point_segment_k, int point_size_min, double color_rate, bool see_res = false)
 {
     auto start = chrono::system_clock::now();
-
-    const string file_name = "../" + to_string(data_no) + ".pcd";
-    const string img_path = "../" + to_string(data_no) + ".png";
-
-    auto img = cv::imread(img_path);
     const int width = img.cols;
     const int height = img.rows;
     const double f_x = width / 2 * 1.01;
 
+    cv::Mat blured;
     shared_ptr<UnionFind> color_segments;
     { // Image segmentation
-        auto blured = cv::Mat();
         cv::GaussianBlur(img, blured, cv::Size(3, 3), gaussian_sigma);
-        img = blured;
-        auto graph = make_shared<Graph>(&img);
+        auto graph = make_shared<Graph>(&blured);
         color_segments = graph->segmentate(color_segment_k, color_size_min);
         int segment_cnt = 0;
-        for (int i = 0; i < img.rows; i++)
+        for (int i = 0; i < blured.rows; i++)
         {
-            for (int j = 0; j < img.cols; j++)
+            for (int j = 0; j < blured.cols; j++)
             {
                 int parent = color_segments->root(i * width + j);
-                if (parent == i * img.cols + j)
+                if (parent == i * blured.cols + j)
                 {
                     segment_cnt++;
                 }
-                auto color = img.at<cv::Vec3b>(parent / width, parent % width);
-                img.at<cv::Vec3b>(i, j)[0] = color[0];
-                img.at<cv::Vec3b>(i, j)[1] = color[1];
-                img.at<cv::Vec3b>(i, j)[2] = color[2];
+                auto color = blured.at<cv::Vec3b>(parent / width, parent % width);
+                blured.at<cv::Vec3b>(i, j)[0] = color[0];
+                blured.at<cv::Vec3b>(i, j)[1] = color[1];
+                blured.at<cv::Vec3b>(i, j)[2] = color[2];
             }
         }
         // cout << "Segments: " << segment_cnt << endl;
     }
 
-    geometry::PointCloud pointcloud;
-    auto pcd_ptr = make_shared<geometry::PointCloud>();
-    if (!io::ReadPointCloud(file_name, pointcloud))
-    {
-        return 0;
-    }
-
-    *pcd_ptr = pointcloud;
     auto filtered_ptr = make_shared<geometry::PointCloud>();
     vector<vector<double>> base_z(height, vector<double>(width));
     vector<vector<double>> filtered_z(height, vector<double>(width));
@@ -386,11 +372,11 @@ double segmentation(double color_segment_k, int color_size_min, double gaussian_
 
         for (int i = 0; i < pcd_ptr->points_.size(); i++)
         {
-            double x = pcd_ptr->points_[i][1];
-            double y = -pcd_ptr->points_[i][2];
-            double z = -pcd_ptr->points_[i][0] + 0.03;
-            pcd_ptr->points_[i] = Eigen::Vector3d(x, y, z);
-            if (pcd_ptr->points_[i][2] > 0)
+            double x = pcd_ptr->points_[i][0];
+            double y = pcd_ptr->points_[i][1];
+            double z = pcd_ptr->points_[i][2];
+
+            if (z > 0)
             {
                 int u = (int)(width / 2 + f_x * x / z);
                 int v = (int)(height / 2 + f_x * y / z);
@@ -400,21 +386,21 @@ double segmentation(double color_segment_k, int color_size_min, double gaussian_
                     int index = it - tans.begin();
                     if (index % 4 == 0)
                     {
-                        if (img.at<cv::Vec3b>(v, u)[0] == 255 && img.at<cv::Vec3b>(v, u)[1] == 0 && img.at<cv::Vec3b>(v, u)[2] == 0)
+                        if (blured.at<cv::Vec3b>(v, u)[0] == 255 && blured.at<cv::Vec3b>(v, u)[1] == 0 && blured.at<cv::Vec3b>(v, u)[2] == 0)
                         {
                             continue;
                         }
                         else
                         {
                             filtered_ptr->points_.emplace_back(pcd_ptr->points_[i]);
-                            filtered_ptr->colors_.emplace_back(img.at<cv::Vec3b>(v, u)[0] / 255.0, img.at<cv::Vec3b>(v, u)[1] / 255.0, img.at<cv::Vec3b>(v, u)[2] / 255.0);
-                            img.at<cv::Vec3b>(v, u)[0] = 255;
-                            img.at<cv::Vec3b>(v, u)[1] = 0;
-                            img.at<cv::Vec3b>(v, u)[2] = 0;
+                            filtered_ptr->colors_.emplace_back(blured.at<cv::Vec3b>(v, u)[0] / 255.0, blured.at<cv::Vec3b>(v, u)[1] / 255.0, blured.at<cv::Vec3b>(v, u)[2] / 255.0);
+                            blured.at<cv::Vec3b>(v, u)[0] = 255;
+                            blured.at<cv::Vec3b>(v, u)[1] = 0;
+                            blured.at<cv::Vec3b>(v, u)[2] = 0;
                         }
-                        filtered_z[v][u] = pcd_ptr->points_[i][2];
+                        filtered_z[v][u] = z;
                     }
-                    base_z[v][u] = pcd_ptr->points_[i][2];
+                    base_z[v][u] = z;
                 }
             }
 
@@ -468,12 +454,12 @@ double segmentation(double color_segment_k, int color_size_min, double gaussian_
 
     vector<vector<vector<int>>> bound(height, vector<vector<int>>(width));
     map<int, Eigen::VectorXd> interpolation_params;
+    map<int, vector<int>> segments;
     { // Point segmentation and interpolation
         filtered_ptr->EstimateNormals(kdtree_param);
         auto graph = make_shared<Graph>(filtered_ptr, point_neighbors, color_rate);
         auto unionFind = graph->segmentate(point_segment_k, point_size_min);
 
-        map<int, vector<int>> segments;
         for (int i = 0; i < filtered_ptr->points_.size(); i++)
         {
             int root = unionFind->root(i);
@@ -661,9 +647,11 @@ double segmentation(double color_segment_k, int color_size_min, double gaussian_
                 }
             }
         }
+        cv::imshow("range", range_img);
     }
 
     auto interpolated_ptr = make_shared<geometry::PointCloud>();
+    auto base_ptr = make_shared<geometry::PointCloud>();
     vector<vector<double>> interpolated_z(height, vector<double>(width));
     { // Interpolation
         cv::Mat interpolated_range_img = cv::Mat::zeros(height, width, CV_8UC3);
@@ -672,7 +660,12 @@ double segmentation(double color_segment_k, int color_size_min, double gaussian_
             for (int j = 0; j < width; j++)
             {
                 int root = color_segments->root(i * width + j);
-                if (base_z[i][j] > 0 && pixel_surface_map.find(root) != pixel_surface_map.end())
+                if (base_z[i][j] > 0)
+                {
+                    base_ptr->points_.emplace_back(base_z[i][j] * (j - width / 2) / f_x, base_z[i][j] * (i - height / 2) / f_x, base_z[i][j]);
+                }
+
+                if (pixel_surface_map.find(root) != pixel_surface_map.end())
                 {
                     for (auto itr = pixel_surface_map[root].begin(); itr != pixel_surface_map[root].end(); itr++)
                     {
@@ -704,14 +697,7 @@ double segmentation(double color_segment_k, int color_size_min, double gaussian_
 
                         if (z > 0 && z < 100)
                         {
-                            double color = img.at<cv::Vec3b>(i, j)[0] / 255.0;
-                            interpolated_ptr->points_.emplace_back(x, y, z);
-                            interpolated_ptr->colors_.emplace_back(color, color, color);
                             interpolated_z[i][j] = z;
-                            int val = (int)(filtered_ptr->colors_[*itr][0] * 255);
-                            interpolated_range_img.at<cv::Vec3b>(i, j)[0] = val % 256;
-                            interpolated_range_img.at<cv::Vec3b>(i, j)[1] = (val / 256) % 256;
-                            interpolated_range_img.at<cv::Vec3b>(i, j)[2] = (val / 256 / 256) % 256;
                             break;
                         }
                         else
@@ -723,6 +709,121 @@ double segmentation(double color_segment_k, int color_size_min, double gaussian_
                 }
             }
         }
+
+        // Linear interpolation
+        for (int j = 0; j < width; j++)
+        {
+            vector<int> up(height, -1);
+            for (int i = 0; i < height; i++)
+            {
+                if (interpolated_z[i][j] > 0)
+                {
+                    up[i] = i;
+                }
+                else if (i > 0)
+                {
+                    up[i] = up[i - 1];
+                }
+            }
+
+            vector<int> down(height, -1);
+            for (int i = height - 1; i >= 0; i--)
+            {
+                if (interpolated_z[i][j] > 0)
+                {
+                    down[i] = i;
+                }
+                else if (i + 1 < height)
+                {
+                    down[i] = down[i + 1];
+                }
+            }
+
+            for (int i = 0; i < height; i++)
+            {
+                if (up[i] == -1 && down[i] == -1)
+                {
+                    interpolated_z[i][j] = -1;
+                }
+                else if (up[i] == -1 || down[i] == -1 || up[i] == i)
+                {
+                    interpolated_z[i][j] = interpolated_z[max(up[i], down[i])][j];
+                }
+                else
+                {
+                    interpolated_z[i][j] = (interpolated_z[down[i]][j] * (i - up[i]) + interpolated_z[up[i]][j] * (down[i] - i)) / (down[i] - up[i]);
+                }
+            }
+        }
+        for (int i = 0; i < height; i++)
+        {
+            vector<int> left(width, -1);
+            for (int j = 0; j < width; j++)
+            {
+                if (interpolated_z[i][j] > 0)
+                {
+                    left[j] = j;
+                }
+                else if (j > 0)
+                {
+                    left[j] = left[j - 1];
+                }
+            }
+
+            vector<int> right(width, -1);
+            for (int j = width - 1; j >= 0; j--)
+            {
+                if (interpolated_z[i][j] > 0)
+                {
+                    right[j] = j;
+                }
+                else if (j + 1 < width)
+                {
+                    right[j] = right[j + 1];
+                }
+            }
+
+            for (int j = 0; j < width; j++)
+            {
+                if (left[j] == -1 && right[j] == -1)
+                {
+                    interpolated_z[i][j] = -1;
+                }
+                else if (left[j] == -1 || right[j] == -1 || left[j] == j)
+                {
+                    interpolated_z[i][j] = interpolated_z[i][max(left[j], right[j])];
+                }
+                else
+                {
+                    interpolated_z[i][j] = (interpolated_z[i][right[j]] * (j - left[j]) + interpolated_z[i][left[j]] * (right[j] - j)) / (right[j] - left[j]);
+                }
+            }
+        }
+
+        for (int i = 0; i < height; i++)
+        {
+            for (int j = 0; j < width; j++)
+            {
+                double z = interpolated_z[i][j];
+                if (z < 0)
+                {
+                    continue;
+                }
+
+                double x = z * (j - width / 2) / f_x;
+                double y = z * (i - height / 2) / f_x;
+
+                double color = blured.at<cv::Vec3b>(i, j)[0] / 255.0;
+                interpolated_ptr->points_.emplace_back(x, y, z);
+                interpolated_ptr->colors_.emplace_back(color, color, color);
+                int val = (int)(z * 255);
+                interpolated_range_img.at<cv::Vec3b>(i, j)[0] = val % 256;
+                interpolated_range_img.at<cv::Vec3b>(i, j)[1] = (val / 256) % 256;
+                interpolated_range_img.at<cv::Vec3b>(i, j)[2] = (val / 256 / 256) % 256;
+            }
+        }
+
+        cv::imshow("interpolated", interpolated_range_img);
     }
 
     double error_res = 0;
@@ -754,44 +855,81 @@ double segmentation(double color_segment_k, int color_size_min, double gaussian_
     double time = (double)(chrono::duration_cast<chrono::microseconds>(end - start).count() / 1000);
     cout << "Time[ms] = " << time << endl;
 
-    Eigen::MatrixXd front(4, 4);
-    front << 1, 0, 0, 0,
-        0, -1, 0, 0,
-        0, 0, -1, 0,
-        0, 0, 0, 1;
-    pcd_ptr->Transform(front);
-    filtered_ptr->Transform(front);
-    interpolated_ptr->Transform(front);
+    if (see_res)
+    {
+        Eigen::MatrixXd front(4, 4);
+        front << 1, 0, 0, 0,
+            0, -1, 0, 0,
+            0, 0, -1, 0,
+            0, 0, 0, 1;
+        pcd_ptr->Transform(front);
+        filtered_ptr->Transform(front);
+        base_ptr->Transform(front);
+        interpolated_ptr->Transform(front);
 
-    cv::imshow("image", img);
-    cv::imwrite("emoi.png", img);
-    cv::waitKey(0);
-
-    visualization::DrawGeometries({pcd_ptr, interpolated_ptr}, "PointCloud", 1600, 900);
+        cv::imshow("image", blured);
+        cv::waitKey();
+        visualization::DrawGeometries({base_ptr, interpolated_ptr}, "PointCloud", 1600, 900);
+    }
 
     return error_res;
 }
 
 int main(int argc, char *argv[])
 {
+    vector<int> data_nos = {81, 2271, 3037};
+    vector<cv::Mat> imgs;
+    vector<shared_ptr<geometry::PointCloud>> pcd_ptrs;
+    for (int i = 0; i < data_nos.size(); i++)
+    {
+        string img_path = "../" + to_string(data_nos[i]) + ".png";
+        imgs.emplace_back(cv::imread(img_path));
+
+        string pcd_path = "../" + to_string(data_nos[i]) + ".pcd";
+        geometry::PointCloud pointcloud;
+        auto pcd_ptr = make_shared<geometry::PointCloud>();
+        if (!io::ReadPointCloud(pcd_path, pointcloud))
+        {
+            return 0;
+        }
+
+        *pcd_ptr = pointcloud;
+        // Calibration
+        for (int j = 0; j < pcd_ptr->points_.size(); j++)
+        {
+            double x = pcd_ptr->points_[j][1];
+            double y = -pcd_ptr->points_[j][2];
+            double z = -pcd_ptr->points_[j][0] + 0.03;
+            pcd_ptr->points_[j] = Eigen::Vector3d(x, y, z);
+        }
+        pcd_ptrs.emplace_back(pcd_ptr);
+    }
+
     // Best
-    cout << segmentation(30, 0, 0.5, 6, 2, 3, 0, 81) << endl;
-    cout << segmentation(30, 0, 0.5, 6, 2, 3, 0, 2271) << endl;
-    cout << segmentation(30, 0, 0.5, 6, 2, 3, 0, 3037) << endl;
+    //Transformさせるとハイパラ調整がズレるのでハイパラ調整時はコメントアウト
+    /*
+    for (int i = 0; i < data_nos.size(); i++)
+    {
+        cout << segmentation(imgs[i], pcd_ptrs[i], 0, 0, 0.5, 6, 0, 3, 1) << endl;
+    }
+    */
+    //cout << segmentation(30, 0, 0.5, 6, 2, 3, 0, 81, true) << endl;
+    //cout << segmentation(30, 0, 0.5, 6, 2, 3, 0, 2271) << endl;
+    //cout << segmentation(30, 0, 0.5, 6, 2, 3, 0, 3037) << endl;
     //cout << segmentation(10, 8, 0.5, 6, 0.9, 3, 0.5) << endl;
     //cout << segmentation(28, 15, 0.5, 6, 2.8, 3, 2.1) << endl;
 
-    /*
     double best_error = 100;
     double best_color_segment_k = 1;
     int best_color_size_min = 1;
     double best_point_segment_k = 1;
     double best_color_rate = 0.1;
-    vector<int> data_nos = {81, 2271, 3037};
     // 2020/6/7 best params : 0 1 2 0
     // 2020/6/8 best params : 2 0 2 0
+    // 2020/6/9 best params : 2 2 5 0
+    // 2020/6/9 best params : 10 3 3 9
 
-    for (double color_segment_k = 0; color_segment_k < 5; color_segment_k += 1)
+    for (double color_segment_k = 5; color_segment_k < 15; color_segment_k += 1)
     {
         for (int color_size_min = 0; color_size_min < 10; color_size_min += 1)
         {
@@ -802,7 +940,7 @@ int main(int argc, char *argv[])
                     double error = 0;
                     for (int i = 0; i < data_nos.size(); i++)
                     {
-                        error += segmentation(color_segment_k, color_size_min, 0.5, 6, point_segment_k, 3, color_rate, data_nos[i]);
+                        error += segmentation(imgs[i], pcd_ptrs[i], color_segment_k, color_size_min, 0.5, 6, point_segment_k, 3, color_rate);
                     }
                     error /= data_nos.size();
 
@@ -813,6 +951,7 @@ int main(int argc, char *argv[])
                         best_color_size_min = color_size_min;
                         best_point_segment_k = point_segment_k;
                         best_color_rate = color_rate;
+                        cout << color_segment_k << color_size_min << point_segment_k << color_rate << endl;
                         cout << "Error = " << error << endl;
                     }
                 }
@@ -824,53 +963,6 @@ int main(int argc, char *argv[])
     cout << "Color size min = " << best_color_size_min << endl;
     cout << "Point segment k = " << best_point_segment_k << endl;
     cout << "Color rate = " << best_color_rate << endl;
-    */
-
-    /*
-    double best_error = 100;
-    double best_color_segment_k = 40;
-    int best_color_size_min = 3;
-    for (double color_segment_k = 10; color_segment_k < 100; color_segment_k += 1)
-    {
-        for (int color_size_min = 1; color_size_min < 20; color_size_min += 1)
-        {
-            double error = segmentation(color_segment_k, color_size_min, 0.5, 6, 0.9, 3, 0.5);
-            if (best_error > error)
-            {
-                best_error = error;
-                best_color_segment_k = color_segment_k;
-                best_color_size_min = color_size_min;
-                cout << "Error = " << error << endl;
-            }
-        }
-    }
-
-    cout << "Color segment k = " << best_color_segment_k << endl;
-    cout << "Color segment min = " << best_color_size_min << endl;
-    */
-
-    /*
-    double best_error = 100;
-    double best_rate = 0;
-    double best_point_segment_k = 0;
-    for (double color_rate = 0; color_rate < 10; color_rate += 0.1)
-    {
-        for (double point_segment_k = 0; point_segment_k < 3; point_segment_k += 0.1)
-        {
-            double error = segmentation(28, 15, 0.5, 6, point_segment_k, 3, color_rate);
-            if (best_error > error)
-            {
-                best_error = error;
-                best_rate = color_rate;
-                best_point_segment_k = point_segment_k;
-                cout << "Error = " << error << endl;
-            }
-        }
-    }
-
-    cout << "Color rate = " << best_rate << endl;
-    cout << "Point segment k = " << best_point_segment_k << endl;
-    */
 
     return 0;
 }
