@@ -928,6 +928,7 @@ int main(int argc, char *argv[])
     // 2020/6/8 best params : 2 0 2 0
     // 2020/6/9 best params : 2 2 5 0
     // 2020/6/9 best params : 10 3 3 9
+    // 2020/6/10 best params : 5 2 5 0
 
     for (double color_segment_k = 5; color_segment_k < 15; color_segment_k += 1)
     {
