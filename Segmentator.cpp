@@ -922,7 +922,7 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < data_nos.size(); i++)
     {
-        cout << segmentation(imgs[i], pcd_ptrs[i], 5, 2, 0.5, 6, 5, 3, 0) << endl;
+        cout << segmentation(imgs[i], pcd_ptrs[i], 0, 0, 0.5, 6, 9, 3, 7) << endl;
     }
 
     //cout << segmentation(30, 0, 0.5, 6, 2, 3, 0, 81, true) << endl;
