@@ -877,7 +877,7 @@ double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, doubl
 
 int main(int argc, char *argv[])
 {
-    vector<int> data_nos = {81, 2271, 3037};
+    vector<int> data_nos = {1000, 1125, 1260, 1550};
     vector<cv::Mat> imgs;
     vector<shared_ptr<geometry::PointCloud>> pcd_ptrs;
     for (int i = 0; i < data_nos.size(); i++)
@@ -895,24 +895,36 @@ int main(int argc, char *argv[])
 
         *pcd_ptr = pointcloud;
         // Calibration
+        double X = 500;
+        double Y = 550;
+        double Z = 480;
+        double theta = 505;
         for (int j = 0; j < pcd_ptr->points_.size(); j++)
         {
-            double x = pcd_ptr->points_[j][1];
-            double y = -pcd_ptr->points_[j][2];
-            double z = -pcd_ptr->points_[j][0] + 0.03;
+            double rawX = pcd_ptr->points_[j][1];
+            double rawY = -pcd_ptr->points_[j][2];
+            double rawZ = -pcd_ptr->points_[j][0];
+
+            double xp = rawX * cos((theta - 500) / 1000.0) - rawZ * sin((theta - 500) / 1000.0);
+            double yp = rawY;
+            double zp = rawX * sin((theta - 500) / 1000.0) + rawZ * cos((theta - 500) / 1000.0);
+            double x = xp + (X - 500) / 100.0;
+            double y = yp + (Y - 500) / 100.0;
+            double z = zp + (Z - 500) / 100.0;
+
             pcd_ptr->points_[j] = Eigen::Vector3d(x, y, z);
         }
         pcd_ptrs.emplace_back(pcd_ptr);
     }
 
     // Best
-    //Transformさせるとハイパラ調整がズレるのでハイパラ調整時はコメントアウト
-    /*
+    //Transformさせるとハイパラ調整がズレるのでハイパラ調整時は描画なし
+
     for (int i = 0; i < data_nos.size(); i++)
     {
-        cout << segmentation(imgs[i], pcd_ptrs[i], 0, 0, 0.5, 6, 0, 3, 1) << endl;
+        cout << segmentation(imgs[i], pcd_ptrs[i], 5, 2, 0.5, 6, 5, 3, 0) << endl;
     }
-    */
+
     //cout << segmentation(30, 0, 0.5, 6, 2, 3, 0, 81, true) << endl;
     //cout << segmentation(30, 0, 0.5, 6, 2, 3, 0, 2271) << endl;
     //cout << segmentation(30, 0, 0.5, 6, 2, 3, 0, 3037) << endl;
@@ -929,8 +941,9 @@ int main(int argc, char *argv[])
     // 2020/6/9 best params : 2 2 5 0
     // 2020/6/9 best params : 10 3 3 9
     // 2020/6/10 best params : 5 2 5 0
+    // 2020/6/11 best params : 0 0 9 7
 
-    for (double color_segment_k = 5; color_segment_k < 15; color_segment_k += 1)
+    for (double color_segment_k = 0; color_segment_k < 5; color_segment_k += 1)
     {
         for (int color_size_min = 0; color_size_min < 10; color_size_min += 1)
         {
