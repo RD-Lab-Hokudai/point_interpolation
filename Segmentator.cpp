@@ -877,15 +877,15 @@ double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, doubl
 
 int main(int argc, char *argv[])
 {
-    vector<int> data_nos = {1000, 1125, 1260, 1550};
+    vector<int> data_nos = {550, 1000, 1125, 1260, 1550};
     vector<cv::Mat> imgs;
     vector<shared_ptr<geometry::PointCloud>> pcd_ptrs;
     for (int i = 0; i < data_nos.size(); i++)
     {
-        string img_path = "../" + to_string(data_nos[i]) + ".png";
+        string img_path = "../../../data/2020_03_03_miyanosawa_img_pcd/" + to_string(data_nos[i]) + ".png";
         imgs.emplace_back(cv::imread(img_path));
 
-        string pcd_path = "../" + to_string(data_nos[i]) + ".pcd";
+        string pcd_path = "../../../data/2020_03_03_miyanosawa_img_pcd/" + to_string(data_nos[i]) + ".pcd";
         geometry::PointCloud pointcloud;
         auto pcd_ptr = make_shared<geometry::PointCloud>();
         if (!io::ReadPointCloud(pcd_path, pointcloud))
@@ -896,18 +896,22 @@ int main(int argc, char *argv[])
         *pcd_ptr = pointcloud;
         // Calibration
         double X = 500;
-        double Y = 550;
-        double Z = 480;
-        double theta = 505;
+        double Y = 474;
+        double Z = 458;
+        double theta = 506;
+        double phi = 527;
         for (int j = 0; j < pcd_ptr->points_.size(); j++)
         {
             double rawX = pcd_ptr->points_[j][1];
             double rawY = -pcd_ptr->points_[j][2];
             double rawZ = -pcd_ptr->points_[j][0];
 
-            double xp = rawX * cos((theta - 500) / 1000.0) - rawZ * sin((theta - 500) / 1000.0);
-            double yp = rawY;
-            double zp = rawX * sin((theta - 500) / 1000.0) + rawZ * cos((theta - 500) / 1000.0);
+            double r = sqrt(rawX * rawX + rawZ * rawZ);
+            double thetaVal = (theta - 500) / 1000.0;
+            double phiVal = (phi - 500) / 1000.0;
+            double xp = (rawX * cos(phiVal) - rawY * sin(phiVal)) * cos(thetaVal) - (rawZ * cos(phiVal) - rawY * sin(phiVal)) * sin(thetaVal);
+            double yp = rawY * cos(phiVal) + r * sin(phiVal);
+            double zp = (rawX * cos(phiVal) - rawY * sin(phiVal)) * sin(thetaVal) + (rawZ * cos(phiVal) - rawY * sin(phiVal)) * cos(thetaVal);
             double x = xp + (X - 500) / 100.0;
             double y = yp + (Y - 500) / 100.0;
             double z = zp + (Z - 500) / 100.0;
@@ -922,7 +926,7 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < data_nos.size(); i++)
     {
-        cout << segmentation(imgs[i], pcd_ptrs[i], 0, 0, 0.5, 6, 9, 3, 7) << endl;
+        cout << segmentation(imgs[i], pcd_ptrs[i], 20, 6, 0.5, 6, 1, 3, 6, true) << endl;
     }
 
     //cout << segmentation(30, 0, 0.5, 6, 2, 3, 0, 81, true) << endl;
@@ -942,8 +946,9 @@ int main(int argc, char *argv[])
     // 2020/6/9 best params : 10 3 3 9
     // 2020/6/10 best params : 5 2 5 0
     // 2020/6/11 best params : 0 0 9 7
+    // 2020/6/12 best params : 20 6 1 6
 
-    for (double color_segment_k = 0; color_segment_k < 5; color_segment_k += 1)
+    for (double color_segment_k = 0; color_segment_k < 100; color_segment_k += 10)
     {
         for (int color_size_min = 0; color_size_min < 10; color_size_min += 1)
         {

@@ -20,8 +20,8 @@ const double f_x = width / 2 * 1.01;
 
 int main(int argc, char *argv[])
 {
-    const string img_name = "../1550.png";
-    const string file_name = "../1550.pcd";
+    const string img_name = "../../../data/2020_03_03_miyanosawa_img_pcd/1550.png";
+    const string file_name = "../../../data/2020_03_03_miyanosawa_img_pcd/1550.pcd";
     const bool vertical = true;
 
     auto img = cv::imread(img_name);
