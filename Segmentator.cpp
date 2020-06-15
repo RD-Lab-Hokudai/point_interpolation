@@ -951,7 +951,7 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < data_nos.size(); i++)
     {
-        cout << segmentation(imgs[i], pcd_ptrs[i], downed_ptrs[i], 10, 2, 0.5, 6, 1, 3, 0.9, true) << endl;
+        cout << segmentation(imgs[i], pcd_ptrs[i], downed_ptrs[i], 10, 2, 0.5, 6, 1, 3, 0.9, false) << endl;
     }
 
     //cout << segmentation(30, 0, 0.5, 6, 2, 3, 0, 81, true) << endl;

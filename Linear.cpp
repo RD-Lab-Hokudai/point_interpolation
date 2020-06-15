@@ -20,10 +20,10 @@ const int height = 606;
 //const int height = 560;
 const double f_x = width / 2 * 1.01;
 
-int main(int argc, char *argv[])
+void segmentate(int data_no, bool see_res = false)
 {
-    const string img_name = "../../../data/2020_03_03_miyanosawa_img_pcd/1550.png";
-    const string file_name = "../../../data/2020_03_03_miyanosawa_img_pcd/1550.pcd";
+    const string img_name = "../../../data/2020_03_03_miyanosawa_img_pcd/" + to_string(data_no) + ".png";
+    const string file_name = "../../../data/2020_03_03_miyanosawa_img_pcd/" + to_string(data_no) + ".pcd";
     const bool vertical = true;
 
     auto img = cv::imread(img_name);
@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
             {
                 auto it = lower_bound(tans.begin(), tans.end(), y / sqrt(x * x + z * z));
                 int index = it - tans.begin();
-                if (index % 8 == 0)
+                if (index % 4 == 0)
                 {
                     filtered_ptr->points_.emplace_back(pcd_ptr->points_[i]);
                     filtered_z[v][u] = pcd_ptr->points_[i][2];
@@ -314,19 +314,30 @@ int main(int argc, char *argv[])
         cout << "Error = " << error / cnt << endl;
     }
 
-    Eigen::MatrixXd front(4, 4);
-    front << 1, 0, 0, 0,
-        0, -1, 0, 0,
-        0, 0, -1, 0,
-        0, 0, 0, 1;
-    pcd_ptr->Transform(front);
-    filtered_ptr->Transform(front);
-    linear_interpolation_ptr->Transform(front);
+    if (see_res)
+    {
+        Eigen::MatrixXd front(4, 4);
+        front << 1, 0, 0, 0,
+            0, -1, 0, 0,
+            0, 0, -1, 0,
+            0, 0, 0, 1;
+        pcd_ptr->Transform(front);
+        filtered_ptr->Transform(front);
+        linear_interpolation_ptr->Transform(front);
 
-    cv::imshow("a", img);
-    cv::waitKey();
+        cv::imshow("img", img);
+        cv::waitKey();
 
-    visualization::DrawGeometries({linear_interpolation_ptr}, "PointCloud", 1600, 900);
+        visualization::DrawGeometries({linear_interpolation_ptr}, "PointCloud", 1600, 900);
+    }
+}
 
+int main(int argc, char *argv[])
+{
+    vector<int> data_nos = {550, 1000, 1125, 1260, 1550};
+    for (int i = 0; i < data_nos.size(); i++)
+    {
+        segmentate(data_nos[i], true);
+    }
     return 0;
 }

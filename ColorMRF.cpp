@@ -55,6 +55,7 @@ void segmentate(int data_no, int w_trim, bool see_res = false)
     int length = width * height;
     vector<cv::Vec3b> params_x(length);
     Eigen::VectorXd params_z(length);
+    cv::Mat projected_img = cv::Mat::zeros(height, width, CV_8UC3);
 
     auto filtered_ptr = make_shared<geometry::PointCloud>();
     vector<vector<double>> base_z(height, vector<double>(width));
@@ -87,6 +88,7 @@ void segmentate(int data_no, int w_trim, bool see_res = false)
                 {
                     filtered_ptr->points_.emplace_back(pcd_ptr->points_[i]);
                     params_z[v * width + u] = pcd_ptr->points_[i][2];
+                    projected_img.at<cv::Vec3b>(v, u) = cv::Vec3b(255, 0, 0);
                 }
                 base_z[v][u] = pcd_ptr->points_[i][2];
             }
@@ -100,6 +102,10 @@ void segmentate(int data_no, int w_trim, bool see_res = false)
         for (int j = 0; j < width; j++)
         {
             params_x[i * width + j] = img.at<cv::Vec3b>(i, j);
+            if (projected_img.at<cv::Vec3b>(i, j)[0] != 255)
+            {
+                projected_img.at<cv::Vec3b>(i, j) = img.at<cv::Vec3b>(i, j);
+            }
         }
     }
 
@@ -227,7 +233,8 @@ void segmentate(int data_no, int w_trim, bool see_res = false)
         filtered_ptr->Transform(front);
         color_mrf_ptr->Transform(front);
 
-        cv::imshow("img", img);
+        cv::imshow("img", projected_img);
+        cv::waitKey();
         visualization::DrawGeometries({color_mrf_ptr}, "PointCloud", 1600, 900);
     }
 }
@@ -235,11 +242,14 @@ void segmentate(int data_no, int w_trim, bool see_res = false)
 int main(int argc, char *argv[])
 {
     vector<int> data_nos = {550, 1000, 1125, 1260, 1550};
+    segmentate(550, 100, true);
+
     for (int i = 0; i < data_nos.size(); i++)
     {
+        cout << "--- No." << data_nos[i] << " ---" << endl;
         for (int w_trim = 100; w_trim < width; w_trim += 100)
         {
-            segmentate(data_nos[i], w_trim, true);
+            segmentate(data_nos[i], w_trim, false);
         }
         segmentate(data_nos[i], width, false);
     }
