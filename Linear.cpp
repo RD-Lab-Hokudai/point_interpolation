@@ -14,8 +14,10 @@
 using namespace std;
 using namespace open3d;
 
-const int width = 882;
-const int height = 560;
+const int width = 938;
+const int height = 606;
+//const int width = 882;
+//const int height = 560;
 const double f_x = width / 2 * 1.01;
 
 int main(int argc, char *argv[])
@@ -28,13 +30,13 @@ int main(int argc, char *argv[])
 
     vector<double> tans;
     double PI = acos(-1);
-    double rad = (-16.6 - 0.265) * PI / 180;
-    double delta_rad = 0.53 * PI / 180;
-    double max_rad = (16.6 + 0.265) * PI / 180;
-    while (rad < max_rad - 0.000001)
+    double rad = (-16.6 + 0.26349) * PI / 180;
+    double delta_rad = 0.52698 * PI / 180;
+    double max_rad = (16.6 + 0.26349) * PI / 180;
+    while (rad < max_rad + 0.00001)
     {
-        rad += delta_rad;
         tans.emplace_back(tan(rad));
+        rad += delta_rad;
     }
 
     int length = width * height;
@@ -64,9 +66,9 @@ int main(int argc, char *argv[])
             int v = (int)(height / 2 + f_x * y / z);
             if (0 <= u && u < width && 0 <= v && v < height)
             {
-                auto it = lower_bound(tans.begin(), tans.end(), y / z);
+                auto it = lower_bound(tans.begin(), tans.end(), y / sqrt(x * x + z * z));
                 int index = it - tans.begin();
-                if (index % 4 == 0)
+                if (index % 8 == 0)
                 {
                     filtered_ptr->points_.emplace_back(pcd_ptr->points_[i]);
                     filtered_z[v][u] = pcd_ptr->points_[i][2];
@@ -308,7 +310,6 @@ int main(int argc, char *argv[])
                 }
             }
         }
-        cout << error << endl;
         cout << "cannot cnt = " << cannot_cnt - cnt << endl;
         cout << "Error = " << error / cnt << endl;
     }

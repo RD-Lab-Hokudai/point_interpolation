@@ -323,7 +323,7 @@ vector<Eigen::Vector2i> get_convex_hull(vector<Eigen::Vector2i> uvs)
     return ch;
 }
 
-double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, double color_segment_k, int color_size_min, double gaussian_sigma, int point_neighbors, double point_segment_k, int point_size_min, double color_rate, bool see_res = false)
+double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, shared_ptr<geometry::PointCloud> downed_ptr, double color_segment_k, int color_size_min, double gaussian_sigma, int point_neighbors, double point_segment_k, int point_size_min, double color_rate, bool see_res = false)
 {
     auto start = chrono::system_clock::now();
     const int width = img.cols;
@@ -352,24 +352,12 @@ double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, doubl
                 blured.at<cv::Vec3b>(i, j)[2] = color[2];
             }
         }
-        // cout << "Segments: " << segment_cnt << endl;
     }
 
     auto filtered_ptr = make_shared<geometry::PointCloud>();
     vector<vector<double>> base_z(height, vector<double>(width));
     vector<vector<double>> filtered_z(height, vector<double>(width));
-    { // Down sampling
-        vector<double> tans;
-        double PI = acos(-1);
-        double rad = (-16.6 - 0.265) * PI / 180;
-        double delta_rad = 0.53 * PI / 180;
-        double max_rad = (16.6 + 0.265) * PI / 180;
-        while (rad < max_rad - 0.000001)
-        {
-            rad += delta_rad;
-            tans.emplace_back(tan(rad));
-        }
-
+    { //Register filtered points and base points
         for (int i = 0; i < pcd_ptr->points_.size(); i++)
         {
             double x = pcd_ptr->points_[i][0];
@@ -382,29 +370,38 @@ double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, doubl
                 int v = (int)(height / 2 + f_x * y / z);
                 if (0 <= u && u < width && 0 <= v && v < height)
                 {
-                    auto it = lower_bound(tans.begin(), tans.end(), y / z);
-                    int index = it - tans.begin();
-                    if (index % 4 == 0)
-                    {
-                        if (blured.at<cv::Vec3b>(v, u)[0] == 255 && blured.at<cv::Vec3b>(v, u)[1] == 0 && blured.at<cv::Vec3b>(v, u)[2] == 0)
-                        {
-                            continue;
-                        }
-                        else
-                        {
-                            filtered_ptr->points_.emplace_back(pcd_ptr->points_[i]);
-                            filtered_ptr->colors_.emplace_back(blured.at<cv::Vec3b>(v, u)[0] / 255.0, blured.at<cv::Vec3b>(v, u)[1] / 255.0, blured.at<cv::Vec3b>(v, u)[2] / 255.0);
-                            blured.at<cv::Vec3b>(v, u)[0] = 255;
-                            blured.at<cv::Vec3b>(v, u)[1] = 0;
-                            blured.at<cv::Vec3b>(v, u)[2] = 0;
-                        }
-                        filtered_z[v][u] = z;
-                    }
                     base_z[v][u] = z;
                 }
             }
+        }
 
-            //pcd_ptr->points_[i][0] += 100;
+        for (int i = 0; i < downed_ptr->points_.size(); i++)
+        {
+            double x = downed_ptr->points_[i][0];
+            double y = downed_ptr->points_[i][1];
+            double z = downed_ptr->points_[i][2];
+
+            if (z > 0)
+            {
+                int u = (int)(width / 2 + f_x * x / z);
+                int v = (int)(height / 2 + f_x * y / z);
+                if (0 <= u && u < width && 0 <= v && v < height)
+                {
+                    if (blured.at<cv::Vec3b>(v, u)[0] == 255 && blured.at<cv::Vec3b>(v, u)[1] == 0 && blured.at<cv::Vec3b>(v, u)[2] == 0)
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        filtered_ptr->points_.emplace_back(downed_ptr->points_[i]);
+                        filtered_ptr->colors_.emplace_back(blured.at<cv::Vec3b>(v, u)[0] / 255.0, blured.at<cv::Vec3b>(v, u)[1] / 255.0, blured.at<cv::Vec3b>(v, u)[2] / 255.0);
+                        blured.at<cv::Vec3b>(v, u)[0] = 255;
+                        blured.at<cv::Vec3b>(v, u)[1] = 0;
+                        blured.at<cv::Vec3b>(v, u)[2] = 0;
+                    }
+                    filtered_z[v][u] = z;
+                }
+            }
         }
     }
 
@@ -455,6 +452,7 @@ double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, doubl
     vector<vector<vector<int>>> bound(height, vector<vector<int>>(width));
     map<int, Eigen::VectorXd> interpolation_params;
     map<int, vector<int>> segments;
+    auto segmented_ptr = make_shared<geometry::PointCloud>();
     { // Point segmentation and interpolation
         filtered_ptr->EstimateNormals(kdtree_param);
         auto graph = make_shared<Graph>(filtered_ptr, point_neighbors, color_rate);
@@ -464,6 +462,11 @@ double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, doubl
         {
             int root = unionFind->root(i);
             segments[root].emplace_back(i);
+            segmented_ptr->points_.emplace_back(filtered_ptr->points_[i]);
+            double r = (root % 256) / 256.0;
+            double g = (root / 256 % 256) / 256.0;
+            double b = (root / 256 / 256 % 256) / 256.0;
+            segmented_ptr->colors_.emplace_back(r, g, b);
         }
 
         cv::Mat bound_img = cv::Mat::zeros(height, width, CV_8UC3);
@@ -700,11 +703,6 @@ double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, doubl
                             interpolated_z[i][j] = z;
                             break;
                         }
-                        else
-                        {
-                            //cout << params << endl;
-                            //cout << root << " " << b * b - 4 * a * c << " " << a << " " << b << " " << c << " " << x << " " << y << " " << z << endl;
-                        }
                     }
                 }
             }
@@ -866,9 +864,11 @@ double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, doubl
         filtered_ptr->Transform(front);
         base_ptr->Transform(front);
         interpolated_ptr->Transform(front);
+        segmented_ptr->Transform(front);
 
         cv::imshow("image", blured);
         cv::waitKey();
+        visualization::DrawGeometries({segmented_ptr}, "PointCloud", 1600, 900);
         visualization::DrawGeometries({base_ptr, interpolated_ptr}, "PointCloud", 1600, 900);
     }
 
@@ -880,6 +880,26 @@ int main(int argc, char *argv[])
     vector<int> data_nos = {550, 1000, 1125, 1260, 1550};
     vector<cv::Mat> imgs;
     vector<shared_ptr<geometry::PointCloud>> pcd_ptrs;
+    vector<shared_ptr<geometry::PointCloud>> downed_ptrs;
+
+    // Calibration
+    double X = 500;
+    double Y = 474;
+    double Z = 458;
+    double theta = 506;
+    double phi = 527;
+
+    vector<double> tans;
+    double PI = acos(-1);
+    double rad = (-16.6 + 0.26349) * PI / 180;
+    double delta_rad = 0.52698 * PI / 180;
+    double max_rad = (16.6 + 0.26349) * PI / 180;
+    while (rad < max_rad + 0.00001)
+    {
+        tans.emplace_back(tan(rad));
+        rad += delta_rad;
+    }
+
     for (int i = 0; i < data_nos.size(); i++)
     {
         string img_path = "../../../data/2020_03_03_miyanosawa_img_pcd/" + to_string(data_nos[i]) + ".png";
@@ -894,12 +914,8 @@ int main(int argc, char *argv[])
         }
 
         *pcd_ptr = pointcloud;
-        // Calibration
-        double X = 500;
-        double Y = 474;
-        double Z = 458;
-        double theta = 506;
-        double phi = 527;
+
+        auto downed_ptr = make_shared<geometry::PointCloud>();
         for (int j = 0; j < pcd_ptr->points_.size(); j++)
         {
             double rawX = pcd_ptr->points_[j][1];
@@ -917,8 +933,17 @@ int main(int argc, char *argv[])
             double z = zp + (Z - 500) / 100.0;
 
             pcd_ptr->points_[j] = Eigen::Vector3d(x, y, z);
+
+            // Down sampling
+            auto it = lower_bound(tans.begin(), tans.end(), rawY / r);
+            int index = it - tans.begin();
+            if (index % 4 == 0)
+            {
+                downed_ptr->points_.emplace_back(x, y, z);
+            }
         }
         pcd_ptrs.emplace_back(pcd_ptr);
+        downed_ptrs.emplace_back(downed_ptr);
     }
 
     // Best
@@ -926,7 +951,7 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < data_nos.size(); i++)
     {
-        cout << segmentation(imgs[i], pcd_ptrs[i], 20, 6, 0.5, 6, 1, 3, 6, true) << endl;
+        cout << segmentation(imgs[i], pcd_ptrs[i], downed_ptrs[i], 10, 2, 0.5, 6, 1, 3, 0.9, true) << endl;
     }
 
     //cout << segmentation(30, 0, 0.5, 6, 2, 3, 0, 81, true) << endl;
@@ -947,6 +972,7 @@ int main(int argc, char *argv[])
     // 2020/6/10 best params : 5 2 5 0
     // 2020/6/11 best params : 0 0 9 7
     // 2020/6/12 best params : 20 6 1 6
+    // 2020/6/15 best params : 10 2 1 0.9
 
     for (double color_segment_k = 0; color_segment_k < 100; color_segment_k += 10)
     {
@@ -954,12 +980,12 @@ int main(int argc, char *argv[])
         {
             for (double point_segment_k = 0; point_segment_k < 10; point_segment_k += 1)
             {
-                for (double color_rate = 0; color_rate < 10; color_rate += 1)
+                for (double color_rate = 0; color_rate < 20; color_rate += 1)
                 {
                     double error = 0;
                     for (int i = 0; i < data_nos.size(); i++)
                     {
-                        error += segmentation(imgs[i], pcd_ptrs[i], color_segment_k, color_size_min, 0.5, 6, point_segment_k, 3, color_rate);
+                        error += segmentation(imgs[i], pcd_ptrs[i], downed_ptrs[i], color_segment_k, color_size_min, 0.5, 6, point_segment_k, 3, color_rate);
                     }
                     error /= data_nos.size();
 

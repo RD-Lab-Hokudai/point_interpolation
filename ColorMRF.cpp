@@ -14,14 +14,23 @@
 using namespace std;
 using namespace open3d;
 
-const int width = 882;
-const int height = 560;
+const int width = 938;
+const int height = 606;
+//const int width = 882;
+//const int height = 560;
 const double f_x = width / 2 * 1.01;
+
+// Calibration
+double X = 500;
+double Y = 474;
+double Z = 458;
+double theta = 506;
+double phi = 527;
 
 void segmentate(int data_no, int w_trim, bool see_res = false)
 {
-    string img_path = "../" + to_string(data_no) + ".png";
-    string pcd_path = "../" + to_string(data_no) + ".pcd";
+    string img_path = "../../../data/2020_03_03_miyanosawa_img_pcd/" + to_string(data_no) + ".png";
+    string pcd_path = "../../../data/2020_03_03_miyanosawa_img_pcd/" + to_string(data_no) + ".pcd";
 
     auto img = cv::imread(img_path);
     geometry::PointCloud pointcloud;
@@ -34,13 +43,13 @@ void segmentate(int data_no, int w_trim, bool see_res = false)
 
     vector<double> tans;
     double PI = acos(-1);
-    double rad = (-16.6 - 0.265) * PI / 180;
-    double delta_rad = 0.53 * PI / 180;
-    double max_rad = (16.6 + 0.265) * PI / 180;
-    while (rad < max_rad - 0.000001)
+    double rad = (-16.6 + 0.26349) * PI / 180;
+    double delta_rad = 0.52698 * PI / 180;
+    double max_rad = (16.6 + 0.26349) * PI / 180;
+    while (rad < max_rad + 0.00001)
     {
-        rad += delta_rad;
         tans.emplace_back(tan(rad));
+        rad += delta_rad;
     }
 
     int length = width * height;
@@ -51,9 +60,20 @@ void segmentate(int data_no, int w_trim, bool see_res = false)
     vector<vector<double>> base_z(height, vector<double>(width));
     for (int i = 0; i < pcd_ptr->points_.size(); i++)
     {
-        double x = pcd_ptr->points_[i][1];
-        double y = -pcd_ptr->points_[i][2];
-        double z = -pcd_ptr->points_[i][0];
+        double rawX = pcd_ptr->points_[i][1];
+        double rawY = -pcd_ptr->points_[i][2];
+        double rawZ = -pcd_ptr->points_[i][0];
+
+        double r = sqrt(rawX * rawX + rawZ * rawZ);
+        double thetaVal = (theta - 500) / 1000.0;
+        double phiVal = (phi - 500) / 1000.0;
+        double xp = (rawX * cos(phiVal) - rawY * sin(phiVal)) * cos(thetaVal) - (rawZ * cos(phiVal) - rawY * sin(phiVal)) * sin(thetaVal);
+        double yp = rawY * cos(phiVal) + r * sin(phiVal);
+        double zp = (rawX * cos(phiVal) - rawY * sin(phiVal)) * sin(thetaVal) + (rawZ * cos(phiVal) - rawY * sin(phiVal)) * cos(thetaVal);
+        double x = xp + (X - 500) / 100.0;
+        double y = yp + (Y - 500) / 100.0;
+        double z = zp + (Z - 500) / 100.0;
+
         pcd_ptr->points_[i] = Eigen::Vector3d(x, y, z);
         if (pcd_ptr->points_[i][2] > 0)
         {
@@ -61,7 +81,7 @@ void segmentate(int data_no, int w_trim, bool see_res = false)
             int v = (int)(height / 2 + f_x * y / z);
             if (0 <= u && u < width && 0 <= v && v < height)
             {
-                auto it = lower_bound(tans.begin(), tans.end(), y / z);
+                auto it = lower_bound(tans.begin(), tans.end(), rawY / r);
                 int index = it - tans.begin();
                 if (index % 4 == 0)
                 {
@@ -214,12 +234,12 @@ void segmentate(int data_no, int w_trim, bool see_res = false)
 
 int main(int argc, char *argv[])
 {
-    vector<int> data_nos = {81, 2271, 3037};
-    for (int i = 0; i < 3; i++)
+    vector<int> data_nos = {550, 1000, 1125, 1260, 1550};
+    for (int i = 0; i < data_nos.size(); i++)
     {
         for (int w_trim = 100; w_trim < width; w_trim += 100)
         {
-            segmentate(data_nos[i], w_trim, false);
+            segmentate(data_nos[i], w_trim, true);
         }
         segmentate(data_nos[i], width, false);
     }
