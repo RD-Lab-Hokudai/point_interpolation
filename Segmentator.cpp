@@ -331,28 +331,7 @@ double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, share
     const double f_x = width / 2 * 1.01;
 
     cv::Mat blured;
-    shared_ptr<UnionFind> color_segments;
-    { // Image segmentation
-        cv::GaussianBlur(img, blured, cv::Size(3, 3), gaussian_sigma);
-        auto graph = make_shared<Graph>(&blured);
-        color_segments = graph->segmentate(color_segment_k, color_size_min);
-        int segment_cnt = 0;
-        for (int i = 0; i < blured.rows; i++)
-        {
-            for (int j = 0; j < blured.cols; j++)
-            {
-                int parent = color_segments->root(i * width + j);
-                if (parent == i * blured.cols + j)
-                {
-                    segment_cnt++;
-                }
-                auto color = blured.at<cv::Vec3b>(parent / width, parent % width);
-                blured.at<cv::Vec3b>(i, j)[0] = color[0];
-                blured.at<cv::Vec3b>(i, j)[1] = color[1];
-                blured.at<cv::Vec3b>(i, j)[2] = color[2];
-            }
-        }
-    }
+    cv::GaussianBlur(img, blured, cv::Size(3, 3), gaussian_sigma);
 
     auto filtered_ptr = make_shared<geometry::PointCloud>();
     vector<vector<double>> base_z(height, vector<double>(width));
@@ -564,11 +543,8 @@ double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, share
             }
 
             Eigen::VectorXd linear_param(3);
-            Eigen::VectorXd quadra_param(6);
             linear_param << 0, 0, 0;
-            quadra_param << 0, 0, 0, 0, 0, 0;
             misra1a_functor linear_functor(value.size(), &xs[0], &ys[0], &zs[0]);
-            misra1a_functor2 quadra_functor(value.size(), &xs[0], &ys[0], &zs[0]);
 
             Eigen::NumericalDiff<misra1a_functor> linear_numDiff(linear_functor);
             Eigen::LevenbergMarquardt<Eigen::NumericalDiff<misra1a_functor>> linear_lm(linear_numDiff);
@@ -576,6 +552,9 @@ double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, share
 
             if (value.size() >= 6)
             {
+                Eigen::VectorXd quadra_param(6);
+                quadra_param << 0, 0, 0, 0, 0, 0;
+                misra1a_functor2 quadra_functor(value.size(), &xs[0], &ys[0], &zs[0]);
                 Eigen::NumericalDiff<misra1a_functor2> quadra_numDiff(quadra_functor);
                 Eigen::LevenbergMarquardt<Eigen::NumericalDiff<misra1a_functor2>> quadra_lm(quadra_numDiff);
                 quadra_lm.minimize(quadra_param);
@@ -610,6 +589,12 @@ double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, share
                 interpolation_params.emplace(key, res_param);
             }
         }
+    }
+
+    shared_ptr<UnionFind> color_segments;
+    {
+        auto graph = make_shared<Graph>(&blured);
+        color_segments = graph->segmentate(color_segment_k, color_size_min);
     }
 
     map<int, set<int>> pixel_surface_map;
