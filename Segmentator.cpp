@@ -951,7 +951,7 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < data_nos.size(); i++)
     {
-        cout << segmentation(imgs[i], pcd_ptrs[i], downed_ptrs[i], 10, 2, 0.5, 6, 1, 3, 0.9, false) << endl;
+        cout << segmentation(imgs[i], pcd_ptrs[i], downed_ptrs[i], 0, 2, 0.5, 6, 8, 3, 5, true) << endl;
     }
 
     //cout << segmentation(30, 0, 0.5, 6, 2, 3, 0, 81, true) << endl;
@@ -973,6 +973,7 @@ int main(int argc, char *argv[])
     // 2020/6/11 best params : 0 0 9 7
     // 2020/6/12 best params : 20 6 1 6
     // 2020/6/15 best params : 10 2 1 0.9
+    // 2020/6/16 best params : 0 2 8 5
 
     for (double color_segment_k = 0; color_segment_k < 100; color_segment_k += 10)
     {
