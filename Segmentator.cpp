@@ -458,7 +458,6 @@ double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, share
                 continue;
             }
 
-            vector<Eigen::Vector2i> uvs;
             for (int i = 0; i < value.size(); i++)
             {
                 double x = filtered_ptr->points_[value[i]][0];
@@ -466,72 +465,7 @@ double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, share
                 double z = filtered_ptr->points_[value[i]][2];
                 int u = (int)(width / 2 + f_x * x / z);
                 int v = (int)(height / 2 + f_x * y / z);
-                uvs.emplace_back((int)round(u), (int)round(v));
-            }
-
-            vector<Eigen::Vector2i> convex_hull = get_convex_hull(uvs);
-            int color = (int)(filtered_ptr->colors_[key][0] * 255);
-            for (int i = 0; i < convex_hull.size(); i++)
-            {
-                int yPrev = convex_hull[(i - 1 + convex_hull.size()) % convex_hull.size()][1];
-                int x1 = convex_hull[i][0];
-                int y1 = convex_hull[i][1];
-                int x2 = convex_hull[(i + 1) % convex_hull.size()][0];
-                int y2 = convex_hull[(i + 1) % convex_hull.size()][1];
-
-                if (y1 == y2 && y1 != yPrev)
-                {
-                    bound_img.at<cv::Vec3b>(y1, x1)[0] = color;
-                    bound_img.at<cv::Vec3b>(y1, x1)[1] = color;
-                    bound_img.at<cv::Vec3b>(y1, x1)[2] = color;
-                    bound[y1][x1].emplace_back(key);
-                }
-                else if (y1 != y2)
-                {
-                    double x1d = x1;
-                    double delta = (x2 - x1) / (y2 - y1);
-                    bool ignore = (y1 > yPrev && y1 > y2) || (y1 < yPrev && y1 < y2);
-                    if (y1 < y2)
-                    {
-                        while (y1 < y2)
-                        {
-                            if (ignore)
-                            {
-                                ignore = false;
-                            }
-                            else
-                            {
-                                int x1i = (int)round(x1d);
-                                bound_img.at<cv::Vec3b>(y1, x1i)[0] = color;
-                                bound_img.at<cv::Vec3b>(y1, x1i)[1] = color;
-                                bound_img.at<cv::Vec3b>(y1, x1i)[2] = color;
-                                bound[y1][x1i].emplace_back(key);
-                            }
-                            y1++;
-                            x1d += delta;
-                        }
-                    }
-                    else if (y1 > y2)
-                    {
-                        while (y1 > y2)
-                        {
-                            if (ignore)
-                            {
-                                ignore = false;
-                            }
-                            else
-                            {
-                                int x1i = (int)round(x1d);
-                                bound_img.at<cv::Vec3b>(y1, x1i)[0] = color;
-                                bound_img.at<cv::Vec3b>(y1, x1i)[1] = color;
-                                bound_img.at<cv::Vec3b>(y1, x1i)[2] = color;
-                                bound[y1][x1i].emplace_back(key);
-                            }
-                            y1--;
-                            x1d -= delta;
-                        }
-                    }
-                }
+                bound[v][u].emplace_back(key);
             }
 
             vector<double> xs, ys, zs;
