@@ -576,58 +576,8 @@ double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, share
     auto base_ptr = make_shared<geometry::PointCloud>();
     vector<vector<double>> interpolated_z(height, vector<double>(width));
     { // Interpolation
-        cv::Mat interpolated_range_img = cv::Mat::zeros(height, width, CV_8UC3);
-        for (int i = 0; i < height; i++)
-        {
-            for (int j = 0; j < width; j++)
-            {
-                int root = color_segments->root(i * width + j);
-                if (base_z[i][j] > 0)
-                {
-                    base_ptr->points_.emplace_back(base_z[i][j] * (j - width / 2) / f_x, base_z[i][j] * (i - height / 2) / f_x, base_z[i][j]);
-                }
 
-                if (pixel_surface_map.find(root) != pixel_surface_map.end())
-                {
-                    for (auto itr = pixel_surface_map[root].begin(); itr != pixel_surface_map[root].end(); itr++)
-                    {
-                        auto params = interpolation_params[*itr];
-                        double coef_a = (j - width / 2) / f_x;
-                        double coef_b = (i - height / 2) / f_x;
-                        double a = params[0] * coef_a * coef_a + params[1] * coef_b * coef_b + params[2] * coef_a * coef_b;
-                        double b = params[3] * coef_a + params[4] * coef_b + 1;
-                        double c = -params[5];
-
-                        double x = 0;
-                        double y = 0;
-                        double z = 0;
-
-                        if (a == 0)
-                        {
-                            z = -c / b;
-                        }
-                        else
-                        {
-                            // 判別式0未満になりうる これを改善することが鍵か
-                            // なぜ0未満になる？
-                            // あてはまりそうな面だけ選ぶ？
-                            z = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
-                        }
-
-                        x = coef_a * z;
-                        y = coef_b * z;
-
-                        if (z > 0 && z < 100)
-                        {
-                            interpolated_z[i][j] = z;
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-
-        // Linear interpolation
+        // First. Linear interpolation
         for (int j = 0; j < width; j++)
         {
             vector<int> up(height, -1);
@@ -713,6 +663,59 @@ double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, share
                 else
                 {
                     interpolated_z[i][j] = (interpolated_z[i][right[j]] * (j - left[j]) + interpolated_z[i][left[j]] * (right[j] - j)) / (right[j] - left[j]);
+                }
+            }
+        }
+
+        // Second. My Interpolation
+        cv::Mat interpolated_range_img = cv::Mat::zeros(height, width, CV_8UC3);
+        for (int i = 0; i < height; i++)
+        {
+            for (int j = 0; j < width; j++)
+            {
+                int root = color_segments->root(i * width + j);
+                if (base_z[i][j] > 0)
+                {
+                    base_ptr->points_.emplace_back(base_z[i][j] * (j - width / 2) / f_x, base_z[i][j] * (i - height / 2) / f_x, base_z[i][j]);
+                }
+
+                if (pixel_surface_map.find(root) != pixel_surface_map.end())
+                {
+                    double best_z = -100;
+                    for (auto itr = pixel_surface_map[root].begin(); itr != pixel_surface_map[root].end(); itr++)
+                    {
+                        auto params = interpolation_params[*itr];
+                        double coef_a = (j - width / 2) / f_x;
+                        double coef_b = (i - height / 2) / f_x;
+                        double a = params[0] * coef_a * coef_a + params[1] * coef_b * coef_b + params[2] * coef_a * coef_b;
+                        double b = params[3] * coef_a + params[4] * coef_b + 1;
+                        double c = -params[5];
+
+                        double x = 0;
+                        double y = 0;
+                        double z = 0;
+
+                        if (a == 0)
+                        {
+                            z = -c / b;
+                        }
+                        else
+                        {
+                            // 判別式0未満になりうる これを改善することが鍵か
+                            // なぜ0未満になる？
+                            // あてはまりそうな面だけ選ぶ？
+                            z = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
+                        }
+
+                        x = coef_a * z;
+                        y = coef_b * z;
+
+                        if (z > 0 && z < 100 && interpolated_z[i][j] - z < interpolated_z[i][j] - best_z)
+                        {
+                            best_z = z;
+                        }
+                    }
+                    interpolated_z[i][j] = best_z;
                 }
             }
         }
