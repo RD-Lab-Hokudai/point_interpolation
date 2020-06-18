@@ -20,6 +20,13 @@ const int height = 606;
 //const int height = 560;
 const double f_x = width / 2 * 1.01;
 
+// Calibration
+double X = 500;
+double Y = 474;
+double Z = 458;
+double theta = 506;
+double phi = 527;
+
 void segmentate(int data_no, bool see_res = false)
 {
     const string img_name = "../../../data/2020_03_03_miyanosawa_img_pcd/" + to_string(data_no) + ".png";
@@ -56,24 +63,34 @@ void segmentate(int data_no, bool see_res = false)
     vector<vector<double>> filtered_z(height, vector<double>(width));
     for (int i = 0; i < pcd_ptr->points_.size(); i++)
     {
-        double x = pcd_ptr->points_[i][1];
-        double y = -pcd_ptr->points_[i][2];
-        double z = -pcd_ptr->points_[i][0];
+        double rawX = pcd_ptr->points_[i][1];
+        double rawY = -pcd_ptr->points_[i][2];
+        double rawZ = -pcd_ptr->points_[i][0];
+
+        double r = sqrt(rawX * rawX + rawZ * rawZ);
+        double thetaVal = (theta - 500) / 1000.0;
+        double phiVal = (phi - 500) / 1000.0;
+        double xp = (rawX * cos(phiVal) - rawY * sin(phiVal)) * cos(thetaVal) - (rawZ * cos(phiVal) - rawY * sin(phiVal)) * sin(thetaVal);
+        double yp = rawY * cos(phiVal) + r * sin(phiVal);
+        double zp = (rawX * cos(phiVal) - rawY * sin(phiVal)) * sin(thetaVal) + (rawZ * cos(phiVal) - rawY * sin(phiVal)) * cos(thetaVal);
+        double x = xp + (X - 500) / 100.0;
+        double y = yp + (Y - 500) / 100.0;
+        double z = zp + (Z - 500) / 100.0;
         pcd_ptr->points_[i] = Eigen::Vector3d(x, y, z);
-        if (pcd_ptr->points_[i][2] > 0)
+        if (z > 0)
         {
             int u = (int)(width / 2 + f_x * x / z);
             int v = (int)(height / 2 + f_x * y / z);
             if (0 <= u && u < width && 0 <= v && v < height)
             {
-                auto it = lower_bound(tans.begin(), tans.end(), y / sqrt(x * x + z * z));
+                auto it = lower_bound(tans.begin(), tans.end(), rawY / r);
                 int index = it - tans.begin();
                 if (index % 4 == 0)
                 {
-                    filtered_ptr->points_.emplace_back(pcd_ptr->points_[i]);
-                    filtered_z[v][u] = pcd_ptr->points_[i][2];
+                    filtered_ptr->points_.emplace_back(x, y, z);
+                    filtered_z[v][u] = z;
                 }
-                base_z[v][u] = pcd_ptr->points_[i][2];
+                base_z[v][u] = z;
             }
         }
 
