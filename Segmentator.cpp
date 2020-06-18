@@ -384,6 +384,8 @@ double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, share
         }
     }
 
+    cout << "Registration time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
+
     geometry::KDTreeSearchParamKNN kdtree_param(point_neighbors);
     { // Remove unstable points
         for (int i = 0; i < 3; i++)
@@ -427,6 +429,8 @@ double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, share
             filtered_ptr = filtered_ptr->SelectByIndex(indicies);
         }
     }
+
+    cout << "Remove points time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
 
     vector<vector<vector<int>>> bound(height, vector<vector<int>>(width));
     map<int, Eigen::VectorXd> interpolation_params;
@@ -525,11 +529,15 @@ double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, share
         }
     }
 
+    cout << "Point segmentation time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
+
     shared_ptr<UnionFind> color_segments;
     {
         auto graph = make_shared<Graph>(&blured);
         color_segments = graph->segmentate(color_segment_k, color_size_min);
     }
+
+    cout << "Color segmentation time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
 
     map<int, set<int>> pixel_surface_map;
     {
@@ -572,6 +580,8 @@ double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, share
         cv::imshow("range", range_img);
     }
 
+    cout << "Matcing time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
+
     auto interpolated_ptr = make_shared<geometry::PointCloud>();
     auto base_ptr = make_shared<geometry::PointCloud>();
     vector<vector<double>> interpolated_z(height, vector<double>(width));
@@ -583,7 +593,7 @@ double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, share
             vector<int> up(height, -1);
             for (int i = 0; i < height; i++)
             {
-                if (interpolated_z[i][j] > 0)
+                if (filtered_z[i][j] > 0)
                 {
                     up[i] = i;
                 }
@@ -596,7 +606,7 @@ double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, share
             vector<int> down(height, -1);
             for (int i = height - 1; i >= 0; i--)
             {
-                if (interpolated_z[i][j] > 0)
+                if (filtered_z[i][j] > 0)
                 {
                     down[i] = i;
                 }
@@ -614,11 +624,11 @@ double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, share
                 }
                 else if (up[i] == -1 || down[i] == -1 || up[i] == i)
                 {
-                    interpolated_z[i][j] = interpolated_z[max(up[i], down[i])][j];
+                    interpolated_z[i][j] = filtered_z[max(up[i], down[i])][j];
                 }
                 else
                 {
-                    interpolated_z[i][j] = (interpolated_z[down[i]][j] * (i - up[i]) + interpolated_z[up[i]][j] * (down[i] - i)) / (down[i] - up[i]);
+                    interpolated_z[i][j] = (filtered_z[down[i]][j] * (i - up[i]) + filtered_z[up[i]][j] * (down[i] - i)) / (down[i] - up[i]);
                 }
             }
         }
@@ -710,12 +720,17 @@ double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, share
                         x = coef_a * z;
                         y = coef_b * z;
 
-                        if (z > 0 && z < 100 && interpolated_z[i][j] - z < interpolated_z[i][j] - best_z)
+                        if (z > 0 && z < 100 && abs(interpolated_z[i][j] - z) < abs(interpolated_z[i][j] - best_z))
                         {
                             best_z = z;
                         }
                     }
-                    interpolated_z[i][j] = best_z;
+
+                    if (best_z != -100)
+                    {
+                        //cout << interpolated_z[i][j] - best_z << endl;
+                        interpolated_z[i][j] = best_z;
+                    }
                 }
             }
         }
@@ -745,6 +760,8 @@ double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, share
 
         cv::imshow("interpolated", interpolated_range_img);
     }
+
+    cout << "Interpolation time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
 
     double error_res = 0;
     { // Evaluation
@@ -873,7 +890,7 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < data_nos.size(); i++)
     {
-        cout << segmentation(imgs[i], pcd_ptrs[i], downed_ptrs[i], 0, 2, 0.5, 6, 8, 3, 5, true) << endl;
+        cout << segmentation(imgs[i], pcd_ptrs[i], downed_ptrs[i], 40, 8, 0.5, 6, 19, 3, 1, true) << endl;
     }
 
     //cout << segmentation(30, 0, 0.5, 6, 2, 3, 0, 81, true) << endl;
@@ -896,14 +913,15 @@ int main(int argc, char *argv[])
     // 2020/6/12 best params : 20 6 1 6
     // 2020/6/15 best params : 10 2 1 0.9
     // 2020/6/16 best params : 0 2 8 5
+    // 2020/6/18 best params : 40 8 19 1
 
-    for (double color_segment_k = 0; color_segment_k < 100; color_segment_k += 10)
+    for (double color_segment_k = 0; color_segment_k < 50; color_segment_k += 10)
     {
         for (int color_size_min = 0; color_size_min < 10; color_size_min += 1)
         {
-            for (double point_segment_k = 0; point_segment_k < 10; point_segment_k += 1)
+            for (double point_segment_k = 0; point_segment_k < 20; point_segment_k += 1)
             {
-                for (double color_rate = 0; color_rate < 20; color_rate += 1)
+                for (double color_rate = 0; color_rate < 15; color_rate += 1)
                 {
                     double error = 0;
                     for (int i = 0; i < data_nos.size(); i++)

@@ -242,7 +242,7 @@ void segmentate(int data_no, int w_trim, bool see_res = false)
 int main(int argc, char *argv[])
 {
     vector<int> data_nos = {550, 1000, 1125, 1260, 1550};
-    segmentate(1000, width, true);
+    segmentate(1260, width, true);
 
     for (int i = 0; i < data_nos.size(); i++)
     {
