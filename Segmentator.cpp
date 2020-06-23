@@ -120,7 +120,7 @@ public:
                     int to_y = i + dy[k];
                     if (0 <= to_x && to_x < img->cols && 0 <= to_y && to_y < img->rows)
                     {
-                        double diff = get_diff(img->at<cv::Vec3b>(i, j), img->at<cv::Vec3b>(to_y, to_x));
+                        double diff = get_diff(row[j], img->at<cv::Vec3b>(to_y, to_x));
                         edges.emplace_back(diff, i * img->cols + j, to_y * img->cols + to_x);
                     }
                 }
@@ -534,6 +534,7 @@ double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, share
     shared_ptr<UnionFind> color_segments;
     {
         auto graph = make_shared<Graph>(&blured);
+        cout << "Build graph time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
         color_segments = graph->segmentate(color_segment_k, color_size_min);
     }
 
@@ -890,7 +891,7 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < data_nos.size(); i++)
     {
-        cout << segmentation(imgs[i], pcd_ptrs[i], downed_ptrs[i], 40, 8, 0.5, 6, 19, 3, 1, true) << endl;
+        cout << segmentation(imgs[i], pcd_ptrs[i], downed_ptrs[i], 49, 9, 0.5, 6, 19, 3, 1, false) << endl;
     }
 
     //cout << segmentation(30, 0, 0.5, 6, 2, 3, 0, 81, true) << endl;
@@ -914,14 +915,16 @@ int main(int argc, char *argv[])
     // 2020/6/15 best params : 10 2 1 0.9
     // 2020/6/16 best params : 0 2 8 5
     // 2020/6/18 best params : 40 8 19 1
+    // 2020/6/18 best params : 49 9 19 1
+    // 2020/6/18 best params : 59 9 19 1
 
-    for (double color_segment_k = 0; color_segment_k < 50; color_segment_k += 10)
+    for (double color_segment_k = 0; color_segment_k < 1; color_segment_k += 1)
     {
-        for (int color_size_min = 0; color_size_min < 10; color_size_min += 1)
+        for (int color_size_min = 6; color_size_min < 10; color_size_min += 0.1)
         {
-            for (double point_segment_k = 0; point_segment_k < 20; point_segment_k += 1)
+            for (double point_segment_k = 10; point_segment_k < 30; point_segment_k += 1)
             {
-                for (double color_rate = 0; color_rate < 15; color_rate += 1)
+                for (double color_rate = 0; color_rate < 2; color_rate += 1)
                 {
                     double error = 0;
                     for (int i = 0; i < data_nos.size(); i++)

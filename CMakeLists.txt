@@ -89,6 +89,12 @@ if (Open3D_FOUND)
 
     target_include_directories(Calibrator PUBLIC ${Open3D_INCLUDE_DIRS})
 
+    add_executable(NeighborTest NeighborTest.cpp)
+
+    target_link_libraries(NeighborTest ${Open3D_LIBRARIES} ${OpenCV_LIBS})
+
+    target_include_directories(NeighborTest PUBLIC ${Open3D_INCLUDE_DIRS})
+
     # Hot fix windows dll not found issue, assumming we're using the Release build
     option(BUILD_SHARED_LIBS "Whether Open3D was build as shared library" OFF)
     if(WIN32 AND BUILD_SHARED_LIBS)
