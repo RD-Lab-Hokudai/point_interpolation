@@ -7,6 +7,7 @@
 #include <Open3D/Open3D.h>
 #include <opencv2/opencv.hpp>
 #include <Eigen/Core>
+#include <Eigen/Eigen>
 #include <Eigen/Sparse>
 #include <eigen3/unsupported/Eigen/NonLinearOptimization>
 #include <time.h>
@@ -27,7 +28,7 @@ double Z = 458;
 double theta = 506;
 double phi = 527;
 
-void calcNormals(shared_ptr<geometry::PointCloud> pcd_ptr, vector<vector<int>> neoghbors)
+void calcNormals(shared_ptr<geometry::PointCloud> pcd_ptr)
 {
 }
 
@@ -170,7 +171,14 @@ void segmentate(int data_no, bool see_res = false)
         }
     }
 
+    vector<vector<vector<int>>> neighbors(16);
     {
+        auto start = chrono::system_clock::now();
+        int point_cnt = 0;
+        for (int i = 0; i < 16; i++)
+        {
+            neighbors[i] = vector<vector<int>>(layers[i].size());
+        }
         // Find neighbors
         for (int i = 0; i < 15; i++)
         {
@@ -182,7 +190,10 @@ void segmentate(int data_no, bool see_res = false)
                 if (u0 > u)
                 {
                     int v0 = (int)(height / 2 + f_x * layers[i + 1][0][1] / layers[i + 1][0][2]);
-                    cv::line(img, cv::Point(u, v), cv::Point(u0, v0), cv::Scalar(0, 255, 0), 2, 4);
+                    cv::line(img, cv::Point(u, v), cv::Point(u0, v0), cv::Scalar(0, 255, 0), 1, 4);
+                    int toI = point_cnt + layers[i].size();
+                    neighbors[i][j].emplace_back(toI);
+                    neighbors[i + 1][0].emplace_back(point_cnt + j);
                 }
                 else
                 {
@@ -204,14 +215,26 @@ void segmentate(int data_no, bool see_res = false)
                     }
                     for (int ii = max(bottom - 1, 0); ii < min(bottom + 2, (int)layers[i + 1].size()); ii++)
                     {
-                        cout << ii << endl;
                         int u2 = (int)(width / 2 + f_x * layers[i + 1][ii][0] / layers[i + 1][ii][2]);
                         int v2 = (int)(height / 2 + f_x * layers[i + 1][ii][1] / layers[i + 1][ii][2]);
-                        cv::line(img, cv::Point(u, v), cv::Point(u2, v2), cv::Scalar(0, 255, 0), 2, 4);
+                        cv::line(img, cv::Point(u, v), cv::Point(u2, v2), cv::Scalar(0, 255, 0), 1, 4);
+                        int toI = point_cnt + layers[i].size() + ii;
+                        neighbors[i][j].emplace_back(toI);
+                        neighbors[i + 1][ii].emplace_back(point_cnt + j);
                     }
                 }
+                if (j + 1 < layers[i].size())
+                {
+                    neighbors[i][j].emplace_back(point_cnt + j + 1);
+                    neighbors[i][j + 1].emplace_back(point_cnt + j);
+                }
+                neighbors[i][j].emplace_back(point_cnt + j); // Contains myself
             }
+            point_cnt += layers[i].size();
         }
+
+        auto end = chrono::system_clock::now();
+        cout << "Neighboring time = " << chrono::duration_cast<chrono::milliseconds>(end - start).count() << "ms" << endl;
     }
 
     {
@@ -353,7 +376,78 @@ void segmentate(int data_no, bool see_res = false)
         cout << "Error = " << error / cnt << endl;
     }
 
+    auto sorted_ptr = make_shared<geometry::PointCloud>();
+    {
+        vector<pair<int, int>> correspondences;
+        int point_cnt = 0;
+        for (int i = 0; i < 16; i++)
+        {
+            for (int j = 0; j < layers[i].size(); j++)
+            {
+                sorted_ptr->points_.emplace_back(layers[i][j]);
+                int from = point_cnt + j;
+                for (int k = 0; k < neighbors[i][j].size(); k++)
+                {
+                    if (from < neighbors[i][j][k])
+                    {
+                        correspondences.emplace_back(make_pair(from, neighbors[i][j][k]));
+                    }
+                }
+            }
+            point_cnt += layers[i].size();
+        }
+
+        auto lineset_ptr = geometry::LineSet::CreateFromPointCloudCorrespondences(
+            *sorted_ptr, *sorted_ptr, correspondences);
+        cout << "Make" << endl;
+        lineset_ptr->Transform(front);
+        visualization::DrawGeometries({lineset_ptr}, "LINE", 1600, 900);
+    }
+
+    { // Calc normals
+        auto start = chrono::system_clock::now();
+
+        int point_cnt = 0;
+        for (int i = 0; i < 16; i++)
+        {
+            for (int j = 0; j < layers[i].size(); j++)
+            {
+                Eigen::Vector3d pa = Eigen::Vector3d::Zero();
+                for (int k = 0; k < neighbors[i][j].size(); k++)
+                {
+                    pa += sorted_ptr->points_[neighbors[i][j][k]];
+                }
+                pa /= neighbors[i][j].size();
+                Eigen::Matrix3d Q = Eigen::Matrix3d::Zero();
+                for (int k = 0; k < neighbors[i][j].size(); k++)
+                {
+                    for (int ii = 0; ii < 3; ii++)
+                    {
+                        for (int jj = 0; jj < 3; jj++)
+                        {
+                            Q(ii, jj) += (sorted_ptr->points_[neighbors[i][j][k]][ii] - pa[ii]) * (sorted_ptr->points_[neighbors[i][j][k]][jj] - pa[jj]);
+                        }
+                    }
+                }
+
+                Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> ES(Q);
+                if (ES.info() != Eigen::Success)
+                {
+                    continue;
+                }
+
+                sorted_ptr->normals_.emplace_back(ES.eigenvectors().col(0));
+            }
+            point_cnt += layers[i].size();
+        }
+
+        auto end = chrono::system_clock::now();
+        cout << "Normaling time = " << chrono::duration_cast<chrono::milliseconds>(end - start).count() << "ms" << endl;
+    }
+
     interpolated_ptr->Transform(front);
+    sorted_ptr->Transform(front);
+    visualization::DrawGeometries({sorted_ptr}, "a", 1600, 900);
 
     cv::imshow("hoge", img);
     cv::waitKey();
