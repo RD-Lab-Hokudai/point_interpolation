@@ -102,7 +102,7 @@ class Graph
 
     double get_threshold(double k, int size)
     {
-        return 1.0 * k / size;
+        return k / size;
     }
 
 public:
@@ -152,6 +152,8 @@ public:
 
     shared_ptr<UnionFind> segmentate(double k, int min_size)
     {
+        auto start = chrono::system_clock::now();
+
         auto unionFind = make_shared<UnionFind>(length);
         vector<double> thresholds;
         for (int i = 0; i < length; i++)
@@ -159,7 +161,11 @@ public:
             thresholds.emplace_back(get_threshold(k, 1));
         }
 
+        cout << "Build thres time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
+
         sort(edges.begin(), edges.end());
+
+        cout << "Sort edges time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
 
         for (int i = 0; i < edges.size(); i++)
         {
@@ -183,6 +189,8 @@ public:
             }
         }
 
+        cout << "Segmentate time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
+
         for (int i = 0; i < edges.size(); i++)
         {
             int from = get<1>(edges[i]);
@@ -190,11 +198,18 @@ public:
             from = unionFind->root(from);
             to = unionFind->root(to);
 
+            if (from == to)
+            {
+                continue;
+            }
+
             if (unionFind->size(from) <= min_size || unionFind->size(to) <= min_size)
             {
                 unionFind->unite(from, to);
             }
         }
+
+        cout << "Unite minimum time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
 
         return unionFind;
     }
@@ -478,8 +493,11 @@ double segmentate(int data_no, double color_segment_k, int color_size_min, doubl
 
     shared_ptr<UnionFind> color_segments;
     {
+        auto start = chrono::system_clock::now();
         auto graph = make_shared<Graph>(&blured);
+        cout << "Build time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
         color_segments = graph->segmentate(color_segment_k, color_size_min);
+        cout << "Segmentation time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
     }
 
     map<int, vector<int>> segments;
