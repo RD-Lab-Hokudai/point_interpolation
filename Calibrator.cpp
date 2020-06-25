@@ -88,11 +88,11 @@ cv::Mat reprojected;
 cv::Mat id_img;
 
 int dataNo = 0;
-int X = 500;
-int Y = 474;
-int Z = 458;
-int theta = 506;
-int phi = 527;
+int X = 498;
+int Y = 485;
+int Z = 509;
+int theta = 483;
+int phi = 518;
 int calibrateState = 0;
 int u0 = 0;
 int v0 = 0;
@@ -286,13 +286,13 @@ void mouse_callback(int event, int x, int y, int flags, void *object)
 
 int main(int argc, char *argv[])
 {
-    vector<int> data_ids = {550, 1000, 1125, 1260, 1550};
+    vector<int> data_ids = {10, 20, 30, 40, 50};
     for (int i = 0; i < data_ids.size(); i++)
     {
-        string img_path = "../../../data/2020_03_03_miyanosawa_img_pcd/" + to_string(data_ids[i]) + ".png";
+        string img_path = "../../../data/2020_02_04_13jo/" + to_string(data_ids[i]) + ".png";
         imgs.emplace_back(cv::imread(img_path));
 
-        string pcd_path = "../../../data/2020_03_03_miyanosawa_img_pcd/" + to_string(data_ids[i]) + ".pcd";
+        string pcd_path = "../../../data/2020_02_04_13jo/" + to_string(data_ids[i]) + ".pcd";
         open3d::geometry::PointCloud pointcloud;
         vector<point> points;
         if (!open3d::io::ReadPointCloud(pcd_path, pointcloud))
