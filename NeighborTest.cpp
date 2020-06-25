@@ -75,7 +75,7 @@ public:
 
 class Graph
 {
-    vector<tuple<double, int, int>> edges;
+    multimap<double, pair<int, int>> edges;
     int length;
 
     double get_diff(cv::Vec3b &a, cv::Vec3b &b)
@@ -123,7 +123,7 @@ public:
                     if (0 <= to_x && to_x < img->cols && 0 <= to_y && to_y < img->rows)
                     {
                         double diff = get_diff(row[j], img->at<cv::Vec3b>(to_y, to_x));
-                        edges.emplace_back(diff, i * img->cols + j, to_y * img->cols + to_x);
+                        edges.insert(make_pair(diff, make_pair(i * img->cols + j, to_y * img->cols + to_x)));
                     }
                 }
             }
@@ -145,7 +145,7 @@ public:
 
                 double diff = get_point_diff(pcd_ptr->normals_[i], pcd_ptr->normals_[to],
                                              pcd_ptr->colors_[i], pcd_ptr->colors_[to], color_rate);
-                edges.emplace_back(diff, i, to);
+                edges.insert(make_pair(diff, make_pair(i, to)));
             }
         }
     }
@@ -163,15 +163,11 @@ public:
 
         cout << "Build thres time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
 
-        sort(edges.begin(), edges.end());
-
-        cout << "Sort edges time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
-
-        for (int i = 0; i < edges.size(); i++)
+        for (auto const &entry : edges)
         {
-            double diff = get<0>(edges[i]);
-            int from = get<1>(edges[i]);
-            int to = get<2>(edges[i]);
+            double diff = entry.first;
+            int from = entry.second.first;
+            int to = entry.second.second;
 
             from = unionFind->root(from);
             to = unionFind->root(to);
@@ -191,10 +187,10 @@ public:
 
         cout << "Segmentate time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
 
-        for (int i = 0; i < edges.size(); i++)
+        for (auto const &entry : edges)
         {
-            int from = get<1>(edges[i]);
-            int to = get<2>(edges[i]);
+            int from = entry.second.first;
+            int to = entry.second.second;
             from = unionFind->root(from);
             to = unionFind->root(to);
 
@@ -203,7 +199,7 @@ public:
                 continue;
             }
 
-            if (unionFind->size(from) <= min_size || unionFind->size(to) <= min_size)
+            if (min(unionFind->size(from), unionFind->size(to)) <= min_size)
             {
                 unionFind->unite(from, to);
             }
