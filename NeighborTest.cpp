@@ -632,66 +632,33 @@ double segmentate(int data_no, double color_segment_k, int color_size_min, doubl
 
     auto interpolated_ptr = make_shared<geometry::PointCloud>();
     vector<vector<double>> interpolated_z(height, vector<double>(width));
-    {
-        cv::Mat interpolated_range_img = cv::Mat::zeros(height, width, CV_8UC3);
-        for (int i = 0; i < height; i++)
+
+    { // Interpolate layer
+        for (int j = 0; j + 1 < filtered_ptr->points_.size(); j++)
         {
-            for (int j = 0; j < width; j++)
+            int u = (int)(width / 2 + f_x * filtered_ptr->points_[j][0] / filtered_ptr->points_[j][2]);
+            int v = (int)(height / 2 + f_x * filtered_ptr->points_[j][1] / filtered_ptr->points_[j][2]);
+            int toU = (int)(width / 2 + f_x * filtered_ptr->points_[j + 1][0] / filtered_ptr->points_[j + 1][2]);
+            int toV = (int)(height / 2 + f_x * filtered_ptr->points_[j + 1][1] / filtered_ptr->points_[j + 1][2]);
+
+            if (toU < u)
             {
-                int root = color_segments->root(i * width + j);
+                continue;
+            }
 
-                if (pixel_surface_map.find(root) != pixel_surface_map.end())
-                {
-                    double best_z = -100;
-                    for (auto itr = pixel_surface_map[root].begin(); itr != pixel_surface_map[root].end(); itr++)
-                    {
-                        auto params = interpolation_params[*itr];
-                        double coef_a = (j - width / 2) / f_x;
-                        double coef_b = (i - height / 2) / f_x;
-                        double a = params[0] * coef_a * coef_a + params[1] * coef_b * coef_b + params[2] * coef_a * coef_b;
-                        double b = params[3] * coef_a + params[4] * coef_b + 1;
-                        double c = -params[5];
-
-                        double x = 0;
-                        double y = 0;
-                        double z = 0;
-
-                        if (a == 0)
-                        {
-                            z = -c / b;
-                        }
-                        else
-                        {
-                            // 判別式0未満になりうる これを改善することが鍵か
-                            // なぜ0未満になる？
-                            // あてはまりそうな面だけ選ぶ？
-                            z = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
-                        }
-
-                        x = coef_a * z;
-                        y = coef_b * z;
-
-                        if (z > 0 && z < 100)
-                        {
-                            best_z = z;
-                            break;
-                        }
-
-                        if (z > 0 && z < 100 && abs(interpolated_z[i][j] - z) < abs(interpolated_z[i][j] - best_z))
-                        {
-                            best_z = z;
-                        }
-                    }
-
-                    if (best_z != -100)
-                    {
-                        //cout << interpolated_z[i][j] - best_z << endl;
-                        interpolated_z[i][j] = best_z;
-                        interpolated_range_img.at<cv::Vec3b>(i, j)[0] = 255;
-                    }
-                }
+            float delta = 1.0f * (toV - v) / (toU - u);
+            int tmpU = u;
+            float tmpV = v;
+            while (tmpU <= toU)
+            {
+                interpolated_z[(int)tmpV][tmpU] = (filtered_z[toV][toU] * (tmpU - u) + filtered_z[v][u] * (toU - tmpU)) / (toU - u);
+                tmpU++;
+                tmpV += delta;
             }
         }
+    }
+
+    {// Linear interpolation
         for (int j = 0; j < width; j++)
         {
             vector<int> up(height, -1);
@@ -777,6 +744,69 @@ double segmentate(int data_no, double color_segment_k, int color_size_min, doubl
                 else
                 {
                     interpolated_z[i][j] = (interpolated_z[i][right[j]] * (j - left[j]) + interpolated_z[i][left[j]] * (right[j] - j)) / (right[j] - left[j]);
+                }
+            }
+        }
+    }
+
+    {
+        cv::Mat interpolated_range_img = cv::Mat::zeros(height, width, CV_8UC3);
+
+        for (int i = 0; i < height; i++)
+        {
+            for (int j = 0; j < width; j++)
+            {
+                int root = color_segments->root(i * width + j);
+
+                if (pixel_surface_map.find(root) != pixel_surface_map.end())
+                {
+                    double best_z = -100;
+                    for (auto itr = pixel_surface_map[root].begin(); itr != pixel_surface_map[root].end(); itr++)
+                    {
+                        auto params = interpolation_params[*itr];
+                        double coef_a = (j - width / 2) / f_x;
+                        double coef_b = (i - height / 2) / f_x;
+                        double a = params[0] * coef_a * coef_a + params[1] * coef_b * coef_b + params[2] * coef_a * coef_b;
+                        double b = params[3] * coef_a + params[4] * coef_b + 1;
+                        double c = -params[5];
+
+                        double x = 0;
+                        double y = 0;
+                        double z = 0;
+
+                        if (a == 0)
+                        {
+                            z = -c / b;
+                        }
+                        else
+                        {
+                            // 判別式0未満になりうる これを改善することが鍵か
+                            // なぜ0未満になる？
+                            // あてはまりそうな面だけ選ぶ？
+                            z = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
+                        }
+
+                        x = coef_a * z;
+                        y = coef_b * z;
+
+                        if (z > 0 && z < 100)
+                        {
+                            best_z = z;
+                            break;
+                        }
+
+                        if (z > 0 && z < 100 && abs(interpolated_z[i][j] - z) < abs(interpolated_z[i][j] - best_z))
+                        {
+                            best_z = z;
+                        }
+                    }
+
+                    if (best_z != -100)
+                    {
+                        //cout << interpolated_z[i][j] - best_z << endl;
+                        interpolated_z[i][j] = best_z;
+                        interpolated_range_img.at<cv::Vec3b>(i, j)[0] = 255;
+                    }
                 }
             }
         }

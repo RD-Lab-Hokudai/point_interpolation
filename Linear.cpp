@@ -203,7 +203,7 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
 
 void segmentate(int data_no, bool see_res = false)
 {
-    const string pcd_path = "../../../data/2020_02_04_13jo/" + to_string(data_no) + ".pcd";
+    const string pcd_path = "../../../data/2020_02_04_miyanosawa/" + to_string(data_no) + ".pcd";
     const bool vertical = true;
 
     geometry::PointCloud pointcloud;
@@ -507,7 +507,8 @@ void segmentate(int data_no, bool see_res = false)
 int main(int argc, char *argv[])
 {
     //vector<int> data_nos = {550, 1000, 1125, 1260, 1550};
-    vector<int> data_nos = {10, 20, 30, 40, 50};
+    //vector<int> data_nos = {10, 20, 30, 40, 50};
+    vector<int> data_nos = {700, 1290,1460, 2350, 3850};
     for (int i = 0; i < data_nos.size(); i++)
     {
         segmentate(data_nos[i], true);
