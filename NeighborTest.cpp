@@ -75,7 +75,7 @@ public:
 
 class Graph
 {
-    multimap<double, pair<int, int>> edges;
+    vector<tuple<double,int, int>> edges;
     int length;
 
     double get_diff(cv::Vec3b &a, cv::Vec3b &b)
@@ -123,7 +123,7 @@ public:
                     if (0 <= to_x && to_x < img->cols && 0 <= to_y && to_y < img->rows)
                     {
                         double diff = get_diff(row[j], img->at<cv::Vec3b>(to_y, to_x));
-                        edges.insert(make_pair(diff, make_pair(i * img->cols + j, to_y * img->cols + to_x)));
+                        edges.emplace_back(diff, i * img->cols + j, to_y * img->cols + to_x);
                     }
                 }
             }
@@ -145,7 +145,7 @@ public:
 
                 double diff = get_point_diff(pcd_ptr->normals_[i], pcd_ptr->normals_[to],
                                              pcd_ptr->colors_[i], pcd_ptr->colors_[to], color_rate);
-                edges.insert(make_pair(diff, make_pair(i, to)));
+                edges.emplace_back(diff, i, to);
             }
         }
     }
@@ -156,18 +156,22 @@ public:
 
         auto unionFind = make_shared<UnionFind>(length);
         vector<double> thresholds;
+        double diff_max=1000;
         for (int i = 0; i < length; i++)
         {
             thresholds.emplace_back(get_threshold(k, 1));
+            diff_max=max(diff_max,get<0>(edges[i]));
         }
 
         cout << "Build thres time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
+        sort(edges.begin(), edges.end());
+        cout << "Sort edges time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;	
 
-        for (auto const &entry : edges)
-        {
-            double diff = entry.first;
-            int from = entry.second.first;
-            int to = entry.second.second;
+        for (int i = 0; i < edges.size(); i++)	
+        {	      
+            double diff = get<0>(edges[i]);	         
+            int from = get<1>(edges[i]);	       
+            int to = get<2>(edges[i]);
 
             from = unionFind->root(from);
             to = unionFind->root(to);
@@ -187,10 +191,10 @@ public:
 
         cout << "Segmentate time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
 
-        for (auto const &entry : edges)
-        {
-            int from = entry.second.first;
-            int to = entry.second.second;
+        for (int i = 0; i < edges.size(); i++)	    
+        {	        
+            int from = get<1>(edges[i]);	        
+            int to = get<2>(edges[i]);
             from = unionFind->root(from);
             to = unionFind->root(to);
 
@@ -490,9 +494,9 @@ double segmentate(int data_no, double color_segment_k, int color_size_min, doubl
     shared_ptr<UnionFind> color_segments;
     {
         auto start = chrono::system_clock::now();
-        auto graph = make_shared<Graph>(&blured);
+        Graph graph(&blured);
         cout << "Build time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
-        color_segments = graph->segmentate(color_segment_k, color_size_min);
+        color_segments = graph.segmentate(color_segment_k, color_size_min);
         cout << "Segmentation time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
     }
 
@@ -778,8 +782,9 @@ double segmentate(int data_no, double color_segment_k, int color_size_min, doubl
                 }
             }
         }
+        error/=cnt;
         cout << "cannot cnt = " << cannot_cnt - cnt << endl;
-        cout << "Error = " << error / cnt << endl;
+        cout << "Error = " << error << endl;
     }
 
     if (see_res)
