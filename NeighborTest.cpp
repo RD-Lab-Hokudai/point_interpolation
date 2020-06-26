@@ -80,23 +80,23 @@ class Graph
 
     double get_diff(cv::Vec3b &a, cv::Vec3b &b)
     {
-        double diff = 0;
+        double diff = 1;
         for (int i = 0; i < 3; i++)
         {
-            diff += (a[i] - b[i]) * (a[i] - b[i]);
+            diff -= abs(a[i]*b[i]/255.0/255.0);
         }
-        diff = sqrt(diff);
         return diff;
     }
 
     double get_point_diff(Eigen::Vector3d a, Eigen::Vector3d b, Eigen::Vector3d a_color, Eigen::Vector3d b_color, double k)
     {
         double diff_normal = 1;
+        double diff_color=1;
         for (int i = 0; i < 3; i++)
         {
             diff_normal -= abs(a[i] * b[i]);
+            diff_color-=abs(a_color[i]*b_color[i]);
         }
-        double diff_color = (a_color - b_color).norm();
         return diff_normal + k * diff_color;
     }
 
@@ -156,14 +156,51 @@ public:
 
         auto unionFind = make_shared<UnionFind>(length);
         vector<double> thresholds;
-        double diff_max=1000;
+        double diff_max=0;
+        double diff_min=1000000;
         for (int i = 0; i < length; i++)
         {
             thresholds.emplace_back(get_threshold(k, 1));
-            diff_max=max(diff_max,get<0>(edges[i]));
+            double diff=get<0>(edges[i]);
+            diff_max=max(diff_max,diff);
+            diff_min=min(diff_min,diff);
         }
 
         cout << "Build thres time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
+    
+        int bucket_len=1000;
+        vector<vector<int>> bucket(bucket_len+1);
+        for(int i=0;i<length;i++){
+            int diff_level=(int)(bucket_len*(get<0>(edges[i])-diff_min)/(diff_max-diff_min));
+            bucket[diff_level].emplace_back(i);
+        }
+        cout << "Sort edges time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;	
+
+        for (int i = 0; i < bucket.size(); i++)
+        {
+            for(int j=0;j<bucket[i].size();j++){
+            double diff = get<0>(edges[bucket[i][j]]);
+            int from = get<1>(edges[bucket[i][j]]);
+            int to = get<2>(edges[bucket[i][j]]);
+
+            from = unionFind->root(from);
+            to = unionFind->root(to);
+
+            if (from == to)
+            {
+                continue;
+            }
+
+            if (diff <= min(thresholds[from], thresholds[to]))
+            {
+                unionFind->unite(from, to);
+                int root = unionFind->root(from);
+                thresholds[root] = diff + get_threshold(k, unionFind->size(root));
+            }
+            }
+        }
+        
+        /*
         sort(edges.begin(), edges.end());
         cout << "Sort edges time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;	
 
@@ -188,6 +225,7 @@ public:
                 thresholds[root] = diff + get_threshold(k, unionFind->size(root));
             }
         }
+        */
 
         cout << "Segmentate time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
 
