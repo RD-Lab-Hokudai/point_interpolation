@@ -21,16 +21,23 @@ const int height = 606;
 const double f_x = width / 2 * 1.01;
 
 // Calibration
-double X = 500;
-double Y = 474;
-double Z = 458;
-double theta = 506;
-double phi = 527;
+/*
+int X = 500;
+int Y = 474;
+int Z = 458;
+int theta = 506;
+int phi = 527;
+*/
+int X = 498;
+int Y = 485;
+int Z = 509;
+int theta = 483;
+int phi = 518;
 
 void segmentate(int data_no, int w_trim, bool see_res = false)
 {
-    string img_path = "../../../data/2020_03_03_miyanosawa_img_pcd/" + to_string(data_no) + ".png";
-    string pcd_path = "../../../data/2020_03_03_miyanosawa_img_pcd/" + to_string(data_no) + ".pcd";
+    string img_path = "../../../data/2020_02_04_13jo/" + to_string(data_no) + ".png";
+    string pcd_path = "../../../data/2020_02_04_13jo/" + to_string(data_no) + ".pcd";
 
     auto img = cv::imread(img_path);
     geometry::PointCloud pointcloud;
@@ -242,7 +249,7 @@ void segmentate(int data_no, int w_trim, bool see_res = false)
 int main(int argc, char *argv[])
 {
     vector<int> data_nos = {550, 1000, 1125, 1260, 1550};
-    segmentate(1260, width, true);
+    segmentate(10, 200, true);
 
     for (int i = 0; i < data_nos.size(); i++)
     {

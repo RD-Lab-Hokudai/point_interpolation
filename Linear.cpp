@@ -448,10 +448,11 @@ void segmentate(int data_no, bool see_res = false)
     {
         for (int j = 0; j < width; j++)
         {
+            /*
             if (base_z[i][j] == 0)
             {
                 continue;
-            }
+            }*/
 
             double z = interpolated_z[i][j];
             if (z == -1)
