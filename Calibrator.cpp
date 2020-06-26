@@ -95,11 +95,18 @@ int Z = 509;
 int theta = 483;
 int phi = 518;
 */
+/*
 int X = 500;
 int Y = 474;
 int Z = 458;
 int theta = 506;
 int phi = 527;
+*/
+int X = 495;
+int Y = 475;
+int Z = 458;
+int theta = 438;
+int phi = 512;
 int calibrateState = 0;
 int u0 = 0;
 int v0 = 0;
@@ -293,10 +300,12 @@ void mouse_callback(int event, int x, int y, int flags, void *object)
 
 int main(int argc, char *argv[])
 {
-    vector<int> data_ids;// = {1800, 1850, 1900, 2000, 2100};
-    for(int i=500;i<2000;i++){
+    vector<int> data_ids = {700, 1110,1290, 1460, 2350, 3850};
+    /*
+    for(int i=800;i<1300;i+=10){
         data_ids.emplace_back(i);
-    }
+    }*/
+    
     //vector<int> data_ids = {10, 20, 30, 40, 50};
     for (int i = 0; i < data_ids.size(); i++)
     {
