@@ -277,11 +277,11 @@ const int height = 606;
 const double f_x = width / 2 * 1.01;
 
 // Calibration
-double X = 500;
-double Y = 474;
-double Z = 458;
-double theta = 506;
-double phi = 527;
+int X = 500;
+int Y = 474;
+int Z = 458;
+int theta = 506;
+int phi = 527;
 
 shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> raw_pcd_ptr,
                                                vector<vector<double>> &base_z, vector<vector<double>> &filtered_z,
@@ -812,6 +812,7 @@ int main(int argc, char *argv[])
     int best_color_size_min = 1;
     double best_point_segment_k = 1;
     double best_color_rate = 0.1;
+    // 2020/6/26 : 1 1 1 0.1
 
     for (double color_segment_k = 0; color_segment_k < 10; color_segment_k += 1)
     {

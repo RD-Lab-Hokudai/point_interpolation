@@ -22,11 +22,18 @@ const int height = 606;
 const double f_x = width / 2 * 1.01;
 
 // Calibration
-double X = 500;
-double Y = 474;
-double Z = 458;
-double theta = 506;
-double phi = 527;
+int X = 498;
+int Y = 485;
+int Z = 509;
+int theta = 483;
+int phi = 518;
+/*
+int X = 500;
+int Y = 474;
+int Z = 458;
+int theta = 506;
+int phi = 527;
+*/
 
 shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> raw_pcd_ptr,
                                                vector<vector<double>> &base_z, vector<vector<double>> &filtered_z,
@@ -196,7 +203,7 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
 
 void segmentate(int data_no, bool see_res = false)
 {
-    const string pcd_path = "../../../data/2020_03_03_miyanosawa_img_pcd/" + to_string(data_no) + ".pcd";
+    const string pcd_path = "../../../data/2020_02_04_13jo/" + to_string(data_no) + ".pcd";
     const bool vertical = true;
 
     geometry::PointCloud pointcloud;
@@ -216,6 +223,7 @@ void segmentate(int data_no, bool see_res = false)
     vector<vector<double>> interpolated_z(height, vector<double>(width));
 
     { // Interpolate layer
+        cv::Mat layer_img = cv::Mat::zeros(height, width, CV_8UC3);
         for (int i = 0; i < layer_cnt; i++)
         {
             for (int j = 0; j + 1 < filtered_ptr->points_.size(); j++)
@@ -236,10 +244,15 @@ void segmentate(int data_no, bool see_res = false)
                 while (tmpU <= toU)
                 {
                     interpolated_z[(int)tmpV][tmpU] = (filtered_z[toV][toU] * (tmpU - u) + filtered_z[v][u] * (toU - tmpU)) / (toU - u);
+                    layer_img.at<cv::Vec3b>((int)tmpV, tmpU)[0] = 255;
                     tmpU++;
+                    tmpV += delta;
                 }
             }
         }
+
+        //cv::imshow("a", layer_img);
+        //cv::waitKey();
     }
 
     if (vertical)
@@ -492,7 +505,8 @@ void segmentate(int data_no, bool see_res = false)
 
 int main(int argc, char *argv[])
 {
-    vector<int> data_nos = {550, 1000, 1125, 1260, 1550};
+    //vector<int> data_nos = {550, 1000, 1125, 1260, 1550};
+    vector<int> data_nos = {10, 20, 30, 40, 50};
     for (int i = 0; i < data_nos.size(); i++)
     {
         segmentate(data_nos[i], true);
