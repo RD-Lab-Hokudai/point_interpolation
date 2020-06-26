@@ -156,13 +156,50 @@ public:
     {
         auto unionFind = make_shared<UnionFind>(length);
         vector<double> thresholds;
+        double diff_max=0;
+        double diff_min=1000000;
         for (int i = 0; i < length; i++)
         {
             thresholds.emplace_back(get_threshold(k, 1));
+            double diff=get<0>(edges[i]);
+            diff_max=max(diff_max,diff);
+            diff_min=min(diff_min,diff);
         }
 
-        sort(edges.begin(), edges.end());
+/*
+        int bucket_len=1000000;
+        vector<vector<int>> bucket(bucket_len+1);
+        for(int i=0;i<length;i++){
+            int diff_level=(int)(bucket_len*(get<0>(edges[i])-diff_min)/(diff_max-diff_min));
+            bucket[diff_level].emplace_back(i);
+        }
 
+        for (int i = 0; i < bucket.size(); i++)
+        {
+            for(int j=0;j<bucket[i].size();j++){
+            double diff = get<0>(edges[bucket[i][j]]);
+            int from = get<1>(edges[bucket[i][j]]);
+            int to = get<2>(edges[bucket[i][j]]);
+
+            from = unionFind->root(from);
+            to = unionFind->root(to);
+
+            if (from == to)
+            {
+                continue;
+            }
+
+            if (diff <= min(thresholds[from], thresholds[to]))
+            {
+                unionFind->unite(from, to);
+                int root = unionFind->root(from);
+                thresholds[root] = diff + get_threshold(k, unionFind->size(root));
+            }
+            }
+        }
+        */
+
+        sort(edges.begin(), edges.end());
         for (int i = 0; i < edges.size(); i++)
         {
             double diff = get<0>(edges[i]);
