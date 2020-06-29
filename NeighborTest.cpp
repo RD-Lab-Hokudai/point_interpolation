@@ -75,7 +75,7 @@ public:
 
 class Graph
 {
-    vector<tuple<double,int, int>> edges;
+    vector<tuple<double, int, int>> edges;
     int length;
 
     double get_diff(cv::Vec3b &a, cv::Vec3b &b)
@@ -83,7 +83,7 @@ class Graph
         double diff = 1;
         for (int i = 0; i < 3; i++)
         {
-            diff -= abs(a[i]*b[i]/255.0/255.0);
+            diff -= abs(a[i] * b[i] / 255.0 / 255.0);
         }
         return diff;
     }
@@ -91,11 +91,11 @@ class Graph
     double get_point_diff(Eigen::Vector3d a, Eigen::Vector3d b, Eigen::Vector3d a_color, Eigen::Vector3d b_color, double k)
     {
         double diff_normal = 1;
-        double diff_color=1;
+        double diff_color = 1;
         for (int i = 0; i < 3; i++)
         {
             diff_normal -= abs(a[i] * b[i]);
-            diff_color-=abs(a_color[i]*b_color[i]);
+            diff_color -= abs(a_color[i] * b_color[i]);
         }
         return diff_normal + k * diff_color;
     }
@@ -156,50 +156,52 @@ public:
 
         auto unionFind = make_shared<UnionFind>(length);
         vector<double> thresholds;
-        double diff_max=0;
-        double diff_min=1000000;
+        double diff_max = 0;
+        double diff_min = 1000000;
         for (int i = 0; i < length; i++)
         {
             thresholds.emplace_back(get_threshold(k, 1));
-            double diff=get<0>(edges[i]);
-            diff_max=max(diff_max,diff);
-            diff_min=min(diff_min,diff);
+            double diff = get<0>(edges[i]);
+            diff_max = max(diff_max, diff);
+            diff_min = min(diff_min, diff);
         }
 
         cout << "Build thres time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
-    
-        int bucket_len=1000;
-        vector<vector<int>> bucket(bucket_len+1);
-        for(int i=0;i<length;i++){
-            int diff_level=(int)(bucket_len*(get<0>(edges[i])-diff_min)/(diff_max-diff_min));
+
+        int bucket_len = 1000000;
+        vector<vector<int>> bucket(bucket_len + 1);
+        for (int i = 0; i < length; i++)
+        {
+            int diff_level = (int)(bucket_len * (get<0>(edges[i]) - diff_min) / (diff_max - diff_min));
             bucket[diff_level].emplace_back(i);
         }
-        cout << "Sort edges time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;	
+        cout << "Sort edges time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
 
         for (int i = 0; i < bucket.size(); i++)
         {
-            for(int j=0;j<bucket[i].size();j++){
-            double diff = get<0>(edges[bucket[i][j]]);
-            int from = get<1>(edges[bucket[i][j]]);
-            int to = get<2>(edges[bucket[i][j]]);
-
-            from = unionFind->root(from);
-            to = unionFind->root(to);
-
-            if (from == to)
+            for (int j = 0; j < bucket[i].size(); j++)
             {
-                continue;
-            }
+                double diff = get<0>(edges[bucket[i][j]]);
+                int from = get<1>(edges[bucket[i][j]]);
+                int to = get<2>(edges[bucket[i][j]]);
 
-            if (diff <= min(thresholds[from], thresholds[to]))
-            {
-                unionFind->unite(from, to);
-                int root = unionFind->root(from);
-                thresholds[root] = diff + get_threshold(k, unionFind->size(root));
-            }
+                from = unionFind->root(from);
+                to = unionFind->root(to);
+
+                if (from == to)
+                {
+                    continue;
+                }
+
+                if (diff <= min(thresholds[from], thresholds[to]))
+                {
+                    unionFind->unite(from, to);
+                    int root = unionFind->root(from);
+                    thresholds[root] = diff + get_threshold(k, unionFind->size(root));
+                }
             }
         }
-        
+
         /*
         sort(edges.begin(), edges.end());
         cout << "Sort edges time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;	
@@ -229,9 +231,9 @@ public:
 
         cout << "Segmentate time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
 
-        for (int i = 0; i < edges.size(); i++)	    
-        {	        
-            int from = get<1>(edges[i]);	        
+        for (int i = 0; i < edges.size(); i++)
+        {
+            int from = get<1>(edges[i]);
             int to = get<2>(edges[i]);
             from = unionFind->root(from);
             to = unionFind->root(to);
@@ -494,8 +496,8 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
 
 double segmentate(int data_no, double color_segment_k, int color_size_min, double gaussian_sigma, double point_segment_k, int point_size_min, double color_rate, bool see_res = false)
 {
-    const string img_name = "../../../data/2020_03_03_miyanosawa_img_pcd/" + to_string(data_no) + ".png";
-    const string file_name = "../../../data/2020_03_03_miyanosawa_img_pcd/" + to_string(data_no) + ".pcd";
+    const string img_name = "../../../data/2020_02_04_miyanosawa/" + to_string(data_no) + ".png";
+    const string file_name = "../../../data/2020_02_04_miyanosawa/" + to_string(data_no) + ".pcd";
     const bool vertical = true;
 
     auto img = cv::imread(img_name);
@@ -512,6 +514,8 @@ double segmentate(int data_no, double color_segment_k, int color_size_min, doubl
     {
         cout << "Cannot read" << endl;
     }
+
+    auto start = chrono::system_clock::now();
 
     vector<vector<double>> base_z, filtered_z;
     vector<vector<int>> neighbors;
@@ -531,16 +535,13 @@ double segmentate(int data_no, double color_segment_k, int color_size_min, doubl
 
     shared_ptr<UnionFind> color_segments;
     {
-        auto start = chrono::system_clock::now();
         Graph graph(&blured);
-        cout << "Build time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
         color_segments = graph.segmentate(color_segment_k, color_size_min);
-        cout << "Segmentation time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
     }
 
-    map<int, vector<int>> segments;
-    map<int, Eigen::VectorXd> interpolation_params;
-    map<int, set<int>> pixel_surface_map;
+    vector<vector<int>> segments(filtered_ptr->points_.size(), vector<int>());
+    vector<Eigen::VectorXd> interpolation_params(filtered_ptr->points_.size());
+    vector<vector<int>> pixel_surface_vec(width * height, vector<int>());
     { // Point segmentation and interpolation
         Graph graph(filtered_ptr, neighbors, color_rate);
         auto unionFind = graph.segmentate(point_segment_k, point_size_min);
@@ -552,10 +553,9 @@ double segmentate(int data_no, double color_segment_k, int color_size_min, doubl
         }
 
         cv::Mat bound_img = cv::Mat::zeros(height, width, CV_8UC3);
-        for (const auto pair : segments)
+        for (int key = 0; key < segments.size(); key++)
         {
-            int key = pair.first;
-            auto value = pair.second;
+            auto value = segments[key];
             if (value.size() < 3)
             {
                 continue;
@@ -570,7 +570,7 @@ double segmentate(int data_no, double color_segment_k, int color_size_min, doubl
                 int v = (int)(height / 2 + f_x * y / z);
 
                 int color_root = color_segments->root(v * width + u);
-                pixel_surface_map[color_root].insert(key);
+                pixel_surface_vec[color_root].emplace_back(key);
             }
 
             vector<double> xs, ys, zs;
@@ -619,15 +619,16 @@ double segmentate(int data_no, double color_segment_k, int color_size_min, doubl
                 {
                     res_param = quadra_param;
                 }
-                interpolation_params.emplace(key, res_param);
+                interpolation_params[key] = res_param;
             }
             else
             {
                 Eigen::VectorXd res_param(6);
                 res_param << 0, 0, 0, linear_param[0], linear_param[1], linear_param[2];
-                interpolation_params.emplace(key, res_param);
+                interpolation_params[key] = res_param;
             }
         }
+        cout << "Calc params time[ms] = " << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << endl;
     }
 
     auto interpolated_ptr = make_shared<geometry::PointCloud>();
@@ -656,9 +657,10 @@ double segmentate(int data_no, double color_segment_k, int color_size_min, doubl
                 tmpV += delta;
             }
         }
+        cout << "Interpolate layer time[ms] = " << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << endl;
     }
 
-    {// Linear interpolation
+    { // Linear interpolation
         for (int j = 0; j < width; j++)
         {
             vector<int> up(height, -1);
@@ -747,6 +749,7 @@ double segmentate(int data_no, double color_segment_k, int color_size_min, doubl
                 }
             }
         }
+        cout << "Interpolate linearly time[ms] = " << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << endl;
     }
 
     {
@@ -758,10 +761,10 @@ double segmentate(int data_no, double color_segment_k, int color_size_min, doubl
             {
                 int root = color_segments->root(i * width + j);
 
-                if (pixel_surface_map.find(root) != pixel_surface_map.end())
+                if (pixel_surface_vec[root].size() > 0)
                 {
                     double best_z = -100;
-                    for (auto itr = pixel_surface_map[root].begin(); itr != pixel_surface_map[root].end(); itr++)
+                    for (auto itr = pixel_surface_vec[root].begin(); itr != pixel_surface_vec[root].end(); itr++)
                     {
                         auto params = interpolation_params[*itr];
                         double coef_a = (j - width / 2) / f_x;
@@ -829,6 +832,7 @@ double segmentate(int data_no, double color_segment_k, int color_size_min, doubl
                 interpolated_ptr->colors_.emplace_back(color, color, color);
             }
         }
+        cout << "Interpolate time[ms] = " << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << endl;
     }
 
     double error = 0;
@@ -850,7 +854,7 @@ double segmentate(int data_no, double color_segment_k, int color_size_min, doubl
                 }
             }
         }
-        error/=cnt;
+        error /= cnt;
         cout << "cannot cnt = " << cannot_cnt - cnt << endl;
         cout << "Error = " << error << endl;
     }
@@ -874,10 +878,11 @@ double segmentate(int data_no, double color_segment_k, int color_size_min, doubl
 
 int main(int argc, char *argv[])
 {
-    vector<int> data_nos = {550, 1000, 1125, 1260, 1550};
+    //vector<int> data_nos = {550, 1000, 1125, 1260, 1550};
+    vector<int> data_nos = {700, 1290, 1460, 2350, 3850};
     for (int i = 0; i < data_nos.size(); i++)
     {
-        segmentate(data_nos[i], 49, 9, 0.5, 19, 3, 1, false);
+        segmentate(data_nos[i], 4, 2, 0.5, 0, 3, 4, false);
     }
 
     double best_error = 100;
@@ -886,6 +891,8 @@ int main(int argc, char *argv[])
     double best_point_segment_k = 1;
     double best_color_rate = 0.1;
     // 2020/6/26 : 1 1 1 0.1
+    // 2020/6/29 : 4 2 0 4
+    // 2020/6/29_2 : 0 0 3 9
 
     for (double color_segment_k = 0; color_segment_k < 10; color_segment_k += 1)
     {
@@ -898,7 +905,9 @@ int main(int argc, char *argv[])
                     double error = 0;
                     for (int i = 0; i < data_nos.size(); i++)
                     {
+                        auto start = chrono::system_clock::now();
                         error += segmentate(data_nos[i], color_segment_k, color_size_min, 0.5, point_segment_k, 3, color_rate);
+                        cout << "Time[ms] = " << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << endl;
                     }
                     error /= data_nos.size();
 
