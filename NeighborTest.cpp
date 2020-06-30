@@ -882,7 +882,7 @@ int main(int argc, char *argv[])
     vector<int> data_nos = {700, 1290, 1460, 2350, 3850};
     for (int i = 0; i < data_nos.size(); i++)
     {
-        segmentate(data_nos[i], 4, 2, 0.5, 0, 3, 4, false);
+        segmentate(data_nos[i], 0, 0, 0.5, 15, 3, 5, false);
     }
 
     double best_error = 100;
@@ -893,6 +893,7 @@ int main(int argc, char *argv[])
     // 2020/6/26 : 1 1 1 0.1
     // 2020/6/29 : 4 2 0 4
     // 2020/6/29_2 : 0 0 3 9
+    // 2020/6/29_2 : 0 0 15 5
 
     for (double color_segment_k = 0; color_segment_k < 10; color_segment_k += 1)
     {
