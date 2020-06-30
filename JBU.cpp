@@ -254,8 +254,10 @@ void segmentate(int data_no, bool see_res = false)
             }
         }
 
-        int dx[8]{-1, 0, 1, -1, 1, -1, 0, 1};
-        int dy[8]{-1, -1, -1, 0, 0, 1, 1, 1};
+        //int dx[8]{-1, 0, 1, -1, 1, -1, 0, 1};
+        //int dy[8]{-1, -1, -1, 0, 0, 1, 1, 1};
+        int dx[4]{-1, 1, 0, 0};
+        int dy[4]{0, 0, -1, 1};
         while (!que.empty())
         {
             int now = que.front();
@@ -264,7 +266,7 @@ void segmentate(int data_no, bool see_res = false)
             que.pop();
 
             unsigned char val = range_img.at<unsigned char>(y, x);
-            for (int i = 0; i < 8; i++)
+            for (int i = 0; i < 4; i++)
             {
                 int toX = x + dx[i];
                 int toY = y + dy[i];
