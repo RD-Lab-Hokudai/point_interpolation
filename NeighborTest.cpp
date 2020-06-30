@@ -763,7 +763,7 @@ double segmentate(int data_no, double color_segment_k, int color_size_min, doubl
 
                 if (pixel_surface_vec[root].size() > 0)
                 {
-                    double best_z = -100;
+                    double best_z = 1000;
                     for (auto itr = pixel_surface_vec[root].begin(); itr != pixel_surface_vec[root].end(); itr++)
                     {
                         auto params = interpolation_params[*itr];
@@ -798,13 +798,13 @@ double segmentate(int data_no, double color_segment_k, int color_size_min, doubl
                             break;
                         }
 
-                        if (z > 0 && z < 100 && abs(interpolated_z[i][j] - z) < abs(interpolated_z[i][j] - best_z))
+                        if (z > 0 && z < 100 && z < best_z)
                         {
                             best_z = z;
                         }
                     }
 
-                    if (best_z != -100)
+                    if (best_z != 1000)
                     {
                         //cout << interpolated_z[i][j] - best_z << endl;
                         interpolated_z[i][j] = best_z;

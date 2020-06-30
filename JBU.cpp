@@ -3,6 +3,7 @@
 #include <stack>
 #include <map>
 #include <chrono>
+#include <queue>
 
 #include <Open3D/Open3D.h>
 #include <opencv2/opencv.hpp>
@@ -224,68 +225,6 @@ void segmentate(int data_no, bool see_res = false)
     auto start = chrono::system_clock::now();
     cv::Mat range_img = cv::Mat::zeros(height, width, CV_8UC1);
     {
-        vector<vector<int>> up(height, vector<int>(width, -1));
-        vector<vector<int>> down(height, vector<int>(width, -1));
-        vector<vector<int>> left(height, vector<int>(width, -1));
-        vector<vector<int>> right(height, vector<int>(width, -1));
-        vector<vector<int>> up_left(height, vector<int>(width, -1));
-        vector<vector<int>> up_right(height, vector<int>(width, -1));
-        vector<vector<int>> down_left(height, vector<int>(width, -1));
-        vector<vector<int>> down_right(height, vector<int>(width, -1));
-        for (int i = 0; i < height; i++)
-        {
-            for (int j = 0; j < width; j++)
-            {
-                if (filtered_z[i][j] > 0)
-                {
-                    int id = i * width + j;
-                    up[i][j] = id;
-                    down[i][j] = id;
-                    left[i][j] = id;
-                    right[i][j] = id;
-                    up_left[i][j] = id;
-                    up_right[i][j] = id;
-                    down_left[i][j] = id;
-                    down_right[i][j] = id;
-                }
-                else
-                {
-                    if (i > 0)
-                    {
-                        up[i][j] = up[i - 1][j];
-                    }
-                    if (i + 1 < height)
-                    {
-                        down[i][j] = down[i + 1][j];
-                    }
-                    if (j > 0)
-                    {
-                        left[i][j] = left[i][j - 1];
-                    }
-                    if (j + 1 < width)
-                    {
-                        right[i][j] = right[i][j + 1];
-                    }
-                    if (i > 0 && j > 0)
-                    {
-                        up_left[i][j] = up_left[i - 1][j - 1];
-                    }
-                    if (i > 0 && j + 1 < width)
-                    {
-                        up_right[i][j] = up_right[i - 1][j + 1];
-                    }
-                    if (i + 1 < height && j > 0)
-                    {
-                        down_left[i][j] = down_left[i + 1][j - 1];
-                    }
-                    if (i + 1 < height && j + 1 < width)
-                    {
-                        down_right[i][j] = down_right[i + 1][j + 1];
-                    }
-                }
-            }
-        }
-
         double min_depth = 10000;
         double max_depth = 0;
         for (int i = 0; i < height; i++)
@@ -300,50 +239,51 @@ void segmentate(int data_no, bool see_res = false)
             }
         }
 
+        queue<int> que;
+        vector<vector<bool>> visited(height, vector<bool>(width, false));
         for (int i = 0; i < height; i++)
         {
             for (int j = 0; j < width; j++)
             {
-                int idx = -1;
-                if (up[i][j] > 0 && (idx == -1 || abs(up[i][j] / width - i) < abs(idx / width - i)))
+                if (filtered_z[i][j] > 0)
                 {
-                    idx = up[i][j];
-                }
-                if (down[i][j] > 0 && (idx == -1 || abs(down[i][j] / width - i) < abs(idx / width - i)))
-                {
-                    idx = down[i][j];
-                }
-                if (left[i][j] > 0 && (idx == -1 || abs(left[i][j] % width - j) < abs(idx % width - j)))
-                {
-                    idx = left[i][j];
-                }
-                if (right[i][j] > 0 && (idx == -1 || abs(right[i][j] % width - j) < abs(idx % width - j)))
-                {
-                    idx = right[i][j];
-                }
-                if (up_left[i][j] > 0 && (idx == -1 || abs(max(up_left[i][j] / width, up_left[i][j] % width) - j) < abs(max(idx / width, idx % width) - j)))
-                {
-                    idx = up_left[i][j];
-                }
-                if (up_right[i][j] > 0 && (idx == -1 || abs(max(up_right[i][j] / width, up_right[i][j] % width) - j) < abs(max(idx / width, idx % width) - j)))
-                {
-                    idx = up_right[i][j];
-                }
-                if (down_left[i][j] > 0 && (idx == -1 || abs(max(down_left[i][j] / width, down_left[i][j] % width) - j) < abs(max(idx / width, idx % width) - j)))
-                {
-                    idx = down_left[i][j];
-                }
-                if (down_right[i][j] > 0 && (idx == -1 || abs(max(down_right[i][j] / width, down_right[i][j] % width) - j) < abs(max(idx / width, idx % width) - j)))
-                {
-                    idx = down_right[i][j];
-                }
-
-                if (idx >= 0)
-                {
-                    range_img.at<unsigned char>(i, j) = (unsigned char)(255 * (filtered_z[idx / width][idx % width] - min_depth) / (max_depth - min_depth));
+                    range_img.at<unsigned char>(i, j) = (unsigned char)(255 * (filtered_z[i][j] - min_depth) / (max_depth - min_depth));
+                    visited[i][j] = true;
+                    que.push(i * width + j);
                 }
             }
         }
+
+        int dx[8]{-1, 0, 1, -1, 1, -1, 0, 1};
+        int dy[8]{-1, -1, -1, 0, 0, 1, 1, 1};
+        while (!que.empty())
+        {
+            int now = que.front();
+            int x = now % width;
+            int y = now / width;
+            que.pop();
+
+            unsigned char val = range_img.at<unsigned char>(y, x);
+            for (int i = 0; i < 8; i++)
+            {
+                int toX = x + dx[i];
+                int toY = y + dy[i];
+                if (toX < 0 || toX >= width || toY < 0 || toY >= height)
+                {
+                    continue;
+                }
+
+                if (visited[toY][toX])
+                {
+                    continue;
+                }
+
+                range_img.at<unsigned char>(toY, toX) = val;
+                visited[toY][toX] = true;
+                que.push(toY * width + toX);
+            }
+        }
+        cout << "Sample time[ms] = " << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << endl;
 
         cv::imshow("a", range_img);
         cv::waitKey();
