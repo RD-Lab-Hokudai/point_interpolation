@@ -321,11 +321,28 @@ const int height = 606;
 const double f_x = width / 2 * 1.01;
 
 // Calibration
+// 02_04_13jo
+/*
+int X = 498;
+int Y = 485;
+int Z = 509;
+int theta = 483;
+int phi = 518;
+*/
+// 02_04_miyanosawa
+int X = 495;
+int Y = 475;
+int Z = 458;
+int theta = 438;
+int phi = 512;
+// 03_03_miyanosawa
+/*
 int X = 500;
 int Y = 474;
 int Z = 458;
 int theta = 506;
 int phi = 527;
+*/
 
 shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> raw_pcd_ptr,
                                                vector<vector<double>> &base_z, vector<vector<double>> &filtered_z,
