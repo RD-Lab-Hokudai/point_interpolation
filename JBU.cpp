@@ -212,7 +212,7 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
     return sorted_ptr;
 }
 
-void segmentate(int data_no, bool see_res = false)
+void segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double sigma_r = 20, int r = 10, bool see_res = false)
 {
     const string pcd_path = "../../../data/2020_02_04_miyanosawa/" + to_string(data_no) + ".pcd";
     const string img_path = "../../../data/2020_02_04_miyanosawa/" + to_string(data_no) + ".png";
@@ -314,13 +314,12 @@ void segmentate(int data_no, bool see_res = false)
     cv::Mat credibility_img = cv::Mat::zeros(height, width, CV_16UC1);
     {
         cv::Laplacian(range_img, credibility_img, CV_16UC1);
-        double sigma = 1;
         for (int i = 0; i < height; i++)
         {
             for (int j = 0; j < width; j++)
             {
                 int val = credibility_img.at<unsigned short>(i, j);
-                credibility_img.at<unsigned short>(i, j) = (unsigned short)(65535 * exp(-val * val / 2 / sigma / sigma));
+                credibility_img.at<unsigned short>(i, j) = (unsigned short)(65535 * exp(-val * val / 2 / sigma_c / sigma_c));
             }
         }
         cv::imshow("b", credibility_img);
@@ -329,10 +328,6 @@ void segmentate(int data_no, bool see_res = false)
     cv::Mat jbu_img = cv::Mat::zeros(height, width, CV_16UC1);
     // Still slow
     {
-        double sigma_s = 5;
-        double sigma_r = 5;
-        int r = 5;
-
         for (int i = 0; i < height; i++)
         {
             for (int j = 0; j < width; j++)
@@ -351,7 +346,7 @@ void segmentate(int data_no, bool see_res = false)
                             continue;
                         }
                         int d1 = img.at<cv::Vec3b>(i + y, j + x)[0];
-                        double tmp = exp(-(x * x + y * y) / 2 / sigma_s / sigma_s) * exp(-abs(d0 * d0 - d1 * d1) / 2 / sigma_r / sigma_r) * credibility_img.at<unsigned short>(i + y, j + x);
+                        double tmp = exp(-(x * x + y * y) / 2 / sigma_s / sigma_s) * exp(-(d0 - d1) * (d0 - d1) / 2 / sigma_r / sigma_r) * credibility_img.at<unsigned short>(i + y, j + x);
                         coef += tmp;
                         val += tmp * range_img.at<unsigned short>(i + y, j + x);
                     }
@@ -380,8 +375,6 @@ void segmentate(int data_no, bool see_res = false)
             interpolated_z[i][j] = z;
         }
     }
-
-    cout << interpolated_ptr->points_.size() << endl;
 
     { // Evaluation
         double error = 0;
@@ -429,7 +422,7 @@ int main(int argc, char *argv[])
     vector<int> data_nos = {700, 1290, 1460, 2350, 3850};
     for (int i = 0; i < data_nos.size(); i++)
     {
-        segmentate(data_nos[i], true);
+        segmentate(data_nos[i]);
     }
     return 0;
 }
