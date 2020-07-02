@@ -23,11 +23,21 @@ const int height = 606;
 const double f_x = width / 2 * 1.01;
 
 // Calibration
+// 02_04_13jo
+/*
 int X = 498;
 int Y = 485;
 int Z = 509;
 int theta = 483;
 int phi = 518;
+*/
+// 02_04_miyanosawa
+int X = 495;
+int Y = 475;
+int Z = 458;
+int theta = 438;
+int phi = 512;
+// 03_03_miyanosawa
 /*
 int X = 500;
 int Y = 474;
@@ -240,7 +250,8 @@ void segmentate(int data_no, bool see_res = false)
         }
 
         queue<int> que;
-        vector<vector<bool>> visited(height, vector<bool>(width, false));
+        vector<vector<int>> costs(height, vector<int>(width, 100000));
+        vector<vector<int>> cnts(height, vector<int>(width, 0));
         for (int i = 0; i < height; i++)
         {
             for (int j = 0; j < width; j++)
@@ -248,7 +259,8 @@ void segmentate(int data_no, bool see_res = false)
                 if (filtered_z[i][j] > 0)
                 {
                     range_img.at<unsigned char>(i, j) = (unsigned char)(255 * (filtered_z[i][j] - min_depth) / (max_depth - min_depth));
-                    visited[i][j] = true;
+                    costs[i][j] = 0;
+                    cnts[i][j]++;
                     que.push(i * width + j);
                 }
             }
@@ -266,6 +278,7 @@ void segmentate(int data_no, bool see_res = false)
             que.pop();
 
             unsigned char val = range_img.at<unsigned char>(y, x);
+            int next_cost = costs[y][x] + 1;
             for (int i = 0; i < 4; i++)
             {
                 int toX = x + dx[i];
@@ -275,14 +288,21 @@ void segmentate(int data_no, bool see_res = false)
                     continue;
                 }
 
-                if (visited[toY][toX])
+                if (costs[toY][toX] < next_cost)
                 {
                     continue;
                 }
 
+                if (next_cost < costs[toY][toX])
+                {
+                    que.push(toY * width + toX);
+                }
+
+                //unsigned char tmp = range_img.at<unsigned char>(toY, toX);
+                //range_img.at<unsigned char>(toY, toX) = (tmp * cnts[toY][toX] + val) / (cnts[toY][toX] + 1);
                 range_img.at<unsigned char>(toY, toX) = val;
-                visited[toY][toX] = true;
-                que.push(toY * width + toX);
+                costs[toY][toX] = next_cost;
+                cnts[toY][toX]++;
             }
         }
         cout << "Sample time[ms] = " << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << endl;
