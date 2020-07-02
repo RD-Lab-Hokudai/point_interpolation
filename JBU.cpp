@@ -233,10 +233,10 @@ void segmentate(int data_no, bool see_res = false)
     shared_ptr<geometry::PointCloud> filtered_ptr = calc_filtered(pcd_ptr, base_z, filtered_z, neighbors, layer_cnt);
 
     auto start = chrono::system_clock::now();
-    cv::Mat range_img = cv::Mat::zeros(height, width, CV_8UC1);
+    cv::Mat range_img = cv::Mat::zeros(height, width, CV_16UC1);
+    double min_depth = 10000;
+    double max_depth = 0;
     {
-        double min_depth = 10000;
-        double max_depth = 0;
         for (int i = 0; i < height; i++)
         {
             for (int j = 0; j < width; j++)
@@ -258,7 +258,7 @@ void segmentate(int data_no, bool see_res = false)
             {
                 if (filtered_z[i][j] > 0)
                 {
-                    range_img.at<unsigned char>(i, j) = (unsigned char)(255 * (filtered_z[i][j] - min_depth) / (max_depth - min_depth));
+                    range_img.at<unsigned short>(i, j) = (unsigned short)(65535 * (filtered_z[i][j] - min_depth) / (max_depth - min_depth));
                     costs[i][j] = 0;
                     cnts[i][j]++;
                     que.push(i * width + j);
@@ -277,7 +277,7 @@ void segmentate(int data_no, bool see_res = false)
             int y = now / width;
             que.pop();
 
-            unsigned char val = range_img.at<unsigned char>(y, x);
+            unsigned short val = range_img.at<unsigned short>(y, x);
             int next_cost = costs[y][x] + 1;
             for (int i = 0; i < 4; i++)
             {
@@ -298,20 +298,115 @@ void segmentate(int data_no, bool see_res = false)
                     que.push(toY * width + toX);
                 }
 
-                //unsigned char tmp = range_img.at<unsigned char>(toY, toX);
-                //range_img.at<unsigned char>(toY, toX) = (tmp * cnts[toY][toX] + val) / (cnts[toY][toX] + 1);
-                range_img.at<unsigned char>(toY, toX) = val;
+                //unsigned short tmp = range_img.at<unsigned short>(toY, toX);
+                //range_img.at<unsigned short>(toY, toX) = (unsigned short)(((int)tmp * cnts[toY][toX] + val * cnts[y][x]) / (cnts[toY][toX] + cnts[y][x]));
+                range_img.at<unsigned short>(toY, toX) = val;
                 costs[toY][toX] = next_cost;
-                cnts[toY][toX]++;
+                cnts[toY][toX] += cnts[y][x];
             }
         }
         cout << "Sample time[ms] = " << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << endl;
 
         cv::imshow("a", range_img);
-        cv::waitKey();
+        //cv::waitKey();
     }
 
-    /*
+    cv::Mat credibility_img = cv::Mat::zeros(height, width, CV_16UC1);
+    {
+        cv::Laplacian(range_img, credibility_img, CV_16UC1);
+        double sigma = 1;
+        for (int i = 0; i < height; i++)
+        {
+            for (int j = 0; j < width; j++)
+            {
+                int val = credibility_img.at<unsigned short>(i, j);
+                credibility_img.at<unsigned short>(i, j) = (unsigned short)(65535 * exp(-val * val / 2 / sigma / sigma));
+            }
+        }
+        cv::imshow("b", credibility_img);
+    }
+
+    cv::Mat jbu_img = cv::Mat::zeros(height, width, CV_16UC1);
+    // Still slow
+    {
+        double sigma_s = 5;
+        double sigma_r = 5;
+        int r = 5;
+
+        for (int i = 0; i < height; i++)
+        {
+            for (int j = 0; j < width; j++)
+            {
+                double coef = 0;
+                double val = 0;
+                int d0 = img.at<cv::Vec3b>(i, j)[0];
+                for (int ii = 0; ii < r; ii++)
+                {
+                    for (int jj = 0; jj < r; jj++)
+                    {
+                        int x = jj - r / 2;
+                        int y = ii - r / 2;
+                        if (i + y < 0 || i + y >= height || j + x < 0 || j + x >= width)
+                        {
+                            continue;
+                        }
+                        int d1 = img.at<cv::Vec3b>(i + y, j + x)[0];
+                        double tmp = exp(-(x * x + y * y) / 2 / sigma_s / sigma_s) * exp(-abs(d0 * d0 - d1 * d1) / 2 / sigma_r / sigma_r) * credibility_img.at<unsigned short>(i + y, j + x);
+                        coef += tmp;
+                        val += tmp * range_img.at<unsigned short>(i + y, j + x);
+                    }
+                }
+                jbu_img.at<unsigned short>(i, j) = (unsigned short)(val / coef);
+            }
+        }
+        cv::imshow("c", jbu_img);
+    }
+
+    auto interpolated_ptr = make_shared<geometry::PointCloud>();
+    vector<vector<double>> interpolated_z(height, vector<double>(width, -1));
+    for (int i = 0; i < height; i++)
+    {
+        for (int j = 0; j < width; j++)
+        {
+            if (base_z[i][j] == 0)
+            {
+                continue;
+            }
+
+            double z = (max_depth - min_depth) * jbu_img.at<unsigned short>(i, j) / 65535 + min_depth;
+            double x = z * (j - width / 2) / f_x;
+            double y = z * (i - height / 2) / f_x;
+            interpolated_ptr->points_.emplace_back(x, y, z);
+            interpolated_z[i][j] = z;
+        }
+    }
+
+    cout << interpolated_ptr->points_.size() << endl;
+
+    { // Evaluation
+        double error = 0;
+        int cnt = 0;
+        int cannot_cnt = 0;
+        for (int i = 0; i < height; i++)
+        {
+            for (int j = 0; j < width; j++)
+            {
+                if (base_z[i][j] > 0 && filtered_z[i][j] == 0 && interpolated_z[i][j] > 0)
+                {
+                    error += abs((base_z[i][j] - interpolated_z[i][j]) / base_z[i][j]);
+                    cnt++;
+                }
+                if (base_z[i][j] > 0 && filtered_z[i][j] == 0)
+                {
+                    cannot_cnt++;
+                }
+            }
+        }
+        cout << "cannot cnt = " << cannot_cnt - cnt << endl;
+        cout << "Error = " << error / cnt << endl;
+    }
+    cout << "Total time[ms] = " << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << endl;
+
     if (see_res)
     {
         Eigen::MatrixXd front(4, 4);
@@ -321,11 +416,10 @@ void segmentate(int data_no, bool see_res = false)
             0, 0, 0, 1;
         pcd_ptr->Transform(front);
         filtered_ptr->Transform(front);
-        linear_interpolation_ptr->Transform(front);
+        interpolated_ptr->Transform(front);
 
-        visualization::DrawGeometries({linear_interpolation_ptr}, "PointCloud", 1600, 900);
+        visualization::DrawGeometries({interpolated_ptr}, "PointCloud", 1600, 900);
     }
-    */
 }
 
 int main(int argc, char *argv[])

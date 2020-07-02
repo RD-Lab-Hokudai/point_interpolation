@@ -261,7 +261,7 @@ int main(int argc, char *argv[])
     //vector<int> data_nos = {550, 1000, 1125, 1260, 1550}; // 03_03_miyanosawa
     //vector<int> data_nos = {10, 20, 30, 40, 50}; // 02_04_13jo
     vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
-    segmentate(700, 200, true);
+    segmentate(700, width, true);
 
     for (int i = 0; i < data_nos.size(); i++)
     {
