@@ -23,20 +23,20 @@ const int height = 606;
 const double f_x = width / 2 * 1.01;
 
 // Calibration
-// 02_04_13jo
-/*
+// 02_19_13jo
 int X = 498;
 int Y = 485;
 int Z = 509;
 int theta = 483;
 int phi = 518;
-*/
 // 02_04_miyanosawa
+/*
 int X = 495;
 int Y = 475;
 int Z = 458;
 int theta = 438;
 int phi = 512;
+*/
 // 03_03_miyanosawa
 /*
 int X = 500;
@@ -212,10 +212,10 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
     return sorted_ptr;
 }
 
-void segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double sigma_r = 20, int r = 10, bool see_res = false)
+double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double sigma_r = 20, int r = 10, bool see_res = false)
 {
-    const string pcd_path = "../../../data/2020_02_04_miyanosawa/" + to_string(data_no) + ".pcd";
-    const string img_path = "../../../data/2020_02_04_miyanosawa/" + to_string(data_no) + ".png";
+    const string pcd_path = "../../../data/2020_02_04_13jo/" + to_string(data_no) + ".pcd";
+    const string img_path = "../../../data/2020_02_04_13jo/" + to_string(data_no) + ".png";
 
     cv::Mat img = cv::imread(img_path);
 
@@ -305,9 +305,9 @@ void segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double sig
                 cnts[toY][toX] += cnts[y][x];
             }
         }
-        cout << "Sample time[ms] = " << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << endl;
+        //cout << "Sample time[ms] = " << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << endl;
 
-        cv::imshow("a", range_img);
+        //cv::imshow("a", range_img);
         //cv::waitKey();
     }
 
@@ -322,7 +322,7 @@ void segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double sig
                 credibility_img.at<unsigned short>(i, j) = (unsigned short)(65535 * exp(-val * val / 2 / sigma_c / sigma_c));
             }
         }
-        cv::imshow("b", credibility_img);
+        //cv::imshow("b", credibility_img);
     }
 
     cv::Mat jbu_img = cv::Mat::zeros(height, width, CV_16UC1);
@@ -354,7 +354,7 @@ void segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double sig
                 jbu_img.at<unsigned short>(i, j) = (unsigned short)(val / coef);
             }
         }
-        cv::imshow("c", jbu_img);
+        // cv::imshow("c", jbu_img);
     }
 
     auto interpolated_ptr = make_shared<geometry::PointCloud>();
@@ -376,8 +376,8 @@ void segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double sig
         }
     }
 
+    double error = 0;
     { // Evaluation
-        double error = 0;
         int cnt = 0;
         int cannot_cnt = 0;
         for (int i = 0; i < height; i++)
@@ -395,8 +395,9 @@ void segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double sig
                 }
             }
         }
+        error /= cnt;
         cout << "cannot cnt = " << cannot_cnt - cnt << endl;
-        cout << "Error = " << error / cnt << endl;
+        //cout << "Error = " << error << endl;
     }
     cout << "Total time[ms] = " << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << endl;
 
@@ -413,16 +414,58 @@ void segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double sig
 
         visualization::DrawGeometries({interpolated_ptr}, "PointCloud", 1600, 900);
     }
+
+    return error;
 }
 
 int main(int argc, char *argv[])
 {
     //vector<int> data_nos = {550, 1000, 1125, 1260, 1550};
-    //vector<int> data_nos = {10, 20, 30, 40, 50};
-    vector<int> data_nos = {700, 1290, 1460, 2350, 3850};
+    vector<int> data_nos = {10, 20, 30, 40, 50}; // 02_19_13jo
+    //vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
+
     for (int i = 0; i < data_nos.size(); i++)
     {
-        segmentate(data_nos[i]);
+        cout << segmentate(data_nos[i], 91, 46, 1, 19, false) << endl;
     }
+
+    double best_error = 1000;
+    double best_sigma_c = 1;
+    double best_sigma_s = 1;
+    double best_sigma_r = 1;
+    int best_r = 1;
+    // best params 2020/07/06 sigma_c:91 sigma_s:46 sigma_R:1 r:19
+
+    for (double sigma_c = 1; sigma_c < 100; sigma_c += 10)
+    {
+        for (double sigma_s = 1; sigma_s < 50; sigma_s += 5)
+        {
+            for (double sigma_r = 1; sigma_r < 5; sigma_r += 5)
+            {
+                for (int r = 1; r < 20; r++)
+                {
+                    double error = 0;
+                    for (int i = 0; i < data_nos.size(); i++)
+                    {
+                        error += segmentate(data_nos[i], sigma_c, sigma_s, sigma_r, r);
+                    }
+
+                    if (best_error > error)
+                    {
+                        best_sigma_c = sigma_c;
+                        best_sigma_s = sigma_s;
+                        best_sigma_r = sigma_r;
+                        best_r = r;
+                    }
+                }
+            }
+        }
+    }
+
+    cout << "Sigma C = " << best_sigma_c << endl;
+    cout << "Sigma S = " << best_sigma_s << endl;
+    cout << "Sigma R = " << best_sigma_r << endl;
+    cout << "R = " << best_r << endl;
+    cout << "Mean error = " << best_error / data_nos.size() << endl;
     return 0;
 }

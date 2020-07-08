@@ -322,19 +322,19 @@ const double f_x = width / 2 * 1.01;
 
 // Calibration
 // 02_04_13jo
-/*
 int X = 498;
 int Y = 485;
 int Z = 509;
 int theta = 483;
 int phi = 518;
-*/
 // 02_04_miyanosawa
+/*
 int X = 495;
 int Y = 475;
 int Z = 458;
 int theta = 438;
 int phi = 512;
+*/
 // 03_03_miyanosawa
 /*
 int X = 500;
@@ -513,8 +513,8 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
 
 double segmentate(int data_no, double color_segment_k, int color_size_min, double gaussian_sigma, double point_segment_k, int point_size_min, double color_rate, bool see_res = false)
 {
-    const string img_name = "../../../data/2020_02_04_miyanosawa/" + to_string(data_no) + ".png";
-    const string file_name = "../../../data/2020_02_04_miyanosawa/" + to_string(data_no) + ".pcd";
+    const string img_name = "../../../data/2020_02_04_13jo/" + to_string(data_no) + ".png";
+    const string file_name = "../../../data/2020_02_04_13jo/" + to_string(data_no) + ".pcd";
     const bool vertical = true;
 
     auto img = cv::imread(img_name);
@@ -895,11 +895,12 @@ double segmentate(int data_no, double color_segment_k, int color_size_min, doubl
 
 int main(int argc, char *argv[])
 {
-    //vector<int> data_nos = {550, 1000, 1125, 1260, 1550};
-    vector<int> data_nos = {700, 1290, 1460, 2350, 3850};
+    //vector<int> data_nos = {550, 1000, 1125, 1260, 1550}; // 03_03_miyanosawa
+    vector<int> data_nos = {10, 20, 30, 40, 50}; // 02_04_13jo
+    //vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
     for (int i = 0; i < data_nos.size(); i++)
     {
-        segmentate(data_nos[i], 0, 0, 0.5, 15, 3, 5, false);
+        segmentate(data_nos[i], 0, 0, 0.5, 3, 3, 0, false);
     }
 
     double best_error = 100;
@@ -911,6 +912,7 @@ int main(int argc, char *argv[])
     // 2020/6/29 : 4 2 0 4
     // 2020/6/29_2 : 0 0 3 9
     // 2020/6/29_2 : 0 0 15 5
+    // 2020/6/29_2 : 0 0 3 0
 
     for (double color_segment_k = 0; color_segment_k < 10; color_segment_k += 1)
     {
