@@ -202,20 +202,38 @@ void reproject()
     }
     cv::imshow("Image", reprojected);
 
-    cv::Ptr<cv::ORB> orb = cv::ORB::create();
-    vector<cv::KeyPoint> keyOrb;
-    orb->detect(points_img, keyOrb);
-    cv::Mat keys_img = cv::Mat::zeros(height, width, CV_8UC3);
-    cv::drawKeypoints(points_img, keyOrb, keys_img);
+    cv::Ptr<cv::ORB> point_orb = cv::ORB::create();
+    vector<cv::KeyPoint> point_key;
+    cv::Mat point_descriptor;
+    point_orb->detectAndCompute(points_img, cv::Mat(), point_key, point_descriptor);
+    cv::Mat point_key_img = cv::Mat::zeros(height, width, CV_8UC3);
+    cv::drawKeypoints(points_img, point_key, point_key_img);
     cv::imshow("Points", points_img);
-    cv::imshow("Keys", keys_img);
+    cv::imshow("Keys", point_key_img);
 
-    cv::Ptr<cv::ORB> orb_thermal = cv::ORB::create();
-    vector<cv::KeyPoint> keyOrb_thermal;
-    orb->detect(thermal_img, keyOrb_thermal);
-    cv::Mat keys_thermal_img = cv::Mat::zeros(height, width, CV_8UC3);
-    cv::drawKeypoints(thermal_img, keyOrb_thermal, keys_thermal_img);
-    cv::imshow("Thermal Keys", keys_thermal_img);
+    cv::Ptr<cv::ORB> thermal_orb = cv::ORB::create();
+    vector<cv::KeyPoint> thermal_key;
+    cv::Mat thermal_descriptor;
+    thermal_orb->detectAndCompute(thermal_img, cv::Mat(), thermal_key, thermal_descriptor);
+    cv::Mat thermal_key_img = cv::Mat::zeros(height, width, CV_8UC3);
+    cv::drawKeypoints(thermal_img, thermal_key, thermal_key_img);
+    cv::imshow("Thermal Keys", thermal_key_img);
+
+    vector<vector<cv::DMatch>> matches;
+    cv::FlannBasedMatcher matcher = cv::FlannBasedMatcher(cv::makePtr<cv::flann::LshIndexParams>(12, 20, 2));
+    matcher.knnMatch(point_descriptor, thermal_descriptor, matches, 2);
+    vector<cv::DMatch> good_matches;
+    cout << matches.size() << endl;
+    for (size_t i = 0; i < matches.size(); i++)
+    {
+        if (0 < matches[i].size() && matches[i][0].distance < 0.7f * matches[i][1].distance)
+        {
+            good_matches.push_back(matches[i][0]);
+        }
+    }
+    cv::Mat img_matches;
+    cv::drawMatches(points_img, point_key, thermal_img, thermal_key, good_matches, img_matches);
+    cv::imshow("Matches", img_matches);
 }
 
 /* プロトタイプ宣言 */
