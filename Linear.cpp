@@ -91,12 +91,6 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
                 if (index % (64 / layer_cnt) == 0)
                 {
                     int id = index / (64 / layer_cnt);
-                    /*
-                    while (layers[id].size() > 0 && x / z < layers[id][layers[id].size() - 1][0] / layers[id][layers[id].size() - 1][2])
-                    {
-                        layers[id].pop_back();
-                    }
-                    */
                     layers[index / (64 / layer_cnt)].emplace_back(x, y, z);
                     filtered_z[v][u] = z;
                 }
