@@ -61,9 +61,7 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
         rad += delta_rad;
     }
 
-    base_z = vector<vector<double>>(height, vector<double>(width));
-    filtered_z = vector<vector<double>>(height, vector<double>(width));
-    vector<vector<Eigen::Vector3d>> layers(layer_cnt, vector<Eigen::Vector3d>());
+    vector<vector<Eigen::Vector3d>> all_layers(64, vector<Eigen::Vector3d>());
     for (int i = 0; i < raw_pcd_ptr->points_.size(); i++)
     {
         double rawX = raw_pcd_ptr->points_[i][1];
@@ -88,35 +86,44 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
             {
                 auto it = lower_bound(tans.begin(), tans.end(), rawY / r);
                 int index = it - tans.begin();
-                if (index % (64 / layer_cnt) == 0)
-                {
-                    int id = index / (64 / layer_cnt);
-                    layers[index / (64 / layer_cnt)].emplace_back(x, y, z);
-                    filtered_z[v][u] = z;
-                }
-                base_z[v][u] = z;
+                all_layers[index].emplace_back(x, y, z);
             }
         }
     }
 
     int filtered_cnt = 0;
-    for (int i = 0; i < layer_cnt; i++)
+    base_z = vector<vector<double>>(height, vector<double>(width));
+    filtered_z = vector<vector<double>>(height, vector<double>(width));
+    vector<vector<Eigen::Vector3d>> layers;
+    for (int i = 0; i < 64; i++)
     {
-        /*
-        sort(begin(layers[i]), end(layers[i]),
-             [](Eigen::Vector3d a, Eigen::Vector3d b) { return a[0] / a[2] < b[0] / b[2]; });
-*/
+        // no sort
         vector<Eigen::Vector3d> removed;
-        for (size_t j = 0; j < layers[i].size(); j++)
+        for (size_t j = 0; j < all_layers[i].size(); j++)
         {
-            while (removed.size() > 0 && removed.back()[0] / removed.back()[2] > layers[i][j][0] / layers[i][j][2])
+            while (removed.size() > 0 && removed.back()[0] / removed.back()[2] > all_layers[i][j][0] / all_layers[i][j][2])
             {
                 removed.pop_back();
             }
-            removed.emplace_back(layers[i][j]);
+            removed.emplace_back(all_layers[i][j]);
         }
-        layers[i] = removed;
-        filtered_cnt += layers[i].size();
+
+        if (i % (64 / layer_cnt) == 0)
+        {
+            layers.push_back(removed);
+            filtered_cnt += removed.size();
+        }
+
+        for (size_t j = 0; j < removed.size(); j++)
+        {
+            int u = (int)(width / 2 + f_x * removed[j][0] / removed[j][2]);
+            int v = (int)(height / 2 + f_x * removed[j][1] / removed[j][2]);
+            if (i % (64 / layer_cnt) == 0)
+            {
+                filtered_z[v][u] = removed[j][2];
+            }
+            base_z[v][u] = removed[j][2];
+        }
     }
 
     neighbors = vector<vector<int>>(filtered_cnt, vector<int>());
