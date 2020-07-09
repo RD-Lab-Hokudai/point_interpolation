@@ -156,13 +156,50 @@ public:
     {
         auto unionFind = make_shared<UnionFind>(length);
         vector<double> thresholds;
+        double diff_max = 0;
+        double diff_min = 1000000;
         for (int i = 0; i < length; i++)
         {
             thresholds.emplace_back(get_threshold(k, 1));
+            double diff = get<0>(edges[i]);
+            diff_max = max(diff_max, diff);
+            diff_min = min(diff_min, diff);
         }
 
-        sort(edges.begin(), edges.end());
+        /*
+        int bucket_len=1000000;
+        vector<vector<int>> bucket(bucket_len+1);
+        for(int i=0;i<length;i++){
+            int diff_level=(int)(bucket_len*(get<0>(edges[i])-diff_min)/(diff_max-diff_min));
+            bucket[diff_level].emplace_back(i);
+        }
 
+        for (int i = 0; i < bucket.size(); i++)
+        {
+            for(int j=0;j<bucket[i].size();j++){
+            double diff = get<0>(edges[bucket[i][j]]);
+            int from = get<1>(edges[bucket[i][j]]);
+            int to = get<2>(edges[bucket[i][j]]);
+
+            from = unionFind->root(from);
+            to = unionFind->root(to);
+
+            if (from == to)
+            {
+                continue;
+            }
+
+            if (diff <= min(thresholds[from], thresholds[to]))
+            {
+                unionFind->unite(from, to);
+                int root = unionFind->root(from);
+                thresholds[root] = diff + get_threshold(k, unionFind->size(root));
+            }
+            }
+        }
+        */
+
+        sort(edges.begin(), edges.end());
         for (int i = 0; i < edges.size(); i++)
         {
             double diff = get<0>(edges[i]);
@@ -817,17 +854,36 @@ double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, share
 
 int main(int argc, char *argv[])
 {
-    vector<int> data_nos = {550, 1000, 1125, 1260, 1550};
+    //vector<int> data_nos = {550, 1000, 1125, 1260, 1550}; // 03_03_miyanosawa
+    //vector<int> data_nos = {10, 20, 30, 40, 50}; // 02_04_13jo
+    vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
     vector<cv::Mat> imgs;
     vector<shared_ptr<geometry::PointCloud>> pcd_ptrs;
     vector<shared_ptr<geometry::PointCloud>> downed_ptrs;
 
     // Calibration
-    double X = 500;
-    double Y = 474;
-    double Z = 458;
-    double theta = 506;
-    double phi = 527;
+    // 02_04_13jo
+    /*
+int X = 498;
+int Y = 485;
+int Z = 509;
+int theta = 483;
+int phi = 518;
+*/
+    // 02_04_miyanosawa
+    int X = 495;
+    int Y = 475;
+    int Z = 458;
+    int theta = 438;
+    int phi = 512;
+    // 03_03_miyanosawa
+    /*
+int X = 500;
+int Y = 474;
+int Z = 458;
+int theta = 506;
+int phi = 527;
+*/
 
     vector<double> tans;
     double PI = acos(-1);
@@ -842,10 +898,10 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < data_nos.size(); i++)
     {
-        string img_path = "../../../data/2020_03_03_miyanosawa_img_pcd/" + to_string(data_nos[i]) + ".png";
+        string img_path = "../../../data/2020_02_04_miyanosawa/" + to_string(data_nos[i]) + ".png";
         imgs.emplace_back(cv::imread(img_path));
 
-        string pcd_path = "../../../data/2020_03_03_miyanosawa_img_pcd/" + to_string(data_nos[i]) + ".pcd";
+        string pcd_path = "../../../data/2020_02_04_miyanosawa/" + to_string(data_nos[i]) + ".pcd";
         geometry::PointCloud pointcloud;
         auto pcd_ptr = make_shared<geometry::PointCloud>();
         if (!io::ReadPointCloud(pcd_path, pointcloud))

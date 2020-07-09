@@ -75,28 +75,28 @@ public:
 
 class Graph
 {
-    multimap<double, pair<int, int>> edges;
+    vector<tuple<double, int, int>> edges;
     int length;
 
     double get_diff(cv::Vec3b &a, cv::Vec3b &b)
     {
-        double diff = 0;
+        double diff = 1;
         for (int i = 0; i < 3; i++)
         {
-            diff += (a[i] - b[i]) * (a[i] - b[i]);
+            diff -= abs(a[i] * b[i] / 255.0 / 255.0);
         }
-        diff = sqrt(diff);
         return diff;
     }
 
     double get_point_diff(Eigen::Vector3d a, Eigen::Vector3d b, Eigen::Vector3d a_color, Eigen::Vector3d b_color, double k)
     {
         double diff_normal = 1;
+        double diff_color = 1;
         for (int i = 0; i < 3; i++)
         {
             diff_normal -= abs(a[i] * b[i]);
+            diff_color -= abs(a_color[i] * b_color[i]);
         }
-        double diff_color = (a_color - b_color).norm();
         return diff_normal + k * diff_color;
     }
 
@@ -123,7 +123,7 @@ public:
                     if (0 <= to_x && to_x < img->cols && 0 <= to_y && to_y < img->rows)
                     {
                         double diff = get_diff(row[j], img->at<cv::Vec3b>(to_y, to_x));
-                        edges.insert(make_pair(diff, make_pair(i * img->cols + j, to_y * img->cols + to_x)));
+                        edges.emplace_back(diff, i * img->cols + j, to_y * img->cols + to_x);
                     }
                 }
             }
@@ -145,7 +145,7 @@ public:
 
                 double diff = get_point_diff(pcd_ptr->normals_[i], pcd_ptr->normals_[to],
                                              pcd_ptr->colors_[i], pcd_ptr->colors_[to], color_rate);
-                edges.insert(make_pair(diff, make_pair(i, to)));
+                edges.emplace_back(diff, i, to);
             }
         }
     }
@@ -156,18 +156,61 @@ public:
 
         auto unionFind = make_shared<UnionFind>(length);
         vector<double> thresholds;
+        double diff_max = 0;
+        double diff_min = 1000000;
         for (int i = 0; i < length; i++)
         {
             thresholds.emplace_back(get_threshold(k, 1));
+            double diff = get<0>(edges[i]);
+            diff_max = max(diff_max, diff);
+            diff_min = min(diff_min, diff);
         }
 
         cout << "Build thres time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
 
-        for (auto const &entry : edges)
+        int bucket_len = 1000000;
+        vector<vector<int>> bucket(bucket_len + 1);
+        for (int i = 0; i < length; i++)
         {
-            double diff = entry.first;
-            int from = entry.second.first;
-            int to = entry.second.second;
+            int diff_level = (int)(bucket_len * (get<0>(edges[i]) - diff_min) / (diff_max - diff_min));
+            bucket[diff_level].emplace_back(i);
+        }
+        cout << "Sort edges time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
+
+        for (int i = 0; i < bucket.size(); i++)
+        {
+            for (int j = 0; j < bucket[i].size(); j++)
+            {
+                double diff = get<0>(edges[bucket[i][j]]);
+                int from = get<1>(edges[bucket[i][j]]);
+                int to = get<2>(edges[bucket[i][j]]);
+
+                from = unionFind->root(from);
+                to = unionFind->root(to);
+
+                if (from == to)
+                {
+                    continue;
+                }
+
+                if (diff <= min(thresholds[from], thresholds[to]))
+                {
+                    unionFind->unite(from, to);
+                    int root = unionFind->root(from);
+                    thresholds[root] = diff + get_threshold(k, unionFind->size(root));
+                }
+            }
+        }
+
+        /*
+        sort(edges.begin(), edges.end());
+        cout << "Sort edges time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;	
+
+        for (int i = 0; i < edges.size(); i++)	
+        {	      
+            double diff = get<0>(edges[i]);	         
+            int from = get<1>(edges[i]);	       
+            int to = get<2>(edges[i]);
 
             from = unionFind->root(from);
             to = unionFind->root(to);
@@ -184,13 +227,14 @@ public:
                 thresholds[root] = diff + get_threshold(k, unionFind->size(root));
             }
         }
+        */
 
         cout << "Segmentate time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
 
-        for (auto const &entry : edges)
+        for (int i = 0; i < edges.size(); i++)
         {
-            int from = entry.second.first;
-            int to = entry.second.second;
+            int from = get<1>(edges[i]);
+            int to = get<2>(edges[i]);
             from = unionFind->root(from);
             to = unionFind->root(to);
 
@@ -277,11 +321,28 @@ const int height = 606;
 const double f_x = width / 2 * 1.01;
 
 // Calibration
-double X = 500;
-double Y = 474;
-double Z = 458;
-double theta = 506;
-double phi = 527;
+// 02_04_13jo
+int X = 498;
+int Y = 485;
+int Z = 509;
+int theta = 483;
+int phi = 518;
+// 02_04_miyanosawa
+/*
+int X = 495;
+int Y = 475;
+int Z = 458;
+int theta = 438;
+int phi = 512;
+*/
+// 03_03_miyanosawa
+/*
+int X = 500;
+int Y = 474;
+int Z = 458;
+int theta = 506;
+int phi = 527;
+*/
 
 shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> raw_pcd_ptr,
                                                vector<vector<double>> &base_z, vector<vector<double>> &filtered_z,
@@ -452,8 +513,8 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
 
 double segmentate(int data_no, double color_segment_k, int color_size_min, double gaussian_sigma, double point_segment_k, int point_size_min, double color_rate, bool see_res = false)
 {
-    const string img_name = "../../../data/2020_03_03_miyanosawa_img_pcd/" + to_string(data_no) + ".png";
-    const string file_name = "../../../data/2020_03_03_miyanosawa_img_pcd/" + to_string(data_no) + ".pcd";
+    const string img_name = "../../../data/2020_02_04_13jo/" + to_string(data_no) + ".png";
+    const string file_name = "../../../data/2020_02_04_13jo/" + to_string(data_no) + ".pcd";
     const bool vertical = true;
 
     auto img = cv::imread(img_name);
@@ -470,6 +531,8 @@ double segmentate(int data_no, double color_segment_k, int color_size_min, doubl
     {
         cout << "Cannot read" << endl;
     }
+
+    auto start = chrono::system_clock::now();
 
     vector<vector<double>> base_z, filtered_z;
     vector<vector<int>> neighbors;
@@ -489,16 +552,13 @@ double segmentate(int data_no, double color_segment_k, int color_size_min, doubl
 
     shared_ptr<UnionFind> color_segments;
     {
-        auto start = chrono::system_clock::now();
-        auto graph = make_shared<Graph>(&blured);
-        cout << "Build time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
-        color_segments = graph->segmentate(color_segment_k, color_size_min);
-        cout << "Segmentation time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
+        Graph graph(&blured);
+        color_segments = graph.segmentate(color_segment_k, color_size_min);
     }
 
-    map<int, vector<int>> segments;
-    map<int, Eigen::VectorXd> interpolation_params;
-    map<int, set<int>> pixel_surface_map;
+    vector<vector<int>> segments(filtered_ptr->points_.size(), vector<int>());
+    vector<Eigen::VectorXd> interpolation_params(filtered_ptr->points_.size());
+    vector<vector<int>> pixel_surface_vec(width * height, vector<int>());
     { // Point segmentation and interpolation
         Graph graph(filtered_ptr, neighbors, color_rate);
         auto unionFind = graph.segmentate(point_segment_k, point_size_min);
@@ -510,10 +570,9 @@ double segmentate(int data_no, double color_segment_k, int color_size_min, doubl
         }
 
         cv::Mat bound_img = cv::Mat::zeros(height, width, CV_8UC3);
-        for (const auto pair : segments)
+        for (int key = 0; key < segments.size(); key++)
         {
-            int key = pair.first;
-            auto value = pair.second;
+            auto value = segments[key];
             if (value.size() < 3)
             {
                 continue;
@@ -528,7 +587,7 @@ double segmentate(int data_no, double color_segment_k, int color_size_min, doubl
                 int v = (int)(height / 2 + f_x * y / z);
 
                 int color_root = color_segments->root(v * width + u);
-                pixel_surface_map[color_root].insert(key);
+                pixel_surface_vec[color_root].emplace_back(key);
             }
 
             vector<double> xs, ys, zs;
@@ -577,79 +636,48 @@ double segmentate(int data_no, double color_segment_k, int color_size_min, doubl
                 {
                     res_param = quadra_param;
                 }
-                interpolation_params.emplace(key, res_param);
+                interpolation_params[key] = res_param;
             }
             else
             {
                 Eigen::VectorXd res_param(6);
                 res_param << 0, 0, 0, linear_param[0], linear_param[1], linear_param[2];
-                interpolation_params.emplace(key, res_param);
+                interpolation_params[key] = res_param;
             }
         }
+        cout << "Calc params time[ms] = " << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << endl;
     }
 
     auto interpolated_ptr = make_shared<geometry::PointCloud>();
     vector<vector<double>> interpolated_z(height, vector<double>(width));
-    {
-        cv::Mat interpolated_range_img = cv::Mat::zeros(height, width, CV_8UC3);
-        for (int i = 0; i < height; i++)
+
+    { // Interpolate layer
+        for (int j = 0; j + 1 < filtered_ptr->points_.size(); j++)
         {
-            for (int j = 0; j < width; j++)
+            int u = (int)(width / 2 + f_x * filtered_ptr->points_[j][0] / filtered_ptr->points_[j][2]);
+            int v = (int)(height / 2 + f_x * filtered_ptr->points_[j][1] / filtered_ptr->points_[j][2]);
+            int toU = (int)(width / 2 + f_x * filtered_ptr->points_[j + 1][0] / filtered_ptr->points_[j + 1][2]);
+            int toV = (int)(height / 2 + f_x * filtered_ptr->points_[j + 1][1] / filtered_ptr->points_[j + 1][2]);
+
+            if (toU < u)
             {
-                int root = color_segments->root(i * width + j);
+                continue;
+            }
 
-                if (pixel_surface_map.find(root) != pixel_surface_map.end())
-                {
-                    double best_z = -100;
-                    for (auto itr = pixel_surface_map[root].begin(); itr != pixel_surface_map[root].end(); itr++)
-                    {
-                        auto params = interpolation_params[*itr];
-                        double coef_a = (j - width / 2) / f_x;
-                        double coef_b = (i - height / 2) / f_x;
-                        double a = params[0] * coef_a * coef_a + params[1] * coef_b * coef_b + params[2] * coef_a * coef_b;
-                        double b = params[3] * coef_a + params[4] * coef_b + 1;
-                        double c = -params[5];
-
-                        double x = 0;
-                        double y = 0;
-                        double z = 0;
-
-                        if (a == 0)
-                        {
-                            z = -c / b;
-                        }
-                        else
-                        {
-                            // 判別式0未満になりうる これを改善することが鍵か
-                            // なぜ0未満になる？
-                            // あてはまりそうな面だけ選ぶ？
-                            z = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
-                        }
-
-                        x = coef_a * z;
-                        y = coef_b * z;
-
-                        if (z > 0 && z < 100)
-                        {
-                            best_z = z;
-                            break;
-                        }
-
-                        if (z > 0 && z < 100 && abs(interpolated_z[i][j] - z) < abs(interpolated_z[i][j] - best_z))
-                        {
-                            best_z = z;
-                        }
-                    }
-
-                    if (best_z != -100)
-                    {
-                        //cout << interpolated_z[i][j] - best_z << endl;
-                        interpolated_z[i][j] = best_z;
-                        interpolated_range_img.at<cv::Vec3b>(i, j)[0] = 255;
-                    }
-                }
+            float delta = 1.0f * (toV - v) / (toU - u);
+            int tmpU = u;
+            float tmpV = v;
+            while (tmpU <= toU)
+            {
+                interpolated_z[(int)tmpV][tmpU] = (filtered_z[toV][toU] * (tmpU - u) + filtered_z[v][u] * (toU - tmpU)) / (toU - u);
+                tmpU++;
+                tmpV += delta;
             }
         }
+        cout << "Interpolate layer time[ms] = " << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << endl;
+    }
+
+    { // Linear interpolation
         for (int j = 0; j < width; j++)
         {
             vector<int> up(height, -1);
@@ -738,6 +766,70 @@ double segmentate(int data_no, double color_segment_k, int color_size_min, doubl
                 }
             }
         }
+        cout << "Interpolate linearly time[ms] = " << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << endl;
+    }
+
+    {
+        cv::Mat interpolated_range_img = cv::Mat::zeros(height, width, CV_8UC3);
+
+        for (int i = 0; i < height; i++)
+        {
+            for (int j = 0; j < width; j++)
+            {
+                int root = color_segments->root(i * width + j);
+
+                if (pixel_surface_vec[root].size() > 0)
+                {
+                    double best_z = 1000;
+                    for (auto itr = pixel_surface_vec[root].begin(); itr != pixel_surface_vec[root].end(); itr++)
+                    {
+                        auto params = interpolation_params[*itr];
+                        double coef_a = (j - width / 2) / f_x;
+                        double coef_b = (i - height / 2) / f_x;
+                        double a = params[0] * coef_a * coef_a + params[1] * coef_b * coef_b + params[2] * coef_a * coef_b;
+                        double b = params[3] * coef_a + params[4] * coef_b + 1;
+                        double c = -params[5];
+
+                        double x = 0;
+                        double y = 0;
+                        double z = 0;
+
+                        if (a == 0)
+                        {
+                            z = -c / b;
+                        }
+                        else
+                        {
+                            // 判別式0未満になりうる これを改善することが鍵か
+                            // なぜ0未満になる？
+                            // あてはまりそうな面だけ選ぶ？
+                            z = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
+                        }
+
+                        x = coef_a * z;
+                        y = coef_b * z;
+
+                        if (z > 0 && z < 100)
+                        {
+                            best_z = z;
+                            break;
+                        }
+
+                        if (z > 0 && z < 100 && z < best_z)
+                        {
+                            best_z = z;
+                        }
+                    }
+
+                    if (best_z != 1000)
+                    {
+                        //cout << interpolated_z[i][j] - best_z << endl;
+                        interpolated_z[i][j] = best_z;
+                        interpolated_range_img.at<cv::Vec3b>(i, j)[0] = 255;
+                    }
+                }
+            }
+        }
 
         for (int i = 0; i < height; i++)
         {
@@ -757,6 +849,7 @@ double segmentate(int data_no, double color_segment_k, int color_size_min, doubl
                 interpolated_ptr->colors_.emplace_back(color, color, color);
             }
         }
+        cout << "Interpolate time[ms] = " << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << endl;
     }
 
     double error = 0;
@@ -778,8 +871,9 @@ double segmentate(int data_no, double color_segment_k, int color_size_min, doubl
                 }
             }
         }
+        error /= cnt;
         cout << "cannot cnt = " << cannot_cnt - cnt << endl;
-        cout << "Error = " << error / cnt << endl;
+        cout << "Error = " << error << endl;
     }
 
     if (see_res)
@@ -801,10 +895,12 @@ double segmentate(int data_no, double color_segment_k, int color_size_min, doubl
 
 int main(int argc, char *argv[])
 {
-    vector<int> data_nos = {550, 1000, 1125, 1260, 1550};
+    //vector<int> data_nos = {550, 1000, 1125, 1260, 1550}; // 03_03_miyanosawa
+    vector<int> data_nos = {10, 20, 30, 40, 50}; // 02_04_13jo
+    //vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
     for (int i = 0; i < data_nos.size(); i++)
     {
-        segmentate(data_nos[i], 49, 9, 0.5, 19, 3, 1, false);
+        segmentate(data_nos[i], 0, 0, 0.5, 3, 3, 0, false);
     }
 
     double best_error = 100;
@@ -812,6 +908,11 @@ int main(int argc, char *argv[])
     int best_color_size_min = 1;
     double best_point_segment_k = 1;
     double best_color_rate = 0.1;
+    // 2020/6/26 : 1 1 1 0.1
+    // 2020/6/29 : 4 2 0 4
+    // 2020/6/29_2 : 0 0 3 9
+    // 2020/6/29_2 : 0 0 15 5
+    // 2020/6/29_2 : 0 0 3 0
 
     for (double color_segment_k = 0; color_segment_k < 10; color_segment_k += 1)
     {
@@ -824,7 +925,9 @@ int main(int argc, char *argv[])
                     double error = 0;
                     for (int i = 0; i < data_nos.size(); i++)
                     {
+                        auto start = chrono::system_clock::now();
                         error += segmentate(data_nos[i], color_segment_k, color_size_min, 0.5, point_segment_k, 3, color_rate);
+                        cout << "Time[ms] = " << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << endl;
                     }
                     error /= data_nos.size();
 

@@ -3,6 +3,7 @@
 #include <stack>
 #include <map>
 #include <chrono>
+#include <queue>
 
 #include <Open3D/Open3D.h>
 #include <opencv2/opencv.hpp>
@@ -22,7 +23,7 @@ const int height = 606;
 const double f_x = width / 2 * 1.01;
 
 // Calibration
-// 02_04_13jo
+// 02_19_13jo
 int X = 498;
 int Y = 485;
 int Z = 509;
@@ -211,10 +212,12 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
     return sorted_ptr;
 }
 
-void segmentate(int data_no, bool see_res = false)
+double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double sigma_r = 20, int r = 10, bool see_res = false)
 {
     const string pcd_path = "../../../data/2020_02_04_13jo/" + to_string(data_no) + ".pcd";
-    const bool vertical = true;
+    const string img_path = "../../../data/2020_02_04_13jo/" + to_string(data_no) + ".png";
+
+    cv::Mat img = cv::imread(img_path);
 
     geometry::PointCloud pointcloud;
     auto pcd_ptr = make_shared<geometry::PointCloud>();
@@ -230,254 +233,151 @@ void segmentate(int data_no, bool see_res = false)
     shared_ptr<geometry::PointCloud> filtered_ptr = calc_filtered(pcd_ptr, base_z, filtered_z, neighbors, layer_cnt);
 
     auto start = chrono::system_clock::now();
-    vector<vector<double>> interpolated_z(height, vector<double>(width));
-
-    { // Interpolate layer
-        cv::Mat layer_img = cv::Mat::zeros(height, width, CV_8UC3);
-        for (int i = 0; i < layer_cnt; i++)
+    cv::Mat range_img = cv::Mat::zeros(height, width, CV_16UC1);
+    double min_depth = 10000;
+    double max_depth = 0;
+    {
+        for (int i = 0; i < height; i++)
         {
-            for (int j = 0; j + 1 < filtered_ptr->points_.size(); j++)
+            for (int j = 0; j < width; j++)
             {
-                int u = (int)(width / 2 + f_x * filtered_ptr->points_[j][0] / filtered_ptr->points_[j][2]);
-                int v = (int)(height / 2 + f_x * filtered_ptr->points_[j][1] / filtered_ptr->points_[j][2]);
-                int toU = (int)(width / 2 + f_x * filtered_ptr->points_[j + 1][0] / filtered_ptr->points_[j + 1][2]);
-                int toV = (int)(height / 2 + f_x * filtered_ptr->points_[j + 1][1] / filtered_ptr->points_[j + 1][2]);
+                if (filtered_z[i][j] > 0)
+                {
+                    min_depth = min(min_depth, filtered_z[i][j]);
+                    max_depth = max(max_depth, filtered_z[i][j]);
+                }
+            }
+        }
 
-                if (toU < u)
+        queue<int> que;
+        vector<vector<int>> costs(height, vector<int>(width, 100000));
+        vector<vector<int>> cnts(height, vector<int>(width, 0));
+        for (int i = 0; i < height; i++)
+        {
+            for (int j = 0; j < width; j++)
+            {
+                if (filtered_z[i][j] > 0)
+                {
+                    range_img.at<unsigned short>(i, j) = (unsigned short)(65535 * (filtered_z[i][j] - min_depth) / (max_depth - min_depth));
+                    costs[i][j] = 0;
+                    cnts[i][j]++;
+                    que.push(i * width + j);
+                }
+            }
+        }
+
+        //int dx[8]{-1, 0, 1, -1, 1, -1, 0, 1};
+        //int dy[8]{-1, -1, -1, 0, 0, 1, 1, 1};
+        int dx[4]{-1, 1, 0, 0};
+        int dy[4]{0, 0, -1, 1};
+        while (!que.empty())
+        {
+            int now = que.front();
+            int x = now % width;
+            int y = now / width;
+            que.pop();
+
+            unsigned short val = range_img.at<unsigned short>(y, x);
+            int next_cost = costs[y][x] + 1;
+            for (int i = 0; i < 4; i++)
+            {
+                int toX = x + dx[i];
+                int toY = y + dy[i];
+                if (toX < 0 || toX >= width || toY < 0 || toY >= height)
                 {
                     continue;
                 }
 
-                float delta = 1.0f * (toV - v) / (toU - u);
-                int tmpU = u;
-                float tmpV = v;
-                while (tmpU <= toU)
+                if (costs[toY][toX] < next_cost)
                 {
-                    interpolated_z[(int)tmpV][tmpU] = (filtered_z[toV][toU] * (tmpU - u) + filtered_z[v][u] * (toU - tmpU)) / (toU - u);
-                    layer_img.at<cv::Vec3b>((int)tmpV, tmpU)[0] = 255;
-                    tmpU++;
-                    tmpV += delta;
+                    continue;
                 }
+
+                if (next_cost < costs[toY][toX])
+                {
+                    que.push(toY * width + toX);
+                }
+
+                //unsigned short tmp = range_img.at<unsigned short>(toY, toX);
+                //range_img.at<unsigned short>(toY, toX) = (unsigned short)(((int)tmp * cnts[toY][toX] + val * cnts[y][x]) / (cnts[toY][toX] + cnts[y][x]));
+                range_img.at<unsigned short>(toY, toX) = val;
+                costs[toY][toX] = next_cost;
+                cnts[toY][toX] += cnts[y][x];
             }
         }
+        //cout << "Sample time[ms] = " << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << endl;
 
-        //cv::imshow("a", layer_img);
+        //cv::imshow("a", range_img);
         //cv::waitKey();
     }
 
-    if (vertical)
+    cv::Mat credibility_img = cv::Mat::zeros(height, width, CV_16UC1);
     {
-        for (int j = 0; j < width; j++)
-        {
-            vector<int> up(height, -1);
-            for (int i = 0; i < height; i++)
-            {
-                if (interpolated_z[i][j] > 0)
-                {
-                    up[i] = i;
-                }
-                else if (i > 0)
-                {
-                    up[i] = up[i - 1];
-                }
-            }
-
-            vector<int> down(height, -1);
-            for (int i = height - 1; i >= 0; i--)
-            {
-                if (interpolated_z[i][j] > 0)
-                {
-                    down[i] = i;
-                }
-                else if (i + 1 < height)
-                {
-                    down[i] = down[i + 1];
-                }
-            }
-
-            for (int i = 0; i < height; i++)
-            {
-                if (up[i] == -1 && down[i] == -1)
-                {
-                    interpolated_z[i][j] = -1;
-                }
-                else if (up[i] == -1 || down[i] == -1 || up[i] == i)
-                {
-                    interpolated_z[i][j] = interpolated_z[max(up[i], down[i])][j];
-                }
-                else
-                {
-                    interpolated_z[i][j] = (interpolated_z[down[i]][j] * (i - up[i]) + interpolated_z[up[i]][j] * (down[i] - i)) / (down[i] - up[i]);
-                }
-            }
-        }
+        cv::Laplacian(range_img, credibility_img, CV_16UC1);
         for (int i = 0; i < height; i++)
         {
-            vector<int> left(width, -1);
             for (int j = 0; j < width; j++)
             {
-                if (interpolated_z[i][j] > 0)
-                {
-                    left[j] = j;
-                }
-                else if (j > 0)
-                {
-                    left[j] = left[j - 1];
-                }
-            }
-
-            vector<int> right(width, -1);
-            for (int j = width - 1; j >= 0; j--)
-            {
-                if (interpolated_z[i][j] > 0)
-                {
-                    right[j] = j;
-                }
-                else if (j + 1 < width)
-                {
-                    right[j] = right[j + 1];
-                }
-            }
-
-            for (int j = 0; j < width; j++)
-            {
-                if (left[j] == -1 && right[j] == -1)
-                {
-                    interpolated_z[i][j] = -1;
-                }
-                else if (left[j] == -1 || right[j] == -1 || left[j] == j)
-                {
-                    interpolated_z[i][j] = interpolated_z[i][max(left[j], right[j])];
-                }
-                else
-                {
-                    interpolated_z[i][j] = (interpolated_z[i][right[j]] * (j - left[j]) + interpolated_z[i][left[j]] * (right[j] - j)) / (right[j] - left[j]);
-                }
+                int val = credibility_img.at<unsigned short>(i, j);
+                credibility_img.at<unsigned short>(i, j) = (unsigned short)(65535 * exp(-val * val / 2 / sigma_c / sigma_c));
             }
         }
+        //cv::imshow("b", credibility_img);
     }
-    else
+
+    cv::Mat jbu_img = cv::Mat::zeros(height, width, CV_16UC1);
+    // Still slow
     {
         for (int i = 0; i < height; i++)
         {
-            vector<int> left(width, -1);
             for (int j = 0; j < width; j++)
             {
-                if (interpolated_z[i][j] > 0)
+                double coef = 0;
+                double val = 0;
+                int d0 = img.at<cv::Vec3b>(i, j)[0];
+                for (int ii = 0; ii < r; ii++)
                 {
-                    left[j] = j;
+                    for (int jj = 0; jj < r; jj++)
+                    {
+                        int x = jj - r / 2;
+                        int y = ii - r / 2;
+                        if (i + y < 0 || i + y >= height || j + x < 0 || j + x >= width)
+                        {
+                            continue;
+                        }
+                        int d1 = img.at<cv::Vec3b>(i + y, j + x)[0];
+                        double tmp = exp(-(x * x + y * y) / 2 / sigma_s / sigma_s) * exp(-(d0 - d1) * (d0 - d1) / 2 / sigma_r / sigma_r) * credibility_img.at<unsigned short>(i + y, j + x);
+                        coef += tmp;
+                        val += tmp * range_img.at<unsigned short>(i + y, j + x);
+                    }
                 }
-                else if (j > 0)
-                {
-                    left[j] = left[j - 1];
-                }
-            }
-
-            vector<int> right(width, -1);
-            for (int j = width - 1; j >= 0; j--)
-            {
-                if (interpolated_z[i][j] > 0)
-                {
-                    right[j] = j;
-                }
-                else if (j + 1 < width)
-                {
-                    right[j] = right[j + 1];
-                }
-            }
-
-            for (int j = 0; j < width; j++)
-            {
-                if (left[j] == -1 && right[j] == -1)
-                {
-                    interpolated_z[i][j] = -1;
-                }
-                else if (left[j] == -1 || right[j] == -1 || left[j] == j)
-                {
-                    interpolated_z[i][j] = interpolated_z[i][max(left[j], right[j])];
-                }
-                else
-                {
-                    interpolated_z[i][j] = (interpolated_z[i][right[j]] * (j - left[j]) + interpolated_z[i][left[j]] * (right[j] - j)) / (right[j] - left[j]);
-                }
+                jbu_img.at<unsigned short>(i, j) = (unsigned short)(val / coef);
             }
         }
-        for (int j = 0; j < width; j++)
-        {
-            vector<int> up(height, -1);
-            for (int i = 0; i < height; i++)
-            {
-                if (interpolated_z[i][j] > 0)
-                {
-                    up[i] = i;
-                }
-                else if (i > 0)
-                {
-                    up[i] = up[i - 1];
-                }
-            }
-
-            vector<int> down(height, -1);
-            for (int i = height - 1; i >= 0; i--)
-            {
-                if (interpolated_z[i][j] > 0)
-                {
-                    down[i] = i;
-                }
-                else if (i + 1 < width)
-                {
-                    down[i] = down[i + 1];
-                }
-            }
-
-            for (int i = 0; i < height; i++)
-            {
-                if (up[i] == -1 && down[i] == -1)
-                {
-                    interpolated_z[i][j] = -1;
-                }
-                else if (up[i] == -1 || down[i] == -1 || up[i] == i)
-                {
-                    interpolated_z[i][j] = interpolated_z[max(up[i], down[i])][j];
-                }
-                else
-                {
-                    interpolated_z[i][j] = (interpolated_z[down[i]][j] * (i - up[i]) + interpolated_z[up[i]][j] * (down[i] - i)) / (down[i] - up[i]);
-                }
-            }
-        }
+        // cv::imshow("c", jbu_img);
     }
-    auto end = chrono::system_clock::now(); // 計測終了時刻を保存
-    auto dur = end - start;                 // 要した時間を計算
-    auto msec = chrono::duration_cast<chrono::milliseconds>(dur).count();
-    // 要した時間をミリ秒（1/1000秒）に変換して表示
-    std::cout << msec << " milli sec \n";
 
-    auto linear_interpolation_ptr = make_shared<geometry::PointCloud>();
+    auto interpolated_ptr = make_shared<geometry::PointCloud>();
+    vector<vector<double>> interpolated_z(height, vector<double>(width, -1));
     for (int i = 0; i < height; i++)
     {
         for (int j = 0; j < width; j++)
         {
-            /*
             if (base_z[i][j] == 0)
             {
                 continue;
-            }*/
-
-            double z = interpolated_z[i][j];
-            if (z == -1)
-            {
-                continue;
             }
+
+            double z = (max_depth - min_depth) * jbu_img.at<unsigned short>(i, j) / 65535 + min_depth;
             double x = z * (j - width / 2) / f_x;
             double y = z * (i - height / 2) / f_x;
-            linear_interpolation_ptr->points_.emplace_back(x, y, z);
+            interpolated_ptr->points_.emplace_back(x, y, z);
+            interpolated_z[i][j] = z;
         }
     }
-    cout << linear_interpolation_ptr->points_.size() << endl;
 
+    double error = 0;
     { // Evaluation
-        double error = 0;
         int cnt = 0;
         int cannot_cnt = 0;
         for (int i = 0; i < height; i++)
@@ -495,9 +395,11 @@ void segmentate(int data_no, bool see_res = false)
                 }
             }
         }
+        error /= cnt;
         cout << "cannot cnt = " << cannot_cnt - cnt << endl;
-        cout << "Error = " << error / cnt << endl;
+        //cout << "Error = " << error << endl;
     }
+    cout << "Total time[ms] = " << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << endl;
 
     if (see_res)
     {
@@ -508,20 +410,62 @@ void segmentate(int data_no, bool see_res = false)
             0, 0, 0, 1;
         pcd_ptr->Transform(front);
         filtered_ptr->Transform(front);
-        linear_interpolation_ptr->Transform(front);
+        interpolated_ptr->Transform(front);
 
-        visualization::DrawGeometries({linear_interpolation_ptr}, "PointCloud", 1600, 900);
+        visualization::DrawGeometries({interpolated_ptr}, "PointCloud", 1600, 900);
     }
+
+    return error;
 }
 
 int main(int argc, char *argv[])
 {
-    //vector<int> data_nos = {550, 1000, 1125, 1260, 1550}; // 03_03_miyanosawa
-    vector<int> data_nos = {10, 20, 30, 40, 50}; // 02_04_13jo
+    //vector<int> data_nos = {550, 1000, 1125, 1260, 1550};
+    vector<int> data_nos = {10, 20, 30, 40, 50}; // 02_19_13jo
     //vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
+
     for (int i = 0; i < data_nos.size(); i++)
     {
-        segmentate(data_nos[i], true);
+        cout << segmentate(data_nos[i], 91, 46, 1, 19, false) << endl;
     }
+
+    double best_error = 1000;
+    double best_sigma_c = 1;
+    double best_sigma_s = 1;
+    double best_sigma_r = 1;
+    int best_r = 1;
+    // best params 2020/07/06 sigma_c:91 sigma_s:46 sigma_R:1 r:19
+
+    for (double sigma_c = 1; sigma_c < 100; sigma_c += 10)
+    {
+        for (double sigma_s = 1; sigma_s < 50; sigma_s += 5)
+        {
+            for (double sigma_r = 1; sigma_r < 5; sigma_r += 5)
+            {
+                for (int r = 1; r < 20; r++)
+                {
+                    double error = 0;
+                    for (int i = 0; i < data_nos.size(); i++)
+                    {
+                        error += segmentate(data_nos[i], sigma_c, sigma_s, sigma_r, r);
+                    }
+
+                    if (best_error > error)
+                    {
+                        best_sigma_c = sigma_c;
+                        best_sigma_s = sigma_s;
+                        best_sigma_r = sigma_r;
+                        best_r = r;
+                    }
+                }
+            }
+        }
+    }
+
+    cout << "Sigma C = " << best_sigma_c << endl;
+    cout << "Sigma S = " << best_sigma_s << endl;
+    cout << "Sigma R = " << best_sigma_r << endl;
+    cout << "R = " << best_r << endl;
+    cout << "Mean error = " << best_error / data_nos.size() << endl;
     return 0;
 }

@@ -88,8 +88,6 @@ cv::Mat reprojected;
 cv::Mat id_img;
 
 int dataNo = 0;
-
-// 02_19_13jo
 /*
 int X = 498;
 int Y = 485;
@@ -97,13 +95,6 @@ int Z = 509;
 int theta = 483;
 int phi = 518;
 */
-// 02_04_miyanosawa
-int X = 495;
-int Y = 475;
-int Z = 458;
-int theta = 438;
-int phi = 512;
-// 03_03_miyanosawa
 /*
 int X = 500;
 int Y = 474;
@@ -111,6 +102,11 @@ int Z = 458;
 int theta = 506;
 int phi = 527;
 */
+int X = 495;
+int Y = 475;
+int Z = 458;
+int theta = 438;
+int phi = 512;
 int calibrateState = 0;
 int u0 = 0;
 int v0 = 0;
@@ -119,8 +115,6 @@ int selectedID = -1;
 
 void reproject()
 {
-    cv::Mat thermal_img = cv::Mat::zeros(height, width, CV_8UC3);
-    cv::Mat points_img = cv::Mat::zeros(height, width, CV_8UC3);
     for (int i = 0; i < height; i++)
     {
         for (int j = 0; j < width; j++)
@@ -132,7 +126,6 @@ void reproject()
                     for (int k2 = 0; k2 < rate; k2++)
                     {
                         reprojected.at<cv::Vec3b>((i - v0) * rate + k1, (j - u0) * rate + k2) = imgs[dataNo].at<cv::Vec3b>(i, j);
-                        thermal_img.at<cv::Vec3b>((i - v0) * rate + k1, (j - u0) * rate + k2) = imgs[dataNo].at<cv::Vec3b>(i, j);
                     }
                 }
             }
@@ -191,9 +184,6 @@ void reproject()
                             reprojected.at<cv::Vec3b>((v - v0) * rate + k1, (u - u0) * rate + k2)[0] = color % 255;
                             reprojected.at<cv::Vec3b>((v - v0) * rate + k1, (u - u0) * rate + k2)[1] = color / 255 % 255;
                             reprojected.at<cv::Vec3b>((v - v0) * rate + k1, (u - u0) * rate + k2)[2] = color / 255 / 255 % 255;
-                            points_img.at<cv::Vec3b>((v - v0) * rate + k1, (u - u0) * rate + k2)[0] = color % 255;
-                            points_img.at<cv::Vec3b>((v - v0) * rate + k1, (u - u0) * rate + k2)[1] = color / 255 % 255;
-                            points_img.at<cv::Vec3b>((v - v0) * rate + k1, (u - u0) * rate + k2)[2] = color / 255 / 255 % 255;
                         }
                     }
                 }
@@ -201,21 +191,6 @@ void reproject()
         }
     }
     cv::imshow("Image", reprojected);
-
-    cv::Ptr<cv::ORB> orb = cv::ORB::create();
-    vector<cv::KeyPoint> keyOrb;
-    orb->detect(points_img, keyOrb);
-    cv::Mat keys_img = cv::Mat::zeros(height, width, CV_8UC3);
-    cv::drawKeypoints(points_img, keyOrb, keys_img);
-    cv::imshow("Points", points_img);
-    cv::imshow("Keys", keys_img);
-
-    cv::Ptr<cv::ORB> orb_thermal = cv::ORB::create();
-    vector<cv::KeyPoint> keyOrb_thermal;
-    orb->detect(thermal_img, keyOrb_thermal);
-    cv::Mat keys_thermal_img = cv::Mat::zeros(height, width, CV_8UC3);
-    cv::drawKeypoints(thermal_img, keyOrb_thermal, keys_thermal_img);
-    cv::imshow("Thermal Keys", keys_thermal_img);
 }
 
 /* プロトタイプ宣言 */
@@ -325,29 +300,13 @@ void mouse_callback(int event, int x, int y, int flags, void *object)
 
 int main(int argc, char *argv[])
 {
-    vector<int> data_ids = {700, 1290, 1460, 2350, 3850}; //1100
-
+    vector<int> data_ids = {700, 1110,1290, 1460, 2350, 3850};
     /*
-    for (int i = 0; i < 10; i += 1)
-    {
+    for(int i=800;i<1300;i+=10){
         data_ids.emplace_back(i);
-    }
-    */
-
+    }*/
+    
     //vector<int> data_ids = {10, 20, 30, 40, 50};
-
-    vector<double> tans;
-    double PI = acos(-1);
-    double rad = (-16.6 + 0.26349) * PI / 180;
-    double delta_rad = 0.52698 * PI / 180;
-    double max_rad = (16.6 + 0.26349) * PI / 180;
-    while (rad < max_rad + 0.00001)
-    {
-        tans.emplace_back(tan(rad));
-        rad += delta_rad;
-    }
-    int layers = 16;
-
     for (int i = 0; i < data_ids.size(); i++)
     {
         string img_path = "../../../data/2020_02_04_miyanosawa/" + to_string(data_ids[i]) + ".png";
@@ -365,14 +324,7 @@ int main(int argc, char *argv[])
             double x = pointcloud.points_[i][1];
             double y = -pointcloud.points_[i][2];
             double z = -pointcloud.points_[i][0];
-
-            double r = sqrt(x * x + z * z);
-            auto it = lower_bound(tans.begin(), tans.end(), y / r);
-            int index = it - tans.begin();
-            if (index % (64 / layers) == 0)
-            {
-                points.emplace_back(x, y, z);
-            }
+            points.emplace_back(x, y, z);
         }
         point_maps.emplace_back(points);
     }
