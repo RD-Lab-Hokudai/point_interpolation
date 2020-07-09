@@ -95,6 +95,7 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
     base_z = vector<vector<double>>(height, vector<double>(width));
     filtered_z = vector<vector<double>>(height, vector<double>(width));
     vector<vector<Eigen::Vector3d>> layers;
+    cv::Mat all_layer_img = cv::Mat::zeros(height, width, CV_8UC3);
     for (int i = 0; i < 64; i++)
     {
         // no sort
@@ -114,6 +115,8 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
             filtered_cnt += removed.size();
         }
 
+        int u0;
+        int v0;
         for (size_t j = 0; j < removed.size(); j++)
         {
             int u = (int)(width / 2 + f_x * removed[j][0] / removed[j][2]);
@@ -123,11 +126,16 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
                 filtered_z[v][u] = removed[j][2];
             }
             base_z[v][u] = removed[j][2];
+            if (j > 0)
+            {
+                cv::line(all_layer_img, cv::Point(u0, v0), cv::Point(u, v), cv::Scalar(0, 255, 255), 1, 4);
+            }
+            u0 = u;
+            v0 = v;
         }
     }
 
     neighbors = vector<vector<int>>(filtered_cnt, vector<int>());
-    cv::Mat layer_img = cv::Mat::zeros(height, width, CV_8UC3);
     {
         int point_cnt = 0;
         // Find neighbors
@@ -140,11 +148,9 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
                 int u = (int)(width / 2 + f_x * layers[i][j][0] / layers[i][j][2]);
                 int v = (int)(height / 2 + f_x * layers[i][j][1] / layers[i][j][2]);
 
-                layer_img.at<cv::Vec3b>(v, u) = cv::Vec3b(255 * (i % 2), 255 * ((i + 1) % 2), 0);
-
                 if (j > 0)
                 {
-                    cv::line(layer_img, cv::Point(uPrev, vPrev), cv::Point(u, v), cv::Scalar(255, 0, 0), 1, 8);
+                    cv::line(all_layer_img, cv::Point(uPrev, vPrev), cv::Point(u, v), cv::Scalar(255, 0, 0), 1, 8);
                 }
                 uPrev = u;
                 vPrev = v;
@@ -198,7 +204,7 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
         }
     }
 
-    cv::imshow("U", layer_img);
+    cv::imshow("U", all_layer_img);
     cv::waitKey();
 
     auto sorted_ptr = make_shared<geometry::PointCloud>();
