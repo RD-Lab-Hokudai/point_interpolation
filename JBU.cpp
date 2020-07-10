@@ -254,7 +254,7 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
     shared_ptr<geometry::PointCloud> filtered_ptr = calc_filtered(pcd_ptr, base_z, filtered_z, neighbors, layer_cnt);
 
     auto start = chrono::system_clock::now();
-    cv::Mat range_img = cv::Mat::zeros(height, width, CV_16UC1);
+    cv::Mat range_img = cv::Mat::zeros(height, width, CV_16UC3);
     double min_depth = 10000;
     double max_depth = 0;
     {
@@ -279,7 +279,8 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
             {
                 if (filtered_z[i][j] > 0)
                 {
-                    range_img.at<unsigned short>(i, j) = (unsigned short)(65535 * (filtered_z[i][j] - min_depth) / (max_depth - min_depth));
+                    unsigned short tmp = 65535 * (filtered_z[i][j] - min_depth) / (max_depth - min_depth);
+                    range_img.at<cv::Vec3s>(i, j) = cv::Vec3s(tmp, tmp, tmp);
                     costs[i][j] = 0;
                     cnts[i][j]++;
                     que.push(i * width + j);
@@ -298,7 +299,7 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
             int y = now / width;
             que.pop();
 
-            unsigned short val = range_img.at<unsigned short>(y, x);
+            unsigned short val = range_img.at<cv::Vec3s>(y, x)[0];
             int next_cost = costs[y][x] + 1;
             for (int i = 0; i < 4; i++)
             {
@@ -321,15 +322,52 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
 
                 //unsigned short tmp = range_img.at<unsigned short>(toY, toX);
                 //range_img.at<unsigned short>(toY, toX) = (unsigned short)(((int)tmp * cnts[toY][toX] + val * cnts[y][x]) / (cnts[toY][toX] + cnts[y][x]));
-                range_img.at<unsigned short>(toY, toX) = val;
+
+                //unsigned short tmp = range_img.at<cv::Vec3s>(toY, toX)[0];
+                //tmp = (unsigned short)(((int)tmp * cnts[toY][toX] + val * cnts[y][x]) / (cnts[toY][toX] + cnts[y][x]));
+
+                range_img.at<cv::Vec3s>(toY, toX) = cv::Vec3s(val, val, val);
                 costs[toY][toX] = next_cost;
                 cnts[toY][toX] += cnts[y][x];
             }
         }
         //cout << "Sample time[ms] = " << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << endl;
 
-        //cv::imshow("a", range_img);
-        //cv::waitKey();
+        /*
+        cv::Ptr<cv::ORB> point_orb = cv::ORB::create();
+        vector<cv::KeyPoint> point_key;
+        cv::Mat point_descriptor;
+        point_orb->detectAndCompute(range_img, cv::Mat(), point_key, point_descriptor);
+        cv::Mat point_key_img = cv::Mat::zeros(height, width, CV_16UC3);
+        cv::drawKeypoints(range_img, point_key, point_key_img);
+        cv::imshow("Keys", point_key_img);
+
+        cv::Ptr<cv::ORB> thermal_orb = cv::ORB::create();
+        vector<cv::KeyPoint> thermal_key;
+        cv::Mat thermal_descriptor;
+        thermal_orb->detectAndCompute(img, cv::Mat(), thermal_key, thermal_descriptor);
+        cv::Mat thermal_key_img = cv::Mat::zeros(height, width, CV_8UC3);
+        cv::drawKeypoints(img, thermal_key, thermal_key_img);
+        cv::imshow("Thermal Keys", thermal_key_img);
+
+        vector<vector<cv::DMatch>> matches;
+        cv::FlannBasedMatcher matcher = cv::FlannBasedMatcher(cv::makePtr<cv::flann::LshIndexParams>(12, 20, 2));
+        matcher.knnMatch(point_descriptor, thermal_descriptor, matches, 2);
+        vector<cv::DMatch> good_matches;
+        cout << matches.size() << endl;
+        for (size_t i = 0; i < matches.size(); i++)
+        {
+            if (0 < matches[i].size() && matches[i][0].distance < 0.7f * matches[i][1].distance)
+            {
+                good_matches.push_back(matches[i][0]);
+            }
+        }
+        cv::Mat img_matches;
+        cv::drawMatches(range_img, point_key, img, thermal_key, good_matches, img_matches);
+        cv::imshow("Matches", img_matches);
+
+        cv::waitKey();
+        */
     }
 
     cv::Mat credibility_img = cv::Mat::zeros(height, width, CV_16UC1);
@@ -343,7 +381,8 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
                 credibility_img.at<unsigned short>(i, j) = (unsigned short)(65535 * exp(-val * val / 2 / sigma_c / sigma_c));
             }
         }
-        //cv::imshow("b", credibility_img);
+        cv::imshow("b", credibility_img);
+        cv::waitKey();
     }
 
     cv::Mat jbu_img = cv::Mat::zeros(height, width, CV_16UC1);

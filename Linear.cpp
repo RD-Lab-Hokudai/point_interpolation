@@ -102,7 +102,7 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
         vector<Eigen::Vector3d> removed;
         for (size_t j = 0; j < all_layers[i].size(); j++)
         {
-            while (removed.size() > 0 && removed.back()[0] / removed.back()[2] > all_layers[i][j][0] / all_layers[i][j][2])
+            while (removed.size() > 0 && removed.back()[0] * all_layers[i][j][2] >= all_layers[i][j][0] * removed.back()[2])
             {
                 removed.pop_back();
             }
@@ -128,7 +128,16 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
             base_z[v][u] = removed[j][2];
             if (j > 0)
             {
-                cv::line(all_layer_img, cv::Point(u0, v0), cv::Point(u, v), cv::Scalar(0, 255, 255), 1, 4);
+                float yF = v0;
+                int x = u0;
+                float delta = 1.0f * (v - v0) / (u - u0);
+                while (x <= u)
+                {
+                    all_layer_img.at<cv::Vec3b>((int)yF, x) = cv::Vec3b(255 * (i % 2), 255 * ((i + 1) % 2), 255 * ((i / 2) % 2));
+                    x++;
+                    yF += delta;
+                }
+                cv::line(all_layer_img, cv::Point(u0, v0), cv::Point(u, v), cv::Scalar(255, 0, 0), 1, 8);
             }
             u0 = u;
             v0 = v;
@@ -150,7 +159,7 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
 
                 if (j > 0)
                 {
-                    cv::line(all_layer_img, cv::Point(uPrev, vPrev), cv::Point(u, v), cv::Scalar(255, 0, 0), 1, 8);
+                    //cv::line(all_layer_img, cv::Point(uPrev, vPrev), cv::Point(u, v), cv::Scalar(255, 0, 0), 1, 8);
                 }
                 uPrev = u;
                 vPrev = v;
@@ -489,11 +498,38 @@ void segmentate(int data_no, bool see_res = false)
             }
         }
     }
-    auto end = chrono::system_clock::now(); // 計測終了時刻を保存
-    auto dur = end - start;                 // 要した時間を計算
-    auto msec = chrono::duration_cast<chrono::milliseconds>(dur).count();
-    // 要した時間をミリ秒（1/1000秒）に変換して表示
-    std::cout << msec << " milli sec \n";
+
+    {
+        cv::Mat linear_depth_img = cv::Mat::zeros(height, width, CV_8UC3);
+        double minDepth = 10000;
+        double maxDepth = 0;
+        for (int i = 0; i < height; i++)
+        {
+            for (int j = 0; j < width; j++)
+            {
+                minDepth = min(minDepth, interpolated_z[i][j]);
+                maxDepth = max(maxDepth, interpolated_z[i][j]);
+            }
+        }
+
+        for (int i = 0; i < height; i++)
+        {
+            for (int j = 0; j < width; j++)
+            {
+                unsigned char val = 255 * (interpolated_z[i][j] - minDepth) / (maxDepth - minDepth);
+                linear_depth_img.at<cv::Vec3b>(i, j) = cv::Vec3b(val, val, val);
+            }
+        }
+
+        cv::Ptr<cv::ORB> point_orb = cv::ORB::create();
+        vector<cv::KeyPoint> point_key;
+        cv::Mat point_descriptor;
+        point_orb->detectAndCompute(linear_depth_img, cv::Mat(), point_key, point_descriptor);
+        cv::Mat point_key_img = cv::Mat::zeros(height, width, CV_8UC3);
+        cv::drawKeypoints(linear_depth_img, point_key, point_key_img);
+        cv::imshow("Keys", point_key_img);
+        cv::waitKey();
+    }
 
     auto linear_interpolation_ptr = make_shared<geometry::PointCloud>();
     for (int i = 0; i < height; i++)
@@ -517,6 +553,12 @@ void segmentate(int data_no, bool see_res = false)
         }
     }
     cout << linear_interpolation_ptr->points_.size() << endl;
+
+    auto end = chrono::system_clock::now(); // 計測終了時刻を保存
+    auto dur = end - start;                 // 要した時間を計算
+    auto msec = chrono::duration_cast<chrono::milliseconds>(dur).count();
+    // 要した時間をミリ秒（1/1000秒）に変換して表示
+    std::cout << msec << " milli sec \n";
 
     { // Evaluation
         double error = 0;
