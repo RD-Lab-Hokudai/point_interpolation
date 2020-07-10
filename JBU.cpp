@@ -381,8 +381,8 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
                 credibility_img.at<unsigned short>(i, j) = (unsigned short)(65535 * exp(-val * val / 2 / sigma_c / sigma_c));
             }
         }
-        cv::imshow("b", credibility_img);
-        cv::waitKey();
+        //cv::imshow("b", credibility_img);
+        //cv::waitKey();
     }
 
     cv::Mat jbu_img = cv::Mat::zeros(height, width, CV_16UC1);
@@ -408,7 +408,7 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
                         int d1 = img.at<cv::Vec3b>(i + y, j + x)[0];
                         double tmp = exp(-(x * x + y * y) / 2 / sigma_s / sigma_s) * exp(-(d0 - d1) * (d0 - d1) / 2 / sigma_r / sigma_r) * credibility_img.at<unsigned short>(i + y, j + x);
                         coef += tmp;
-                        val += tmp * range_img.at<unsigned short>(i + y, j + x);
+                        val += tmp * range_img.at<cv::Vec3s>(i + y, j + x)[0];
                     }
                 }
                 jbu_img.at<unsigned short>(i, j) = (unsigned short)(val / coef);
