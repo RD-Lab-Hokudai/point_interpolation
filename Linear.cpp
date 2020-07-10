@@ -109,14 +109,18 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
             removed.emplace_back(all_layers[i][j]);
         }
 
-        if (i % (64 / layer_cnt) == 0)
+        if (i % (64 / layer_cnt) > 0)
         {
-            layers.push_back(removed);
-            filtered_cnt += removed.size();
+            continue;
         }
 
+        layers.push_back(removed);
+        filtered_cnt += removed.size();
+
+        int shift = 0;
         int u0;
         int v0;
+        float zDelta0;
         for (size_t j = 0; j < removed.size(); j++)
         {
             int u = (int)(width / 2 + f_x * removed[j][0] / removed[j][2]);
@@ -133,11 +137,25 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
                 float delta = 1.0f * (v - v0) / (u - u0);
                 while (x <= u)
                 {
-                    all_layer_img.at<cv::Vec3b>((int)yF, x) = cv::Vec3b(255 * (i % 2), 255 * ((i + 1) % 2), 255 * ((i / 2) % 2));
+                    all_layer_img.at<cv::Vec3b>((int)yF, x) = cv::Vec3b(255 * (shift % 2), 255 * ((shift + 1) % 2), 0);
                     x++;
                     yF += delta;
                 }
-                cv::line(all_layer_img, cv::Point(u0, v0), cv::Point(u, v), cv::Scalar(255, 0, 0), 1, 8);
+                //cv::line(all_layer_img, cv::Point(u0, v0), cv::Point(u, v), cv::Scalar(255, 0, 0), 1, 8);
+
+                if (j + 1 < removed.size())
+                {
+                    float zDelta = (removed[j][2] - removed[j + 1][2]) / sqrt((removed[j][0] - removed[j + 1][0]) * (removed[j][0] - removed[j + 1][0]) + (removed[j][1] - removed[j + 1][1]) * (removed[j][1] - removed[j + 1][1]));
+                    if (j == 1 || (j >= 2 && abs(zDelta - zDelta0) < 5.2f))
+                    {
+                        shift = 0;
+                    }
+                    else
+                    {
+                        shift = 1;
+                    }
+                    zDelta0 = zDelta;
+                }
             }
             u0 = u;
             v0 = v;
