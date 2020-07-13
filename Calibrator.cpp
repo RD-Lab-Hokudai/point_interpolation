@@ -90,19 +90,21 @@ cv::Mat id_img;
 int dataNo = 0;
 
 // 02_19_13jo
-/*
+
 int X = 498;
 int Y = 485;
 int Z = 509;
 int theta = 483;
 int phi = 518;
-*/
+
 // 02_04_miyanosawa
+/*
 int X = 495;
 int Y = 475;
 int Z = 458;
 int theta = 438;
 int phi = 512;
+*/
 // 03_03_miyanosawa
 /*
 int X = 500;
@@ -343,7 +345,7 @@ void mouse_callback(int event, int x, int y, int flags, void *object)
 
 int main(int argc, char *argv[])
 {
-    vector<int> data_ids = {700, 1290, 1460, 2350, 3850}; //1100
+    //vector<int> data_ids = {700, 1290, 1460, 2350, 3850}; //1100
 
     /*
     for (int i = 0; i < 10; i += 1)
@@ -352,7 +354,7 @@ int main(int argc, char *argv[])
     }
     */
 
-    //vector<int> data_ids = {10, 20, 30, 40, 50};
+    vector<int> data_ids = {10, 20, 30, 40, 50};
 
     vector<double> tans;
     double PI = acos(-1);
@@ -368,10 +370,10 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < data_ids.size(); i++)
     {
-        string img_path = "../../../data/2020_02_04_miyanosawa/" + to_string(data_ids[i]) + ".png";
+        string img_path = "../../../data/2020_02_04_13jo/" + to_string(data_ids[i]) + ".png";
         imgs.emplace_back(cv::imread(img_path));
 
-        string pcd_path = "../../../data/2020_02_04_miyanosawa/" + to_string(data_ids[i]) + ".pcd";
+        string pcd_path = "../../../data/2020_02_04_13jo/" + to_string(data_ids[i]) + ".pcd";
         open3d::geometry::PointCloud pointcloud;
         vector<point> points;
         if (!open3d::io::ReadPointCloud(pcd_path, pointcloud))

@@ -137,21 +137,23 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
                 float delta = 1.0f * (v - v0) / (u - u0);
                 while (x <= u)
                 {
-                    all_layer_img.at<cv::Vec3b>((int)yF, x) = cv::Vec3b(255 * (shift % 2), 255 * ((shift + 1) % 2), 0);
+                    //all_layer_img.at<cv::Vec3b>((int)yF, x) = cv::Vec3b(255 * (shift % 2), 255 * ((shift + 1) % 2), 0);
                     x++;
                     yF += delta;
                 }
-                //cv::line(all_layer_img, cv::Point(u0, v0), cv::Point(u, v), cv::Scalar(255, 0, 0), 1, 8);
+                cv::line(all_layer_img, cv::Point(u0, v0), cv::Point(u, v), cv::Scalar(0, 255, 0), 1, 8);
 
                 if (j + 1 < removed.size())
                 {
                     float zDelta = (removed[j][2] - removed[j + 1][2]) / sqrt((removed[j][0] - removed[j + 1][0]) * (removed[j][0] - removed[j + 1][0]) + (removed[j][1] - removed[j + 1][1]) * (removed[j][1] - removed[j + 1][1]));
-                    if (j == 1 || (j >= 2 && abs(zDelta - zDelta0) < 5.2f))
+                    if (j == 1 || (j >= 2 && abs(zDelta - zDelta0) < 2.0f))
                     {
                         shift = 0;
                     }
                     else
                     {
+                        // # circle(画像, 中心座標, 半径, 色, 線幅, 連結)
+                        cv::circle(all_layer_img, cv::Point(u, v), 2, cv::Scalar(255, 0, 0), 1, cv::LINE_AA);
                         shift = 1;
                     }
                     zDelta0 = zDelta;
@@ -241,6 +243,7 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
             for (int j = 0; j < layers[i].size(); j++)
             {
                 sorted_ptr->points_.emplace_back(layers[i][j]);
+                sorted_ptr->colors_.emplace_back(i % 2, (i + 1) % 2, 1.0 * i / layer_cnt);
             }
         }
     }
@@ -273,7 +276,7 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
                 continue;
             }
 
-            sorted_ptr->normals_.emplace_back(ES.eigenvectors().col(0));
+            //sorted_ptr->normals_.emplace_back(ES.eigenvectors().col(0));
         }
     }
 
@@ -612,7 +615,7 @@ void segmentate(int data_no, bool see_res = false)
         filtered_ptr->Transform(front);
         linear_interpolation_ptr->Transform(front);
 
-        visualization::DrawGeometries({linear_interpolation_ptr}, "PointCloud", 1600, 900);
+        visualization::DrawGeometries({filtered_ptr /*, linear_interpolation_ptr*/}, "PointCloud", 1600, 900);
     }
 }
 
