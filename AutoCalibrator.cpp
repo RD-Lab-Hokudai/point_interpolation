@@ -60,33 +60,8 @@ struct Functor
     typedef Eigen::Matrix<Scalar, ValuesAtCompileTime, InputsAtCompileTime> JacobianType;
 };
 
-struct misra1a_functor : Functor<double>
+void calc_filtered(shared_ptr<geometry::PointCloud> raw_pcd_ptr, Eigen::Vector3d params)
 {
-    misra1a_functor(int values, double *x, double *y, double *z)
-        : inputs_(3), values_(values), x(x), y(y), z(z) {}
-
-    double *x;
-    double *y;
-    double *z;
-    int operator()(const Eigen::VectorXd &b, Eigen::VectorXd &fvec) const
-    {
-        for (int i = 0; i < values_; ++i)
-        {
-            fvec[i] = b[0] * x[i] + b[1] * y[i] + z[i] - b[2];
-        }
-        return 0;
-    }
-    const int inputs_;
-    const int values_;
-    int inputs() const { return inputs_; }
-    int values() const { return values_; }
-};
-
-shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> raw_pcd_ptr,
-                                               vector<vector<double>> &base_z, vector<vector<double>> &filtered_z,
-                                               vector<vector<int>> &neighbors, int layer_cnt = 16)
-{
-
     vector<double> tans;
     double PI = acos(-1);
     double rad = (-16.6 + 0.26349) * PI / 180;
@@ -133,9 +108,6 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
         }
     }
 
-    int filtered_cnt = 0;
-    base_z = vector<vector<double>>(height, vector<double>(width));
-    filtered_z = vector<vector<double>>(height, vector<double>(width));
     vector<vector<Eigen::Vector3d>> layers;
     vector<vector<int>> is_edges;
     cv::Mat all_layer_img = cv::Mat::zeros(height, width, CV_8UC3);
@@ -153,14 +125,8 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
             removed.emplace_back(all_layers[i][j]);
         }
 
-        if (i % (64 / layer_cnt) > 0)
-        {
-            continue;
-        }
-
         layers.push_back(removed);
         is_edges.push_back({0});
-        filtered_cnt += removed.size();
 
         int u0;
         int v0;
@@ -169,22 +135,10 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
         {
             int u = (int)(width / 2 + f_x * removed[j][0] / removed[j][2]);
             int v = (int)(height / 2 + f_x * removed[j][1] / removed[j][2]);
-            if (i % (64 / layer_cnt) == 0)
-            {
-                filtered_z[v][u] = removed[j][2];
-            }
-            base_z[v][u] = removed[j][2];
             if (j > 0)
             {
                 float yF = v0;
                 int x = u0;
-                float delta = 1.0f * (v - v0) / (u - u0);
-                while (x <= u)
-                {
-                    //all_layer_img.at<cv::Vec3b>((int)yF, x) = cv::Vec3b(255 * (shift % 2), 255 * ((shift + 1) % 2), 0);
-                    x++;
-                    yF += delta;
-                }
                 cv::line(all_layer_img, cv::Point(u0, v0), cv::Point(u, v), cv::Scalar(0, 255, 0), 1, 8);
 
                 if (j + 1 < removed.size())
@@ -193,36 +147,29 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
                     double rate = max(l1, l2) / min(l1, l2);
                     if (j == 1 || (j >= 2 && rate < 4))
                     {
-                        is_edges[i / (64 / layer_cnt)].emplace_back(0);
+                        is_edges[i].emplace_back(0);
                     }
                     else
                     {
                         // # circle(画像, 中心座標, 半径, 色, 線幅, 連結)
                         cv::circle(all_layer_img, cv::Point(u, v), 2, cv::Scalar(255, 0, 255), 1, cv::LINE_AA);
-                        is_edges[i / (64 / layer_cnt)].emplace_back(2);
-                    }
-                    if (i == 60 && j < 50)
-                    {
-                        cout << j << endl;
-                        cout << removed[j] << endl;
-                        cout << removed[j + 1] << endl;
-                        cout << rate << endl;
+                        is_edges[i].emplace_back(2);
                     }
                     l1 = l2;
-                    cv::circle(layer_img, cv::Point(u, v), 2, cv::Scalar(255 / rate, 255 * ((i / (64 / layer_cnt) % 2)), 255), 1, cv::LINE_AA);
+                    cv::circle(layer_img, cv::Point(u, v), 2, cv::Scalar(255 / rate, 255 * (i % 2), 255), 1, cv::LINE_AA);
                 }
             }
             u0 = u;
             v0 = v;
         }
 
-        for (size_t j = 1; j + 1 < is_edges[i / (64 / layer_cnt)].size(); j++)
+        for (size_t j = 1; j + 1 < is_edges[i].size(); j++)
         {
-            if (is_edges[i / (64 / layer_cnt)][j - 1] == 2 && is_edges[i / (64 / layer_cnt)][j + 1] == 2)
+            if (is_edges[i][j - 1] == 2 && is_edges[i][j + 1] == 2)
             {
                 int u = (int)(width / 2 + f_x * removed[j][0] / removed[j][2]);
                 int v = (int)(height / 2 + f_x * removed[j][1] / removed[j][2]);
-                is_edges[i / (64 / layer_cnt)][j] = 1;
+                is_edges[i][j] = 1;
                 cv::circle(all_layer_img, cv::Point(u, v), 2, cv::Scalar(255, 0, 255), 1, cv::LINE_AA);
             }
         }
@@ -231,122 +178,29 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
     cv::imshow("U", all_layer_img);
     cv::imshow("T", layer_img);
     cv::waitKey();
-
-    neighbors = vector<vector<int>>(filtered_cnt, vector<int>());
-    {
-        int point_cnt = 0;
-        // Find neighbors
-        for (int i = 0; i + 1 < layer_cnt; i++)
-        {
-            int uPrev = 0;
-            int vPrev = 0;
-            for (int j = 0; j < layers[i].size(); j++)
-            {
-                int u = (int)(width / 2 + f_x * layers[i][j][0] / layers[i][j][2]);
-                int v = (int)(height / 2 + f_x * layers[i][j][1] / layers[i][j][2]);
-
-                if (j > 0)
-                {
-                    //cv::line(all_layer_img, cv::Point(uPrev, vPrev), cv::Point(u, v), cv::Scalar(255, 0, 0), 1, 8);
-                }
-                uPrev = u;
-                vPrev = v;
-
-                int u0 = (int)(width / 2 + f_x * layers[i + 1][0][0] / layers[i + 1][0][2]);
-                if (u0 > u)
-                {
-                    int v0 = (int)(height / 2 + f_x * layers[i + 1][0][1] / layers[i + 1][0][2]);
-                    int from = point_cnt + j;
-                    int to = point_cnt + layers[i].size();
-
-                    neighbors[from].emplace_back(to);
-                    neighbors[to].emplace_back(from);
-                }
-                else
-                {
-                    int bottom = 0;
-                    int top = layers[i + 1].size();
-                    while (bottom + 1 < top)
-                    {
-                        int mid = (bottom + top) / 2;
-                        int uTmp = (int)(width / 2 + f_x * layers[i + 1][mid][0] / layers[i + 1][mid][2]);
-
-                        if (uTmp <= u)
-                        {
-                            bottom = mid;
-                        }
-                        else
-                        {
-                            top = mid;
-                        }
-                    }
-                    for (int ii = max(bottom - 1, 0); ii < min(bottom + 2, (int)layers[i + 1].size()); ii++)
-                    {
-                        int u2 = (int)(width / 2 + f_x * layers[i + 1][ii][0] / layers[i + 1][ii][2]);
-                        int v2 = (int)(height / 2 + f_x * layers[i + 1][ii][1] / layers[i + 1][ii][2]);
-                        int from = point_cnt + j;
-                        int to = point_cnt + layers[i].size() + ii;
-                        neighbors[from].emplace_back(to);
-                        neighbors[to].emplace_back(from);
-                    }
-                }
-                if (j + 1 < layers[i].size())
-                {
-                    neighbors[point_cnt + j].emplace_back(point_cnt + j + 1);
-                    neighbors[point_cnt + j + 1].emplace_back(point_cnt + j);
-                }
-                neighbors[point_cnt + j].emplace_back(point_cnt + j); // Contains myself
-            }
-            point_cnt += layers[i].size();
-        }
-    }
-
-    auto sorted_ptr = make_shared<geometry::PointCloud>();
-    {
-        for (int i = 0; i < layer_cnt; i++)
-        {
-            for (int j = 0; j < layers[i].size(); j++)
-            {
-                sorted_ptr->points_.emplace_back(layers[i][j]);
-                sorted_ptr->colors_.emplace_back(i % 2, (i + 1) % 2, min(is_edges[i][j], 1));
-            }
-        }
-    }
-
-    {
-        int point_cnt = 0;
-        for (int i = 0; i < sorted_ptr->points_.size(); i++)
-        {
-            Eigen::Vector3d pa = Eigen::Vector3d::Zero();
-            for (int j = 0; j < neighbors[i].size(); j++)
-            {
-                pa += sorted_ptr->points_[neighbors[i][j]];
-            }
-            pa /= neighbors[i].size();
-            Eigen::Matrix3d Q = Eigen::Matrix3d::Zero();
-            for (int j = 0; j < neighbors[i].size(); j++)
-            {
-                for (int ii = 0; ii < 3; ii++)
-                {
-                    for (int jj = 0; jj < 3; jj++)
-                    {
-                        Q(ii, jj) += (sorted_ptr->points_[neighbors[i][j]][ii] - pa[ii]) * (sorted_ptr->points_[neighbors[i][j]][jj] - pa[jj]);
-                    }
-                }
-            }
-
-            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> ES(Q);
-            if (ES.info() != Eigen::Success)
-            {
-                continue;
-            }
-
-            //sorted_ptr->normals_.emplace_back(ES.eigenvectors().col(0));
-        }
-    }
-
-    return sorted_ptr;
 }
+
+struct misra1a_functor : Functor<double>
+{
+    misra1a_functor(int values, double *x, double *y, double *z)
+        : inputs_(3), values_(values), x(x), y(y), z(z) {}
+
+    double *x;
+    double *y;
+    double *z;
+    int operator()(const Eigen::VectorXd &b, Eigen::VectorXd &fvec) const
+    {
+        for (int i = 0; i < values_; ++i)
+        {
+            fvec[i] = b[0] * x[i] + b[1] * y[i] + z[i] - b[2];
+        }
+        return 0;
+    }
+    const int inputs_;
+    const int values_;
+    int inputs() const { return inputs_; }
+    int values() const { return values_; }
+};
 
 void segmentate(int data_no, bool see_res = false)
 {
@@ -361,327 +215,7 @@ void segmentate(int data_no, bool see_res = false)
     }
     *pcd_ptr = pointcloud;
 
-    vector<vector<double>> base_z, filtered_z;
-    vector<vector<int>> neighbors;
-    int layer_cnt = 16;
-    shared_ptr<geometry::PointCloud> filtered_ptr = calc_filtered(pcd_ptr, base_z, filtered_z, neighbors, layer_cnt);
-
-    auto start = chrono::system_clock::now();
-    vector<vector<double>> interpolated_z(height, vector<double>(width));
-
-    { // Interpolate layer
-        cv::Mat layer_img = cv::Mat::zeros(height, width, CV_8UC3);
-        for (int i = 0; i < layer_cnt; i++)
-        {
-            for (int j = 0; j + 1 < filtered_ptr->points_.size(); j++)
-            {
-                int u = (int)(width / 2 + f_x * filtered_ptr->points_[j][0] / filtered_ptr->points_[j][2]);
-                int v = (int)(height / 2 + f_x * filtered_ptr->points_[j][1] / filtered_ptr->points_[j][2]);
-                int toU = (int)(width / 2 + f_x * filtered_ptr->points_[j + 1][0] / filtered_ptr->points_[j + 1][2]);
-                int toV = (int)(height / 2 + f_x * filtered_ptr->points_[j + 1][1] / filtered_ptr->points_[j + 1][2]);
-
-                if (toU < u)
-                {
-                    continue;
-                }
-
-                float delta = 1.0f * (toV - v) / (toU - u);
-                int tmpU = u;
-                float tmpV = v;
-                while (tmpU <= toU)
-                {
-                    interpolated_z[(int)tmpV][tmpU] = (filtered_z[toV][toU] * (tmpU - u) + filtered_z[v][u] * (toU - tmpU)) / (toU - u);
-                    layer_img.at<cv::Vec3b>((int)tmpV, tmpU)[0] = 255;
-                    tmpU++;
-                    tmpV += delta;
-                }
-            }
-        }
-
-        //cv::imshow("a", layer_img);
-        //cv::waitKey();
-    }
-
-    if (vertical)
-    {
-        for (int j = 0; j < width; j++)
-        {
-            vector<int> up(height, -1);
-            for (int i = 0; i < height; i++)
-            {
-                if (interpolated_z[i][j] > 0)
-                {
-                    up[i] = i;
-                }
-                else if (i > 0)
-                {
-                    up[i] = up[i - 1];
-                }
-            }
-
-            vector<int> down(height, -1);
-            for (int i = height - 1; i >= 0; i--)
-            {
-                if (interpolated_z[i][j] > 0)
-                {
-                    down[i] = i;
-                }
-                else if (i + 1 < height)
-                {
-                    down[i] = down[i + 1];
-                }
-            }
-
-            for (int i = 0; i < height; i++)
-            {
-                if (up[i] == -1 && down[i] == -1)
-                {
-                    interpolated_z[i][j] = -1;
-                }
-                else if (up[i] == -1 || down[i] == -1 || up[i] == i)
-                {
-                    interpolated_z[i][j] = interpolated_z[max(up[i], down[i])][j];
-                }
-                else
-                {
-                    interpolated_z[i][j] = (interpolated_z[down[i]][j] * (i - up[i]) + interpolated_z[up[i]][j] * (down[i] - i)) / (down[i] - up[i]);
-                }
-            }
-        }
-        for (int i = 0; i < height; i++)
-        {
-            vector<int> left(width, -1);
-            for (int j = 0; j < width; j++)
-            {
-                if (interpolated_z[i][j] > 0)
-                {
-                    left[j] = j;
-                }
-                else if (j > 0)
-                {
-                    left[j] = left[j - 1];
-                }
-            }
-
-            vector<int> right(width, -1);
-            for (int j = width - 1; j >= 0; j--)
-            {
-                if (interpolated_z[i][j] > 0)
-                {
-                    right[j] = j;
-                }
-                else if (j + 1 < width)
-                {
-                    right[j] = right[j + 1];
-                }
-            }
-
-            for (int j = 0; j < width; j++)
-            {
-                if (left[j] == -1 && right[j] == -1)
-                {
-                    interpolated_z[i][j] = -1;
-                }
-                else if (left[j] == -1 || right[j] == -1 || left[j] == j)
-                {
-                    interpolated_z[i][j] = interpolated_z[i][max(left[j], right[j])];
-                }
-                else
-                {
-                    interpolated_z[i][j] = (interpolated_z[i][right[j]] * (j - left[j]) + interpolated_z[i][left[j]] * (right[j] - j)) / (right[j] - left[j]);
-                }
-            }
-        }
-    }
-    else
-    {
-        for (int i = 0; i < height; i++)
-        {
-            vector<int> left(width, -1);
-            for (int j = 0; j < width; j++)
-            {
-                if (interpolated_z[i][j] > 0)
-                {
-                    left[j] = j;
-                }
-                else if (j > 0)
-                {
-                    left[j] = left[j - 1];
-                }
-            }
-
-            vector<int> right(width, -1);
-            for (int j = width - 1; j >= 0; j--)
-            {
-                if (interpolated_z[i][j] > 0)
-                {
-                    right[j] = j;
-                }
-                else if (j + 1 < width)
-                {
-                    right[j] = right[j + 1];
-                }
-            }
-
-            for (int j = 0; j < width; j++)
-            {
-                if (left[j] == -1 && right[j] == -1)
-                {
-                    interpolated_z[i][j] = -1;
-                }
-                else if (left[j] == -1 || right[j] == -1 || left[j] == j)
-                {
-                    interpolated_z[i][j] = interpolated_z[i][max(left[j], right[j])];
-                }
-                else
-                {
-                    interpolated_z[i][j] = (interpolated_z[i][right[j]] * (j - left[j]) + interpolated_z[i][left[j]] * (right[j] - j)) / (right[j] - left[j]);
-                }
-            }
-        }
-        for (int j = 0; j < width; j++)
-        {
-            vector<int> up(height, -1);
-            for (int i = 0; i < height; i++)
-            {
-                if (interpolated_z[i][j] > 0)
-                {
-                    up[i] = i;
-                }
-                else if (i > 0)
-                {
-                    up[i] = up[i - 1];
-                }
-            }
-
-            vector<int> down(height, -1);
-            for (int i = height - 1; i >= 0; i--)
-            {
-                if (interpolated_z[i][j] > 0)
-                {
-                    down[i] = i;
-                }
-                else if (i + 1 < width)
-                {
-                    down[i] = down[i + 1];
-                }
-            }
-
-            for (int i = 0; i < height; i++)
-            {
-                if (up[i] == -1 && down[i] == -1)
-                {
-                    interpolated_z[i][j] = -1;
-                }
-                else if (up[i] == -1 || down[i] == -1 || up[i] == i)
-                {
-                    interpolated_z[i][j] = interpolated_z[max(up[i], down[i])][j];
-                }
-                else
-                {
-                    interpolated_z[i][j] = (interpolated_z[down[i]][j] * (i - up[i]) + interpolated_z[up[i]][j] * (down[i] - i)) / (down[i] - up[i]);
-                }
-            }
-        }
-    }
-
-    {
-        cv::Mat linear_depth_img = cv::Mat::zeros(height, width, CV_8UC3);
-        double minDepth = 10000;
-        double maxDepth = 0;
-        for (int i = 0; i < height; i++)
-        {
-            for (int j = 0; j < width; j++)
-            {
-                minDepth = min(minDepth, interpolated_z[i][j]);
-                maxDepth = max(maxDepth, interpolated_z[i][j]);
-            }
-        }
-
-        for (int i = 0; i < height; i++)
-        {
-            for (int j = 0; j < width; j++)
-            {
-                unsigned char val = 255 * (interpolated_z[i][j] - minDepth) / (maxDepth - minDepth);
-                linear_depth_img.at<cv::Vec3b>(i, j) = cv::Vec3b(val, val, val);
-            }
-        }
-
-        cv::Ptr<cv::ORB> point_orb = cv::ORB::create();
-        vector<cv::KeyPoint> point_key;
-        cv::Mat point_descriptor;
-        point_orb->detectAndCompute(linear_depth_img, cv::Mat(), point_key, point_descriptor);
-        cv::Mat point_key_img = cv::Mat::zeros(height, width, CV_8UC3);
-        cv::drawKeypoints(linear_depth_img, point_key, point_key_img);
-        cv::imshow("Keys", point_key_img);
-        cv::waitKey();
-    }
-
-    auto linear_interpolation_ptr = make_shared<geometry::PointCloud>();
-    for (int i = 0; i < height; i++)
-    {
-        for (int j = 0; j < width; j++)
-        {
-            /*
-            if (base_z[i][j] == 0)
-            {
-                continue;
-            }*/
-
-            double z = interpolated_z[i][j];
-            if (z == -1)
-            {
-                continue;
-            }
-            double x = z * (j - width / 2) / f_x;
-            double y = z * (i - height / 2) / f_x;
-            linear_interpolation_ptr->points_.emplace_back(x, y, z);
-        }
-    }
-    cout << linear_interpolation_ptr->points_.size() << endl;
-
-    auto end = chrono::system_clock::now(); // 計測終了時刻を保存
-    auto dur = end - start;                 // 要した時間を計算
-    auto msec = chrono::duration_cast<chrono::milliseconds>(dur).count();
-    // 要した時間をミリ秒（1/1000秒）に変換して表示
-    std::cout << msec << " milli sec \n";
-
-    { // Evaluation
-        double error = 0;
-        int cnt = 0;
-        int cannot_cnt = 0;
-        for (int i = 0; i < height; i++)
-        {
-            for (int j = 0; j < width; j++)
-            {
-                if (base_z[i][j] > 0 && filtered_z[i][j] == 0 && interpolated_z[i][j] > 0)
-                {
-                    error += abs((base_z[i][j] - interpolated_z[i][j]) / base_z[i][j]);
-                    cnt++;
-                }
-                if (base_z[i][j] > 0 && filtered_z[i][j] == 0)
-                {
-                    cannot_cnt++;
-                }
-            }
-        }
-        cout << "cannot cnt = " << cannot_cnt - cnt << endl;
-        cout << "Error = " << error / cnt << endl;
-    }
-
-    if (see_res)
-    {
-        Eigen::MatrixXd front(4, 4);
-        front << 1, 0, 0, 0,
-            0, -1, 0, 0,
-            0, 0, -1, 0,
-            0, 0, 0, 1;
-        pcd_ptr->Transform(front);
-        filtered_ptr->Transform(front);
-        linear_interpolation_ptr->Transform(front);
-
-        visualization::DrawGeometries({filtered_ptr /*, linear_interpolation_ptr*/}, "PointCloud", 1600, 900);
-    }
+    calc_filtered(pcd_ptr, Eigen::Vector3d());
 }
 
 int main(int argc, char *argv[])
