@@ -77,6 +77,11 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
         double x = xp + (X - 500) / 100.0;
         double y = yp + (Y - 500) / 100.0;
         double z = zp + (Z - 500) / 100.0;
+        /*
+        x = rawX;
+        y = rawY;
+        z = rawZ;
+        */
 
         if (z > 0)
         {
@@ -96,6 +101,7 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
     filtered_z = vector<vector<double>>(height, vector<double>(width));
     vector<vector<Eigen::Vector3d>> layers;
     cv::Mat all_layer_img = cv::Mat::zeros(height, width, CV_8UC3);
+    cv::Mat layer_img = cv::Mat::zeros(height, width, CV_8UC3);
     for (int i = 0; i < 64; i++)
     {
         // no sort
@@ -120,7 +126,7 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
         int shift = 0;
         int u0;
         int v0;
-        float zDelta0;
+        Eigen::Vector3d vec;
         for (size_t j = 0; j < removed.size(); j++)
         {
             int u = (int)(width / 2 + f_x * removed[j][0] / removed[j][2]);
@@ -145,24 +151,38 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
 
                 if (j + 1 < removed.size())
                 {
-                    float zDelta = (removed[j][2] - removed[j + 1][2]) / sqrt((removed[j][0] - removed[j + 1][0]) * (removed[j][0] - removed[j + 1][0]) + (removed[j][1] - removed[j + 1][1]) * (removed[j][1] - removed[j + 1][1]));
-                    if (j == 1 || (j >= 2 && abs(zDelta - zDelta0) < 2.0f))
+                    Eigen::Vector3d vecTmp = removed[j + 1] - removed[j];
+                    vecTmp.normalize();
+                    double val = abs(vecTmp.dot(vec));
+                    if (j == 1 || (j >= 2 && val > 0.5))
                     {
                         shift = 0;
                     }
                     else
                     {
                         // # circle(画像, 中心座標, 半径, 色, 線幅, 連結)
-                        cv::circle(all_layer_img, cv::Point(u, v), 2, cv::Scalar(255, 0, 0), 1, cv::LINE_AA);
+                        cv::circle(all_layer_img, cv::Point(u, v), 2, cv::Scalar(255 * val, 0, 255), 1, cv::LINE_AA);
                         shift = 1;
                     }
-                    zDelta0 = zDelta;
+                    if (i == 60 && j < 50)
+                    {
+                        cout << j << endl;
+                        cout << removed[j] << endl;
+                        cout << removed[j + 1] << endl;
+                        cout << vecTmp << endl;
+                    }
+                    vec = vecTmp;
+                    cv::circle(layer_img, cv::Point(u, v), 2, cv::Scalar(255 * val, 255 * ((i / (64 / layer_cnt) % 2)), 255), 1, cv::LINE_AA);
                 }
             }
             u0 = u;
             v0 = v;
         }
     }
+
+    cv::imshow("U", all_layer_img);
+    cv::imshow("T", layer_img);
+    cv::waitKey();
 
     neighbors = vector<vector<int>>(filtered_cnt, vector<int>());
     {
@@ -232,9 +252,6 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
             point_cnt += layers[i].size();
         }
     }
-
-    cv::imshow("U", all_layer_img);
-    cv::waitKey();
 
     auto sorted_ptr = make_shared<geometry::PointCloud>();
     {
