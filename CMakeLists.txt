@@ -107,6 +107,12 @@ if (Open3D_FOUND)
 
     target_include_directories(CalibratorRGB PUBLIC ${Open3D_INCLUDE_DIRS})
 
+    add_executable(AutoCalibrator AutoCalibrator.cpp)
+
+    target_link_libraries(AutoCalibrator ${Open3D_LIBRARIES} ${OpenCV_LIBS})
+
+    target_include_directories(AutoCalibrator PUBLIC ${Open3D_INCLUDE_DIRS})
+
     # Hot fix windows dll not found issue, assumming we're using the Release build
     option(BUILD_SHARED_LIBS "Whether Open3D was build as shared library" OFF)
     if(WIN32 AND BUILD_SHARED_LIBS)

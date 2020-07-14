@@ -45,6 +45,43 @@ int theta = 506;
 int phi = 527;
 */
 
+// Generic functor
+template <typename _Scalar, int NX = Eigen::Dynamic, int NY = Eigen::Dynamic>
+struct Functor
+{
+    typedef _Scalar Scalar;
+    enum
+    {
+        InputsAtCompileTime = NX,
+        ValuesAtCompileTime = NY
+    };
+    typedef Eigen::Matrix<Scalar, InputsAtCompileTime, 1> InputType;
+    typedef Eigen::Matrix<Scalar, ValuesAtCompileTime, 1> ValueType;
+    typedef Eigen::Matrix<Scalar, ValuesAtCompileTime, InputsAtCompileTime> JacobianType;
+};
+
+struct misra1a_functor : Functor<double>
+{
+    misra1a_functor(int values, double *x, double *y, double *z)
+        : inputs_(3), values_(values), x(x), y(y), z(z) {}
+
+    double *x;
+    double *y;
+    double *z;
+    int operator()(const Eigen::VectorXd &b, Eigen::VectorXd &fvec) const
+    {
+        for (int i = 0; i < values_; ++i)
+        {
+            fvec[i] = b[0] * x[i] + b[1] * y[i] + z[i] - b[2];
+        }
+        return 0;
+    }
+    const int inputs_;
+    const int values_;
+    int inputs() const { return inputs_; }
+    int values() const { return values_; }
+};
+
 shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> raw_pcd_ptr,
                                                vector<vector<double>> &base_z, vector<vector<double>> &filtered_z,
                                                vector<vector<int>> &neighbors, int layer_cnt = 16)
