@@ -15,11 +15,9 @@
 using namespace std;
 using namespace open3d;
 
-const int width = 938;
-const int height = 606;
-//const int width = 882;
-//const int height = 560;
-const double f_x = width / 2 * 1.01;
+const int width = 640;
+const int height = 480;
+const double f_x = width / 2 * 1.00;
 
 // Calibration
 // 02_04_13jo
@@ -45,23 +43,12 @@ int theta = 506;
 int phi = 527;
 */
 
-// Generic functor
-template <typename _Scalar, int NX = Eigen::Dynamic, int NY = Eigen::Dynamic>
-struct Functor
-{
-    typedef _Scalar Scalar;
-    enum
-    {
-        InputsAtCompileTime = NX,
-        ValuesAtCompileTime = NY
-    };
-    typedef Eigen::Matrix<Scalar, InputsAtCompileTime, 1> InputType;
-    typedef Eigen::Matrix<Scalar, ValuesAtCompileTime, 1> ValueType;
-    typedef Eigen::Matrix<Scalar, ValuesAtCompileTime, InputsAtCompileTime> JacobianType;
-};
+shared_ptr<geometry::PointCloud> raw_pcd_ptr;
+cv::Mat img;
 
-void calc_filtered(shared_ptr<geometry::PointCloud> raw_pcd_ptr, Eigen::Vector3d params)
+Eigen::VectorXd calc_filtered(const Eigen::VectorXd &params, bool see_res = false)
 {
+    int min_points = 3000;
     vector<double> tans;
     double PI = acos(-1);
     double rad = (-16.6 + 0.26349) * PI / 180;
@@ -79,21 +66,18 @@ void calc_filtered(shared_ptr<geometry::PointCloud> raw_pcd_ptr, Eigen::Vector3d
         double rawX = raw_pcd_ptr->points_[i][1];
         double rawY = -raw_pcd_ptr->points_[i][2];
         double rawZ = -raw_pcd_ptr->points_[i][0];
-
         double r = sqrt(rawX * rawX + rawZ * rawZ);
-        double thetaVal = (theta - 500) / 1000.0;
-        double phiVal = (phi - 500) / 1000.0;
-        double xp = (rawX * cos(phiVal) - rawY * sin(phiVal)) * cos(thetaVal) - (rawZ * cos(phiVal) - rawY * sin(phiVal)) * sin(thetaVal);
-        double yp = rawY * cos(phiVal) + r * sin(phiVal);
-        double zp = (rawX * cos(phiVal) - rawY * sin(phiVal)) * sin(thetaVal) + (rawZ * cos(phiVal) - rawY * sin(phiVal)) * cos(thetaVal);
-        double x = xp + (X - 500) / 100.0;
-        double y = yp + (Y - 500) / 100.0;
-        double z = zp + (Z - 500) / 100.0;
-        /*
-        x = rawX;
-        y = rawY;
-        z = rawZ;
-        */
+
+        double roll = params[3];
+        double pitch = params[4];
+        double yaw = params[5];
+        double xp = cos(yaw) * cos(pitch) * rawX + (cos(yaw) * sin(pitch) * sin(roll) - sin(yaw) * cos(roll)) * rawY + (cos(yaw) * sin(pitch) * cos(roll) + sin(yaw) * sin(roll)) * rawZ + params[0];
+        double yp = sin(yaw) * cos(pitch) * rawX + (sin(yaw) * sin(pitch) * sin(roll) + cos(yaw) * cos(roll)) * rawY + (sin(yaw) * sin(pitch) * cos(roll) - cos(yaw) * sin(roll)) * rawZ + params[1];
+        double zp = -sin(pitch) * rawX + cos(pitch) * sin(roll) * rawY + cos(pitch) * cos(roll) * rawZ + params[2];
+        double r2 = xp * xp + yp * yp;
+        double x = xp * (1 + params[6] * r2 + params[7] * r2 * r2 + params[8] * r2 * r2 * r2) + 2 * params[9] * xp * yp + params[10] * (r2 + 2 * xp * xp);
+        double y = yp * (1 + params[6] * r2 + params[7] * r2 * r2 + params[8] * r2 * r2 * r2) + 2 * params[10] * xp * yp + params[9] * (r2 + 2 * yp * yp);
+        double z = zp;
 
         if (z > 0)
         {
@@ -175,25 +159,76 @@ void calc_filtered(shared_ptr<geometry::PointCloud> raw_pcd_ptr, Eigen::Vector3d
         }
     }
 
-    cv::imshow("U", all_layer_img);
-    cv::imshow("T", layer_img);
-    cv::waitKey();
+    Eigen::VectorXd res(min_points);
+    int in_cnt = 0;
+    double c = 100;
+    for (int i = 0; i < 64; i++)
+    {
+        for (size_t j = 0; j + 1 < layers[i].size(); j++)
+        {
+            if (in_cnt == min_points)
+            {
+                break;
+            }
+
+            double cTmp = c;
+            if (is_edges[i][j] > 0 && is_edges[i][j + 1] > 0)
+            {
+                cTmp = 0;
+            }
+            int u = (int)(width / 2 + f_x * layers[i][j][0] / layers[i][j][2]);
+            int v = (int)(height / 2 + f_x * layers[i][j][1] / layers[i][j][2]);
+            int u1 = (int)(width / 2 + f_x * layers[i][j + 1][0] / layers[i][j + 1][2]);
+            int v1 = (int)(height / 2 + f_x * layers[i][j + 1][1] / layers[i][j + 1][2]);
+            double val = (img.at<cv::Vec3b>(v, u)[0] - img.at<cv::Vec3b>(v1, u1)[0]) / 255.0;
+            double w = 1 - exp(-cTmp * val * val);
+            in_cnt++;
+        }
+    }
+
+    if (in_cnt < min_points)
+    {
+        cout << in_cnt << endl;
+        for (int i = in_cnt; i < min_points; i++)
+        {
+            res[i] = 10000;
+        }
+    }
+
+    if (!see_res)
+    {
+        cv::imshow("U", all_layer_img);
+        cv::imshow("T", layer_img);
+        cv::waitKey();
+    }
+
+    return res;
 }
+
+// Generic functor
+template <typename _Scalar, int NX = Eigen::Dynamic, int NY = Eigen::Dynamic>
+struct Functor
+{
+    typedef _Scalar Scalar;
+    enum
+    {
+        InputsAtCompileTime = NX,
+        ValuesAtCompileTime = NY
+    };
+    typedef Eigen::Matrix<Scalar, InputsAtCompileTime, 1> InputType;
+    typedef Eigen::Matrix<Scalar, ValuesAtCompileTime, 1> ValueType;
+    typedef Eigen::Matrix<Scalar, ValuesAtCompileTime, InputsAtCompileTime> JacobianType;
+};
 
 struct misra1a_functor : Functor<double>
 {
-    misra1a_functor(int values, double *x, double *y, double *z)
-        : inputs_(3), values_(values), x(x), y(y), z(z) {}
+    misra1a_functor(int inputs, int values = 3000)
+        : inputs_(0), values_(values) {}
 
-    double *x;
-    double *y;
-    double *z;
     int operator()(const Eigen::VectorXd &b, Eigen::VectorXd &fvec) const
     {
-        for (int i = 0; i < values_; ++i)
-        {
-            fvec[i] = b[0] * x[i] + b[1] * y[i] + z[i] - b[2];
-        }
+        fvec = calc_filtered(b);
+        //cout << fvec;
         return 0;
     }
     const int inputs_;
@@ -204,18 +239,35 @@ struct misra1a_functor : Functor<double>
 
 void segmentate(int data_no, bool see_res = false)
 {
-    const string pcd_path = "../../../data/2020_02_04_13jo/" + to_string(data_no) + ".pcd";
-    const bool vertical = true;
+    const string png_path = "../../../data/2020_02_19_13jo_raw/" + to_string(data_no) + ".png";
+    const string pcd_path = "../../../data/2020_02_19_13jo_raw/" + to_string(data_no) + ".pcd";
 
     geometry::PointCloud pointcloud;
-    auto pcd_ptr = make_shared<geometry::PointCloud>();
+    raw_pcd_ptr = make_shared<geometry::PointCloud>();
     if (!io::ReadPointCloud(pcd_path, pointcloud))
     {
         cout << "Cannot read" << endl;
     }
-    *pcd_ptr = pointcloud;
+    *raw_pcd_ptr = pointcloud;
 
-    calc_filtered(pcd_ptr, Eigen::Vector3d());
+    img = cv::imread(png_path);
+
+    Eigen::VectorXd params = Eigen::VectorXd::Zero(11);
+    params[0] = -0.02;
+    params[1] = -0.15;
+    params[2] = 0.09;
+    params[3] = -0.1;
+    params[4] = 0.17;
+    params[7] = 1.21456239e-05;
+    params[7] = 1.96249030e-14;
+    params[9] = -2.42560758e-06;
+    params[10] = -4.05806821e-06;
+    misra1a_functor functor(0, 1000);
+
+    Eigen::NumericalDiff<misra1a_functor> numDiff(functor);
+    Eigen::LevenbergMarquardt<Eigen::NumericalDiff<misra1a_functor>> lm(numDiff);
+    lm.minimize(params);
+    calc_filtered(params, true);
 }
 
 int main(int argc, char *argv[])
