@@ -17,7 +17,7 @@ using namespace open3d;
 
 const int width = 640;
 const int height = 480;
-const double f_x = width / 2 * 1.00;
+const int min_points = 10000;
 
 // Calibration
 // 02_04_13jo
@@ -48,7 +48,6 @@ cv::Mat img;
 
 Eigen::VectorXd calc_filtered(const Eigen::VectorXd &params, bool see_res = false)
 {
-    int min_points = 3000;
     vector<double> tans;
     double PI = acos(-1);
     double rad = (-16.6 + 0.26349) * PI / 180;
@@ -61,6 +60,7 @@ Eigen::VectorXd calc_filtered(const Eigen::VectorXd &params, bool see_res = fals
     }
 
     vector<vector<Eigen::Vector3d>> all_layers(64, vector<Eigen::Vector3d>());
+    double f_x = params[3];
     for (int i = 0; i < raw_pcd_ptr->points_.size(); i++)
     {
         double rawX = raw_pcd_ptr->points_[i][1];
@@ -68,15 +68,20 @@ Eigen::VectorXd calc_filtered(const Eigen::VectorXd &params, bool see_res = fals
         double rawZ = -raw_pcd_ptr->points_[i][0];
         double r = sqrt(rawX * rawX + rawZ * rawZ);
 
-        double roll = params[3];
-        double pitch = params[4];
-        double yaw = params[5];
+        double roll = 0;
+        //params[3];
+        double pitch = 0;
+        //params[4];
+        double yaw = 0;
+        //params[5];
         double xp = cos(yaw) * cos(pitch) * rawX + (cos(yaw) * sin(pitch) * sin(roll) - sin(yaw) * cos(roll)) * rawY + (cos(yaw) * sin(pitch) * cos(roll) + sin(yaw) * sin(roll)) * rawZ + params[0];
         double yp = sin(yaw) * cos(pitch) * rawX + (sin(yaw) * sin(pitch) * sin(roll) + cos(yaw) * cos(roll)) * rawY + (sin(yaw) * sin(pitch) * cos(roll) - cos(yaw) * sin(roll)) * rawZ + params[1];
         double zp = -sin(pitch) * rawX + cos(pitch) * sin(roll) * rawY + cos(pitch) * cos(roll) * rawZ + params[2];
         double r2 = xp * xp + yp * yp;
-        double x = xp * (1 + params[6] * r2 + params[7] * r2 * r2 + params[8] * r2 * r2 * r2) + 2 * params[9] * xp * yp + params[10] * (r2 + 2 * xp * xp);
-        double y = yp * (1 + params[6] * r2 + params[7] * r2 * r2 + params[8] * r2 * r2 * r2) + 2 * params[10] * xp * yp + params[9] * (r2 + 2 * yp * yp);
+        double x = xp;
+        //*(1 + params[6] * r2 + params[7] * r2 * r2 + params[8] * r2 * r2 * r2) + 2 * params[9] * xp *yp + params[10] * (r2 + 2 * xp * xp);
+        double y = yp;
+        //    *(1 + params[6] * r2 + params[7] * r2 * r2 + params[8] * r2 * r2 * r2) + 2 * params[10] * xp *yp + params[9] * (r2 + 2 * yp * yp);
         double z = zp;
 
         if (z > 0)
@@ -96,6 +101,14 @@ Eigen::VectorXd calc_filtered(const Eigen::VectorXd &params, bool see_res = fals
     vector<vector<int>> is_edges;
     cv::Mat all_layer_img = cv::Mat::zeros(height, width, CV_8UC3);
     cv::Mat layer_img = cv::Mat::zeros(height, width, CV_8UC3);
+    for (int i = 0; i < height; i++)
+    {
+        for (int j = 0; j < width; j++)
+        {
+            layer_img.at<cv::Vec3b>(i, j) = img.at<cv::Vec3b>(i, j);
+        }
+    }
+
     for (int i = 0; i < 64; i++)
     {
         // no sort
@@ -159,9 +172,10 @@ Eigen::VectorXd calc_filtered(const Eigen::VectorXd &params, bool see_res = fals
         }
     }
 
-    Eigen::VectorXd res(min_points);
+    Eigen::VectorXd res = Eigen::VectorXd::Zero(min_points);
     int in_cnt = 0;
-    double c = 100;
+    double c = 0.1;
+    double r = 10;
     for (int i = 0; i < 64; i++)
     {
         for (size_t j = 0; j + 1 < layers[i].size(); j++)
@@ -180,25 +194,27 @@ Eigen::VectorXd calc_filtered(const Eigen::VectorXd &params, bool see_res = fals
             int v = (int)(height / 2 + f_x * layers[i][j][1] / layers[i][j][2]);
             int u1 = (int)(width / 2 + f_x * layers[i][j + 1][0] / layers[i][j + 1][2]);
             int v1 = (int)(height / 2 + f_x * layers[i][j + 1][1] / layers[i][j + 1][2]);
-            double val = (img.at<cv::Vec3b>(v, u)[0] - img.at<cv::Vec3b>(v1, u1)[0]) / 255.0;
-            double w = 1 - exp(-cTmp * val * val);
+            double val = img.at<cv::Vec3b>(v, u)[0] - img.at<cv::Vec3b>(v1, u1)[0];
+            double w = r * (1 - exp(-cTmp * val * val));
+            res[in_cnt] = w;
             in_cnt++;
         }
     }
 
     if (in_cnt < min_points)
     {
-        cout << in_cnt << endl;
+        cout << "out" << in_cnt << endl;
         for (int i = in_cnt; i < min_points; i++)
         {
-            res[i] = 10000;
+            res[i] = 100;
         }
     }
 
-    if (!see_res)
+    if (see_res)
     {
         cv::imshow("U", all_layer_img);
         cv::imshow("T", layer_img);
+        cv::imshow("S", img);
         cv::waitKey();
     }
 
@@ -223,12 +239,17 @@ struct Functor
 struct misra1a_functor : Functor<double>
 {
     misra1a_functor(int inputs, int values = 3000)
-        : inputs_(0), values_(values) {}
+        : inputs_(0), values_(min_points) {}
 
     int operator()(const Eigen::VectorXd &b, Eigen::VectorXd &fvec) const
     {
         fvec = calc_filtered(b);
-        //cout << fvec;
+        double error = 0;
+        for (int i = 0; i < min_points; i++)
+        {
+            error += abs(fvec[i]);
+        }
+        cout << error << endl;
         return 0;
     }
     const int inputs_;
@@ -252,21 +273,28 @@ void segmentate(int data_no, bool see_res = false)
 
     img = cv::imread(png_path);
 
-    Eigen::VectorXd params = Eigen::VectorXd::Zero(11);
+    Eigen::VectorXd params = Eigen::VectorXd::Zero(12);
+
     params[0] = -0.02;
     params[1] = -0.15;
     params[2] = 0.09;
-    params[3] = -0.1;
-    params[4] = 0.17;
+    params[3] = width / 2;
+    /*
+    params[4] = -0.1;
+    params[5] = 0.17;
+    /*
     params[7] = 1.21456239e-05;
-    params[7] = 1.96249030e-14;
-    params[9] = -2.42560758e-06;
-    params[10] = -4.05806821e-06;
-    misra1a_functor functor(0, 1000);
+    params[8] = 1.96249030e-14;
+    params[10] = -2.42560758e-06;
+    params[11] = -4.05806821e-06;
+    */
+    misra1a_functor functor(0);
 
     Eigen::NumericalDiff<misra1a_functor> numDiff(functor);
     Eigen::LevenbergMarquardt<Eigen::NumericalDiff<misra1a_functor>> lm(numDiff);
     lm.minimize(params);
+    cout << "check" << endl;
+    cout << params << endl;
     calc_filtered(params, true);
 }
 
