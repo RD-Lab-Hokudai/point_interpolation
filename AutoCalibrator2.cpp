@@ -289,18 +289,48 @@ void segmentate(int data_no, bool see_res = false)
     deltas[11] = 1e-7;
     */
 
-    /*
-    misra1a_functor functor(4, 1);
-    Eigen::NumericalDiff<misra1a_functor> numDiff(functor);
-    Eigen::LevenbergMarquardt<Eigen::NumericalDiff<misra1a_functor>> lm(numDiff);
-    lm.minimize(params);
-    */
-
     double best_error = 1e9;
-    Eigen::VectorXd best_params;
-    random_device seed_gen;
-    mt19937 engine(seed_gen());
-    uniform_int_distribution<> dist(0, 14);
+    double prev_error = calc_filtered(params)[0];
+    Eigen::VectorXd best_params = params;
+    cv::RNG rng;
+    double minTemperature = 0.0007;
+    double alpha = 0.9;
+    double temperature = 0.43;
+
+    while (temperature > minTemperature)
+    {
+        for (int k = 0; k < 10; ++k)
+        {
+            // update one of six calibration parameters per iteration
+            int which = rng.uniform(0, 7);
+
+            Eigen::VectorXd next_params = params;
+            next_params[which] += deltas[which] * rng.uniform(-1.0f, 1.0f);
+
+            double error = calc_filtered(next_params)[0];
+
+            if (error < best_error)
+            {
+                best_error = error;
+                best_params = next_params;
+            }
+
+            double cost_delta = error - prev_error;
+
+            double probability = exp(-cost_delta * 1000000 / temperature);
+            double rand = rng.uniform(0.0, 1.0);
+
+            if (cost_delta < 0.0 || probability > rand)
+            {
+                params = next_params;
+                prev_error = error;
+            }
+        }
+
+        temperature *= alpha;
+    }
+
+    /*
     for (int i = 0; i < 1000; i++)
     {
         double error = calc_filtered(params)[0];
@@ -320,6 +350,7 @@ void segmentate(int data_no, bool see_res = false)
             params[rand / 2] -= deltas[rand / 2];
         }
     }
+    */
 
     cout << "params" << endl;
     cout << best_params << endl;
