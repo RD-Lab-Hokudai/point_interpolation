@@ -17,7 +17,7 @@ using namespace open3d;
 
 const int width = 640;
 const int height = 480;
-const int min_points = 10000;
+const int min_points = 1000;
 
 // Calibration
 // 02_04_13jo
@@ -238,8 +238,8 @@ struct Functor
 
 struct misra1a_functor : Functor<double>
 {
-    misra1a_functor(int inputs, int values = 3000)
-        : inputs_(0), values_(min_points) {}
+    misra1a_functor(int inputs, int values)
+        : inputs_(inputs), values_(values) {}
 
     int operator()(const Eigen::VectorXd &b, Eigen::VectorXd &fvec) const
     {
@@ -288,7 +288,7 @@ void segmentate(int data_no, bool see_res = false)
     params[10] = -2.42560758e-06;
     params[11] = -4.05806821e-06;
     */
-    misra1a_functor functor(0);
+    misra1a_functor functor(4, min_points);
 
     Eigen::NumericalDiff<misra1a_functor> numDiff(functor);
     Eigen::LevenbergMarquardt<Eigen::NumericalDiff<misra1a_functor>> lm(numDiff);

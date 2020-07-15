@@ -3,6 +3,7 @@
 #include <stack>
 #include <map>
 #include <chrono>
+#include <random>
 
 #include <Open3D/Open3D.h>
 #include <opencv2/opencv.hpp>
@@ -17,7 +18,6 @@ using namespace open3d;
 
 const int width = 640;
 const int height = 480;
-const int min_points = 10000;
 
 // Calibration
 // 02_04_13jo
@@ -68,12 +68,9 @@ Eigen::VectorXd calc_filtered(const Eigen::VectorXd &params, bool see_res = fals
         double rawZ = -raw_pcd_ptr->points_[i][0];
         double r = sqrt(rawX * rawX + rawZ * rawZ);
 
-        double roll = 0;
-        //params[3];
-        double pitch = 0;
-        //params[4];
-        double yaw = 0;
-        //params[5];
+        double roll = params[4];
+        double pitch = params[5];
+        double yaw = params[6];
         double xp = cos(yaw) * cos(pitch) * rawX + (cos(yaw) * sin(pitch) * sin(roll) - sin(yaw) * cos(roll)) * rawY + (cos(yaw) * sin(pitch) * cos(roll) + sin(yaw) * sin(roll)) * rawZ + params[0];
         double yp = sin(yaw) * cos(pitch) * rawX + (sin(yaw) * sin(pitch) * sin(roll) + cos(yaw) * cos(roll)) * rawY + (sin(yaw) * sin(pitch) * cos(roll) - cos(yaw) * sin(roll)) * rawZ + params[1];
         double zp = -sin(pitch) * rawX + cos(pitch) * sin(roll) * rawY + cos(pitch) * cos(roll) * rawZ + params[2];
@@ -172,42 +169,36 @@ Eigen::VectorXd calc_filtered(const Eigen::VectorXd &params, bool see_res = fals
         }
     }
 
-    Eigen::VectorXd res = Eigen::VectorXd::Zero(min_points);
+    Eigen::VectorXd res = Eigen::VectorXd::Zero(1);
     int in_cnt = 0;
-    double c = 0.1;
-    double r = 10;
+    double c = 100;
+    double a_val = 0;
+    double n_left = 0;
+    double n_right = 0;
     for (int i = 0; i < 64; i++)
     {
         for (size_t j = 0; j + 1 < layers[i].size(); j++)
         {
-            if (in_cnt == min_points)
-            {
-                break;
-            }
-
-            double cTmp = c;
-            if (is_edges[i][j] > 0 && is_edges[i][j + 1] > 0)
-            {
-                cTmp = 0;
-            }
             int u = (int)(width / 2 + f_x * layers[i][j][0] / layers[i][j][2]);
             int v = (int)(height / 2 + f_x * layers[i][j][1] / layers[i][j][2]);
             int u1 = (int)(width / 2 + f_x * layers[i][j + 1][0] / layers[i][j + 1][2]);
             int v1 = (int)(height / 2 + f_x * layers[i][j + 1][1] / layers[i][j + 1][2]);
-            double val = img.at<cv::Vec3b>(v, u)[0] - img.at<cv::Vec3b>(v1, u1)[0];
-            double w = r * (1 - exp(-cTmp * val * val));
-            res[in_cnt] = w;
-            in_cnt++;
+            double w = exp(-c * abs(img.at<cv::Vec3b>(v, u)[0] - img.at<cv::Vec3b>(v1, u1)[0]));
+            double nabla_abs = abs((layers[i][j + 1][2] - layers[i][j][2]) / ((layers[i][j + 1][0] - layers[i][j][0]) * (layers[i][j + 1][0] - layers[i][j][0]) + (layers[i][j + 1][1] - layers[i][j][1]) * (layers[i][j + 1][1] - layers[i][j][1])));
+            a_val += w * nabla_abs;
+            n_left += w;
+            n_right += nabla_abs;
         }
     }
 
-    if (in_cnt < min_points)
+    if (n_left * n_right == 0)
     {
-        cout << "out" << in_cnt << endl;
-        for (int i = in_cnt; i < min_points; i++)
-        {
-            res[i] = 100;
-        }
+        res[0] = 100;
+    }
+    else
+    {
+        res[0] = a_val;
+        // (n_left * n_right);
     }
 
     if (see_res)
@@ -238,18 +229,13 @@ struct Functor
 
 struct misra1a_functor : Functor<double>
 {
-    misra1a_functor(int inputs, int values = 3000)
-        : inputs_(0), values_(min_points) {}
+    misra1a_functor(int inputs, int values)
+        : inputs_(inputs), values_(values) {}
 
     int operator()(const Eigen::VectorXd &b, Eigen::VectorXd &fvec) const
     {
         fvec = calc_filtered(b);
-        double error = 0;
-        for (int i = 0; i < min_points; i++)
-        {
-            error += abs(fvec[i]);
-        }
-        cout << error << endl;
+        cout << fvec[0] << endl;
         return 0;
     }
     const int inputs_;
@@ -274,28 +260,70 @@ void segmentate(int data_no, bool see_res = false)
     img = cv::imread(png_path);
 
     Eigen::VectorXd params = Eigen::VectorXd::Zero(12);
-
+    params[3] = width / 2;
     params[0] = -0.02;
     params[1] = -0.15;
     params[2] = 0.09;
-    params[3] = width / 2;
-    /*
-    params[4] = -0.1;
-    params[5] = 0.17;
+    params[4] = 0.18;
+    params[5] = -0.17;
     /*
     params[7] = 1.21456239e-05;
     params[8] = 1.96249030e-14;
     params[10] = -2.42560758e-06;
     params[11] = -4.05806821e-06;
     */
-    misra1a_functor functor(0);
 
+    Eigen::VectorXd deltas = Eigen::VectorXd::Zero(12);
+    deltas[0] = 0.1;
+    deltas[1] = 0.1;
+    deltas[2] = 0.1;
+    deltas[3] = 0.1;
+    deltas[4] = 0.01;
+    deltas[5] = 0.01;
+    deltas[6] = 0.01;
+    /*
+    deltas[7] = 1e-7;
+    deltas[8] = 1e-15;
+    deltas[9] = 1e-22;
+    deltas[10] = 1e-7;
+    deltas[11] = 1e-7;
+    */
+
+    /*
+    misra1a_functor functor(4, 1);
     Eigen::NumericalDiff<misra1a_functor> numDiff(functor);
     Eigen::LevenbergMarquardt<Eigen::NumericalDiff<misra1a_functor>> lm(numDiff);
     lm.minimize(params);
-    cout << "check" << endl;
-    cout << params << endl;
-    calc_filtered(params, true);
+    */
+
+    double best_error = 1e9;
+    Eigen::VectorXd best_params;
+    random_device seed_gen;
+    mt19937 engine(seed_gen());
+    uniform_int_distribution<> dist(0, 14);
+    for (int i = 0; i < 1000; i++)
+    {
+        double error = calc_filtered(params)[0];
+        if (error < best_error)
+        {
+            best_params = params;
+            best_error = error;
+            cout << error << endl;
+        }
+        int rand = dist(engine);
+        if (rand % 2 == 0)
+        {
+            params[rand / 2] += deltas[rand / 2];
+        }
+        else
+        {
+            params[rand / 2] -= deltas[rand / 2];
+        }
+    }
+
+    cout << "params" << endl;
+    cout << best_params << endl;
+    calc_filtered(best_params, true);
 }
 
 int main(int argc, char *argv[])
