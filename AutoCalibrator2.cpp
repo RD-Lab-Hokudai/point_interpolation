@@ -16,8 +16,10 @@
 using namespace std;
 using namespace open3d;
 
-const int width = 640;
-const int height = 480;
+const int width = 672;
+//640;
+const int height = 376;
+//480;
 
 // Calibration
 // 02_04_13jo
@@ -102,7 +104,8 @@ Eigen::VectorXd calc_filtered(const Eigen::VectorXd &params, bool see_res = fals
     {
         for (int j = 0; j < width; j++)
         {
-            layer_img.at<cv::Vec3b>(i, j) = img.at<cv::Vec3b>(i, j);
+            uchar val = img.at<uchar>(i, j);
+            layer_img.at<cv::Vec3b>(i, j) = cv::Vec3b(val, val, val);
         }
     }
 
@@ -171,7 +174,7 @@ Eigen::VectorXd calc_filtered(const Eigen::VectorXd &params, bool see_res = fals
 
     Eigen::VectorXd res = Eigen::VectorXd::Zero(1);
     int in_cnt = 0;
-    double c = 100;
+    double c = 2;
     double a_val = 0;
     double n_left = 0;
     double n_right = 0;
@@ -183,8 +186,8 @@ Eigen::VectorXd calc_filtered(const Eigen::VectorXd &params, bool see_res = fals
             int v = (int)(height / 2 + f_x * layers[i][j][1] / layers[i][j][2]);
             int u1 = (int)(width / 2 + f_x * layers[i][j + 1][0] / layers[i][j + 1][2]);
             int v1 = (int)(height / 2 + f_x * layers[i][j + 1][1] / layers[i][j + 1][2]);
-            double w = exp(-c * abs(img.at<cv::Vec3b>(v, u)[0] - img.at<cv::Vec3b>(v1, u1)[0]));
-            double nabla_abs = abs((layers[i][j + 1][2] - layers[i][j][2]) / ((layers[i][j + 1][0] - layers[i][j][0]) * (layers[i][j + 1][0] - layers[i][j][0]) + (layers[i][j + 1][1] - layers[i][j][1]) * (layers[i][j + 1][1] - layers[i][j][1])));
+            double w = exp(-c * abs(img.at<uchar>(v, u) - img.at<uchar>(v1, u1)));
+            double nabla_abs = abs((layers[i][j + 1][2] - layers[i][j][2]) / sqrt((layers[i][j + 1][0] - layers[i][j][0]) * (layers[i][j + 1][0] - layers[i][j][0]) + (layers[i][j + 1][1] - layers[i][j][1]) * (layers[i][j + 1][1] - layers[i][j][1])));
             a_val += w * nabla_abs;
             n_left += w;
             n_right += nabla_abs;
@@ -246,7 +249,7 @@ struct misra1a_functor : Functor<double>
 
 void segmentate(int data_no, bool see_res = false)
 {
-    const string png_path = "../../../data/2020_02_19_13jo_raw/" + to_string(data_no) + ".png";
+    const string png_path = "../../../data/2020_02_19_13jo_raw/" + to_string(data_no) + "_rgb.png";
     const string pcd_path = "../../../data/2020_02_19_13jo_raw/" + to_string(data_no) + ".pcd";
 
     geometry::PointCloud pointcloud;
@@ -257,10 +260,13 @@ void segmentate(int data_no, bool see_res = false)
     }
     *raw_pcd_ptr = pointcloud;
 
-    img = cv::imread(png_path);
+    img = cv::imread(png_path, CV_LOAD_IMAGE_ANYDEPTH);
+    cv::imshow("U", img);
+    cv::waitKey();
 
     Eigen::VectorXd params = Eigen::VectorXd::Zero(12);
     params[3] = width / 2;
+    /*
     params[0] = -0.02;
     params[1] = -0.15;
     params[2] = 0.09;
@@ -326,7 +332,7 @@ void segmentate(int data_no, bool see_res = false)
                 prev_error = error;
             }
         }
-
+        cout << best_error << endl;
         temperature *= alpha;
     }
 
