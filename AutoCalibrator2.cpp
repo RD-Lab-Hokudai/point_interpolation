@@ -149,11 +149,11 @@ Eigen::VectorXd calc_filtered(const Eigen::VectorXd &params, bool see_res = fals
                     else
                     {
                         // # circle(画像, 中心座標, 半径, 色, 線幅, 連結)
-                        cv::circle(all_layer_img, cv::Point(u, v), 2, cv::Scalar(255, 0, 255), 1, cv::LINE_AA);
+                        cv::circle(all_layer_img, cv::Point(u, v), 1, cv::Scalar(255, 0, 255), 1, cv::LINE_AA);
                         is_edges[i].emplace_back(2);
                     }
                     l1 = l2;
-                    cv::circle(layer_img, cv::Point(u, v), 2, cv::Scalar(255 / rate, 255 * (i % 2), 255), 1, cv::LINE_AA);
+                    cv::circle(layer_img, cv::Point(u, v), 1, cv::Scalar(255 / rate, 255 * (i % 2), 255), 1, cv::LINE_AA);
                 }
             }
             u0 = u;
@@ -167,7 +167,7 @@ Eigen::VectorXd calc_filtered(const Eigen::VectorXd &params, bool see_res = fals
                 int u = (int)(width / 2 + f_x * removed[j][0] / removed[j][2]);
                 int v = (int)(height / 2 + f_x * removed[j][1] / removed[j][2]);
                 is_edges[i][j] = 1;
-                cv::circle(all_layer_img, cv::Point(u, v), 2, cv::Scalar(255, 0, 255), 1, cv::LINE_AA);
+                cv::circle(all_layer_img, cv::Point(u, v), 1, cv::Scalar(255, 0, 255), 1, cv::LINE_AA);
             }
         }
     }
@@ -302,6 +302,7 @@ void segmentate(int data_no, bool see_res = false)
     double minTemperature = 0.0007;
     double alpha = 0.9;
     double temperature = 0.43;
+    calc_filtered(best_params, true);
 
     while (temperature > minTemperature)
     {

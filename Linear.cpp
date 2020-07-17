@@ -23,19 +23,21 @@ const double f_x = width / 2 * 1.01;
 
 // Calibration
 // 02_04_13jo
+/*
 int X = 498;
 int Y = 485;
 int Z = 509;
 int theta = 483;
 int phi = 518;
+*/
 // 02_04_miyanosawa
-/*
+
 int X = 495;
 int Y = 475;
 int Z = 458;
 int theta = 438;
 int phi = 512;
-*/
+
 // 03_03_miyanosawa
 /*
 int X = 500;
@@ -101,8 +103,8 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
     filtered_z = vector<vector<double>>(height, vector<double>(width));
     vector<vector<Eigen::Vector3d>> layers;
     vector<vector<int>> is_edges;
-    cv::Mat all_layer_img = cv::Mat::zeros(height, width, CV_8UC3);
-    cv::Mat layer_img = cv::Mat::zeros(height, width, CV_8UC3);
+    cv::Mat all_layer_img = cv::imread("../../../data/2020_02_04_miyanosawa/1290.png");
+    cv::Mat layer_img = cv::imread("../../../data/2020_02_04_miyanosawa/1290.png");
     for (int i = 0; i < 64; i++)
     {
         // no sort
@@ -160,8 +162,6 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
                     }
                     else
                     {
-                        // # circle(画像, 中心座標, 半径, 色, 線幅, 連結)
-                        cv::circle(all_layer_img, cv::Point(u, v), 2, cv::Scalar(255, 0, 255), 1, cv::LINE_AA);
                         is_edges[i / (64 / layer_cnt)].emplace_back(2);
                     }
                     if (i == 60 && j < 50)
@@ -172,7 +172,8 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
                         cout << rate << endl;
                     }
                     l1 = l2;
-                    cv::circle(layer_img, cv::Point(u, v), 2, cv::Scalar(255 / rate, 255 * ((i / (64 / layer_cnt) % 2)), 255), 1, cv::LINE_AA);
+                    // # circle(画像, 中心座標, 半径, 色, 線幅, 連結)
+                    cv::circle(layer_img, cv::Point(u, v), 1, cv::Scalar(255 / rate, 255 * ((i / (64 / layer_cnt) % 2)), 255), 1, cv::LINE_AA);
                 }
             }
             u0 = u;
@@ -186,7 +187,7 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
                 int u = (int)(width / 2 + f_x * removed[j][0] / removed[j][2]);
                 int v = (int)(height / 2 + f_x * removed[j][1] / removed[j][2]);
                 is_edges[i / (64 / layer_cnt)][j] = 1;
-                cv::circle(all_layer_img, cv::Point(u, v), 2, cv::Scalar(255, 0, 255), 1, cv::LINE_AA);
+                cv::circle(all_layer_img, cv::Point(u, v), 1, cv::Scalar(255, 0, 255), 1, cv::LINE_AA);
             }
         }
     }
@@ -313,7 +314,7 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
 
 void segmentate(int data_no, bool see_res = false)
 {
-    const string pcd_path = "../../../data/2020_02_04_13jo/" + to_string(data_no) + ".pcd";
+    const string pcd_path = "../../../data/2020_02_04_miyanosawa/" + to_string(data_no) + ".pcd";
     const bool vertical = true;
 
     geometry::PointCloud pointcloud;
@@ -650,8 +651,8 @@ void segmentate(int data_no, bool see_res = false)
 int main(int argc, char *argv[])
 {
     //vector<int> data_nos = {550, 1000, 1125, 1260, 1550}; // 03_03_miyanosawa
-    vector<int> data_nos = {10, 20, 30, 40, 50}; // 02_04_13jo
-    //vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
+    //vector<int> data_nos = {10, 20, 30, 40, 50}; // 02_04_13jo
+    vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
     for (int i = 0; i < data_nos.size(); i++)
     {
         segmentate(data_nos[i], true);

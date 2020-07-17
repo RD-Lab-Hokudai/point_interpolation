@@ -370,10 +370,10 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < data_ids.size(); i++)
     {
-        string img_path = "../../../data/2020_02_19_13jo_raw/" + to_string(data_ids[i]) + ".png";
+        string img_path = "../../../data/2020_02_04_13jo/" + to_string(data_ids[i]) + ".png";
         imgs.emplace_back(cv::imread(img_path));
 
-        string pcd_path = "../../../data/2020_02_19_13jo_raw/" + to_string(data_ids[i]) + ".pcd";
+        string pcd_path = "../../../data/2020_02_04_13jo/" + to_string(data_ids[i]) + ".pcd";
         open3d::geometry::PointCloud pointcloud;
         vector<point> points;
         if (!open3d::io::ReadPointCloud(pcd_path, pointcloud))
