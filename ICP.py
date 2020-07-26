@@ -3,6 +3,9 @@ import numpy as np
 from math import sin, cos
 import cv2
 
+width = 938
+height = 606
+
 
 def calcRigidTransformation(MatA, MatB):
     A, B = np.copy(MatA), np.copy(MatB)
@@ -42,36 +45,58 @@ class ICP(object):
 
             old_points = new_points
 
-            from matplotlib import pyplot
-            from mpl_toolkits.mplot3d import Axes3D
-
-            fig = pyplot.figure()
-            ax = Axes3D(fig)
-
-            ax.set_label("x - axis")
-            ax.set_label("y - axis")
-            ax.set_label("z - axis")
-
-            ax.plot(self.pointsA[:, 1], self.pointsA[:, 0], self.pointsA[:, 2], "o",
-                    color="#cccccc", ms=4, mew=0.5)
-            ax.plot(old_points[:, 1], old_points[:, 0], old_points[:, 2],
-                    "o", color="#00cccc", ms=4, mew=0.5)
-            ax.plot(self.pointsB[:, 0], self.pointsB[:, 1], self.pointsB[:, 2], "o",
-                    color="#ff0000", ms=4, mew=0.5)
-
-            pyplot.show()
+            current = np.zeros((height, width, 3), np.uint8)
+            for j in range(self.pointsA)
 
         return new_points
 
 
 def icp_test():
-    #point_edges = cv2.imread('build/point_edge.png')
-    #image_edges = cv2.imread('build/image_edge.png')
+    point_edges = cv2.imread('build/point_edge.png')
+    image_edges = cv2.imread('build/image_edge.png')
+    point_xs = []
+    point_ys = []
+    image_xs = []
+    image_ys = []
+
+    for i in range(height):
+        for j in range(width):
+            if point_edges[i][j][0] > 0:
+                point_xs.append(j)
+                point_ys.append(i)
+
+            if image_edges[i][j][0] > 0:
+                image_xs.append(i)
+                image_ys.append(j)
+
+    print(len(point_ys))
+    print(len(image_xs))
+
+    point_X = np.array(point_xs)
+    point_Y = np.array(point_ys)
+    image_X = np.array(image_xs)
+    image_Y = np.array(image_ys)
+
+    A = np.vstack([point_X.reshape(-1), point_Y.reshape(-1)]).T
+    B = np.vstack([image_X.reshape(-1), image_Y.reshape(-1)]).T
+
+    R = np.array([
+        [1, 0]
+        [0, 1]
+    ])
+
+    T = np.array([0, 0])
+
+    icp = ICP(A, B)
+    points = icp.claculate(3000)
+
+    """
+
     Y, X = np.mgrid[0:100:5, 0:100:5]
     Z = Y ** 2 + X ** 2
     A = np.vstack([Y.reshape(-1), X.reshape(-1), Z.reshape(-1)]).T
     # Y
-    # Z
+    # X
     # Z
 
     R = np.array([
@@ -85,6 +110,7 @@ def icp_test():
 
     icp = ICP(A, B)
     points = icp.claculate(3000)
+    """
 
 
 icp_test()
