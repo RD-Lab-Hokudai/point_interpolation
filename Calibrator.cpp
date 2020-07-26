@@ -9,104 +9,37 @@ using namespace std;
 
 //const int width = 882;
 //const int height = 560;
-//const int width = 938;
-//const int height = 606;
-const int width = 672;
-const int height = 376;
+const int width = 938;
+const int height = 606;
+//const int width = 672;
+//const int height = 376;
 const double f_x = width / 2 * 1.01;
-
-struct point
-{
-    double x;
-    double y;
-    double z;
-    int u;
-    int v;
-    bool locked;
-
-    point(double x, double y, double z)
-        : x(x), y(y), z(z)
-    {
-        u = -1;
-        v = -1;
-        locked = false;
-    }
-};
-
-// Generic functor
-template <typename _Scalar, int NX = Eigen::Dynamic, int NY = Eigen::Dynamic>
-struct Functor
-{
-    typedef _Scalar Scalar;
-    enum
-    {
-        InputsAtCompileTime = NX,
-        ValuesAtCompileTime = NY
-    };
-    typedef Eigen::Matrix<Scalar, InputsAtCompileTime, 1> InputType;
-    typedef Eigen::Matrix<Scalar, ValuesAtCompileTime, 1> ValueType;
-    typedef Eigen::Matrix<Scalar, ValuesAtCompileTime, InputsAtCompileTime> JacobianType;
-};
-
-struct misra1a_functor : Functor<double>
-{
-    misra1a_functor(int values, double *x, double *y, double *z, int *u, int *v)
-        : inputs_(5), values_(values), x(x), y(y), z(z), u(u), v(v) {}
-
-    double *x;
-    double *y;
-    double *z;
-    int *u;
-    int *v;
-    int operator()(const Eigen::VectorXd &params, Eigen::VectorXd &fvec) const
-    {
-        for (int i = 0; i < values_; ++i)
-        {
-            double r = sqrt(x[i] * x[i] + z[i] * z[i]);
-            double thetaVal = (params[3] - 500) / 1000.0;
-            double phiVal = (params[4] - 500) / 1000.0;
-            double xp = (x[i] * cos(phiVal) - y[i] * sin(phiVal)) * cos(thetaVal) - (z[i] * cos(phiVal) - y[i] * sin(phiVal)) * sin(thetaVal);
-            double yp = y[i] * cos(phiVal) + r * sin(phiVal);
-            double zp = (x[i] * cos(phiVal) - y[i] * sin(phiVal)) * sin(thetaVal) + (z[i] * cos(phiVal) - y[i] * sin(phiVal)) * cos(thetaVal);
-            double xVal = xp + (params[0] - 500) / 100.0;
-            double yVal = yp + (params[1] - 500) / 100.0;
-            double zVal = zp + (params[2] - 500) / 100.0;
-            int uVal = (int)(width / 2 + f_x * xVal / zVal);
-            int vVal = (int)(height / 2 + f_x * yVal / zVal);
-            fvec[i] = sqrt((u[i] - uVal) * (u[i] - uVal) + (v[i] - vVal) * (v[i] - vVal));
-        }
-        return 0;
-    }
-    const int inputs_;
-    const int values_;
-    int inputs() const { return inputs_; }
-    int values() const { return values_; }
-};
 
 vector<cv::Mat> imgs;
 vector<shared_ptr<open3d::geometry::PointCloud>> pcd_ptrs;
-vector<vector<point>> point_maps;
 cv::Mat reprojected;
 cv::Mat id_img;
 
 int dataNo = 0;
 
 // 02_19_13jo
-
-int X = 498;
+/*
+int X = 495;
 int Y = 485;
 int Z = 509;
-int theta = 483;
-int phi = 518;
-
+int roll = 481;
+int pitch = 524;
+int yaw = 502;
+*/
 // 02_04_miyanosawa
-/*
+
 int X = 495;
 int Y = 475;
 int Z = 458;
-int theta = 438;
-int phi = 512;
-*/
+int roll = 512;
+int pitch = 560;
+int yaw = 500;
+
 // 03_03_miyanosawa
 /*
 int X = 500;
@@ -115,11 +48,9 @@ int Z = 458;
 int theta = 506;
 int phi = 527;
 */
-int calibrateState = 0;
 int u0 = 0;
 int v0 = 0;
 int rate = 1;
-int selectedID = -1;
 
 void reproject()
 {
@@ -143,35 +74,20 @@ void reproject()
             id_img.at<unsigned short>(i, j) = 0;
         }
     }
-    for (int i = 0; i < point_maps[dataNo].size(); i++)
+    for (int i = 0; i < pcd_ptrs[dataNo]->points_.size(); i++)
     {
-        if (point_maps[dataNo][i].locked)
-        {
-            int u = point_maps[dataNo][i].u;
-            int v = point_maps[dataNo][i].v;
-            id_img.at<unsigned short>(v, u) = i + 1;
-            for (int k1 = 0; k1 < rate; k1++)
-            {
-                for (int k2 = 0; k2 < rate; k2++)
-                {
-                    reprojected.at<cv::Vec3b>((v - v0) * rate + k1, (u - u0) * rate + k2)[0] = 255;
-                    reprojected.at<cv::Vec3b>((v - v0) * rate + k1, (u - u0) * rate + k2)[1] = 255;
-                    reprojected.at<cv::Vec3b>((v - v0) * rate + k1, (u - u0) * rate + k2)[2] = 255;
-                }
-            }
-            continue;
-        }
 
-        double rawX = point_maps[dataNo][i].x;
-        double rawY = point_maps[dataNo][i].y;
-        double rawZ = point_maps[dataNo][i].z;
+        double rawX = pcd_ptrs[dataNo]->points_[i][0];
+        double rawY = pcd_ptrs[dataNo]->points_[i][1];
+        double rawZ = pcd_ptrs[dataNo]->points_[i][2];
 
         double r = sqrt(rawX * rawX + rawZ * rawZ);
-        double thetaVal = (theta - 500) / 1000.0;
-        double phiVal = (phi - 500) / 1000.0;
-        double xp = (rawX * cos(phiVal) - rawY * sin(phiVal)) * cos(thetaVal) - (rawZ * cos(phiVal) - rawY * sin(phiVal)) * sin(thetaVal);
-        double yp = rawY * cos(phiVal) + r * sin(phiVal);
-        double zp = (rawX * cos(phiVal) - rawY * sin(phiVal)) * sin(thetaVal) + (rawZ * cos(phiVal) - rawY * sin(phiVal)) * cos(thetaVal);
+        double rollVal = (roll - 500) / 1000.0;
+        double pitchVal = (pitch - 500) / 1000.0;
+        double yawVal = (yaw - 500) / 1000.0;
+        double xp = cos(yawVal) * cos(pitchVal) * rawX + (cos(yawVal) * sin(pitchVal) * sin(rollVal) - sin(yawVal) * cos(rollVal)) * rawY + (cos(yawVal) * sin(pitchVal) * cos(rollVal) + sin(yawVal) * sin(rollVal)) * rawZ;
+        double yp = sin(yawVal) * cos(pitchVal) * rawX + (sin(yawVal) * sin(pitchVal) * sin(rollVal) + cos(yawVal) * cos(rollVal)) * rawY + (sin(yawVal) * sin(pitchVal) * cos(rollVal) - cos(yawVal) * sin(rollVal)) * rawZ;
+        double zp = -sin(pitchVal) * rawX + cos(pitchVal) * sin(rollVal) * rawY + cos(pitchVal) * cos(rollVal) * rawZ;
         double x = xp + (X - 500) / 100.0;
         double y = yp + (Y - 500) / 100.0;
         double z = zp + (Z - 500) / 100.0;
@@ -183,8 +99,6 @@ void reproject()
             if (0 <= u && u < width && 0 <= v && v < height)
             {
                 id_img.at<unsigned short>(v, u) = i + 1;
-                point_maps[dataNo][i].u = u;
-                point_maps[dataNo][i].v = v;
                 if (v0 <= v && v < v0 + height / rate && u0 <= u && u < u0 + width / rate)
                 {
                     int color = (int)(z * 1000);
@@ -205,39 +119,6 @@ void reproject()
         }
     }
     cv::imshow("Image", reprojected);
-
-    cv::Ptr<cv::ORB> point_orb = cv::ORB::create();
-    vector<cv::KeyPoint> point_key;
-    cv::Mat point_descriptor;
-    point_orb->detectAndCompute(points_img, cv::Mat(), point_key, point_descriptor);
-    cv::Mat point_key_img = cv::Mat::zeros(height, width, CV_8UC3);
-    cv::drawKeypoints(points_img, point_key, point_key_img);
-    cv::imshow("Points", points_img);
-    cv::imshow("Keys", point_key_img);
-
-    cv::Ptr<cv::ORB> thermal_orb = cv::ORB::create();
-    vector<cv::KeyPoint> thermal_key;
-    cv::Mat thermal_descriptor;
-    thermal_orb->detectAndCompute(thermal_img, cv::Mat(), thermal_key, thermal_descriptor);
-    cv::Mat thermal_key_img = cv::Mat::zeros(height, width, CV_8UC3);
-    cv::drawKeypoints(thermal_img, thermal_key, thermal_key_img);
-    cv::imshow("Thermal Keys", thermal_key_img);
-
-    vector<vector<cv::DMatch>> matches;
-    cv::FlannBasedMatcher matcher = cv::FlannBasedMatcher(cv::makePtr<cv::flann::LshIndexParams>(12, 20, 2));
-    matcher.knnMatch(point_descriptor, thermal_descriptor, matches, 2);
-    vector<cv::DMatch> good_matches;
-    cout << matches.size() << endl;
-    for (size_t i = 0; i < matches.size(); i++)
-    {
-        if (0 < matches[i].size() && matches[i][0].distance < 0.7f * matches[i][1].distance)
-        {
-            good_matches.push_back(matches[i][0]);
-        }
-    }
-    cv::Mat img_matches;
-    cv::drawMatches(points_img, point_key, thermal_img, thermal_key, good_matches, img_matches);
-    cv::imshow("Matches", img_matches);
 }
 
 /* プロトタイプ宣言 */
@@ -261,14 +142,19 @@ void on_trackbarZ(int val, void *object)
     Z = val;
     reproject();
 }
-void on_trackbarTheta(int val, void *object)
+void on_trackbarRoll(int val, void *object)
 {
-    theta = val;
+    roll = val;
     reproject();
 }
-void on_trackbarPhi(int val, void *object)
+void on_trackbarPitch(int val, void *object)
 {
-    phi = val;
+    pitch = val;
+    reproject();
+}
+void on_trackbarYaw(int val, void *object)
+{
+    yaw = val;
     reproject();
 }
 void on_trackbarU0(int val, void *object)
@@ -281,73 +167,11 @@ void on_trackbarV0(int val, void *object)
     v0 = val;
     reproject();
 }
-void on_trackbarCalibrate(int val, void *object)
-{
-    Eigen::VectorXd params(5);
-    params << X, Y, Z, theta, phi;
-    vector<double> xs, ys, zs;
-    vector<int> us, vs;
-    for (int i = 0; i < point_maps[dataNo].size(); i++)
-    {
-        if (point_maps[dataNo][i].locked)
-        {
-            xs.emplace_back(point_maps[dataNo][i].x);
-            ys.emplace_back(point_maps[dataNo][i].y);
-            zs.emplace_back(point_maps[dataNo][i].z);
-            us.emplace_back(point_maps[dataNo][i].u);
-            vs.emplace_back(point_maps[dataNo][i].v);
-        }
-    }
-    if (xs.size() < 5)
-    {
-        return;
-    }
-
-    misra1a_functor functor(xs.size(), &xs[0], &ys[0], &zs[0], &us[0], &vs[0]);
-    Eigen::NumericalDiff<misra1a_functor> numDiff(functor);
-    Eigen::LevenbergMarquardt<Eigen::NumericalDiff<misra1a_functor>> lm(numDiff);
-    lm.minimize(params);
-    X = params[0];
-    Y = params[1];
-    Z = params[2];
-    theta = params[3];
-    phi = params[4];
-    cout << params << endl;
-}
-void mouse_callback(int event, int x, int y, int flags, void *object)
-{
-    int v = v0 + y / rate;
-    int u = u0 + x / rate;
-    if (event == CV_EVENT_LBUTTONDOWN)
-    {
-        if (id_img.at<unsigned short>(v, u) > 0)
-        {
-            selectedID = id_img.at<unsigned short>(v, u) - 1;
-            cout << selectedID << endl;
-            point_maps[dataNo][selectedID].locked = !point_maps[dataNo][selectedID].locked;
-            cout << selectedID << " " << point_maps[dataNo][selectedID].locked << endl;
-        }
-        cout << x << " " << y << " clicked" << endl;
-    }
-    if (event == CV_EVENT_MOUSEMOVE)
-    {
-        if (selectedID >= 0)
-        {
-            point_maps[dataNo][selectedID].u = u;
-            point_maps[dataNo][selectedID].v = v;
-            reproject();
-        }
-    }
-    if (event == CV_EVENT_LBUTTONUP)
-    {
-        selectedID = -1;
-        cout << "upped" << endl;
-    }
-}
 
 int main(int argc, char *argv[])
 {
-    //vector<int> data_ids = {700, 1290, 1460, 2350, 3850}; //1100
+    vector<int> data_ids = {700, 1290, 1460, 2350, 3850}; //1100 // 2/4 miyanosawa
+    //vector<int> data_ids = {10, 20, 30, 40, 50}; // 2/19 13jo
 
     /*
     for (int i = 0; i < 10; i += 1)
@@ -355,8 +179,6 @@ int main(int argc, char *argv[])
         data_ids.emplace_back(i);
     }
     */
-
-    vector<int> data_ids = {10, 20, 30, 40, 50};
 
     vector<double> tans;
     double PI = acos(-1);
@@ -372,12 +194,12 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < data_ids.size(); i++)
     {
-        string img_path = "../../../data/2020_02_19_13jo_raw/" + to_string(data_ids[i]) + "_rgb.png";
+        string img_path = "../../../data/2020_02_04_miyanosawa/" + to_string(data_ids[i]) + ".png";
         imgs.emplace_back(cv::imread(img_path));
 
-        string pcd_path = "../../../data/2020_02_19_13jo_raw/" + to_string(data_ids[i]) + ".pcd";
+        string pcd_path = "../../../data/2020_02_04_miyanosawa/" + to_string(data_ids[i]) + ".pcd";
         open3d::geometry::PointCloud pointcloud;
-        vector<point> points;
+        auto pcd_ptr = make_shared<open3d::geometry::PointCloud>();
         if (!open3d::io::ReadPointCloud(pcd_path, pointcloud))
         {
             cout << "Cannot read" << endl;
@@ -393,10 +215,10 @@ int main(int argc, char *argv[])
             int index = it - tans.begin();
             if (index % (64 / layers) == 0)
             {
-                points.emplace_back(x, y, z);
+                pcd_ptr->points_.emplace_back(x, y, z);
             }
         }
-        point_maps.emplace_back(points);
+        pcd_ptrs.emplace_back(pcd_ptr);
     }
 
     cv::namedWindow("Image", cv::WINDOW_AUTOSIZE);
@@ -409,10 +231,9 @@ int main(int argc, char *argv[])
     cv::createTrackbar("X(-5,5)", "Image", &X, 1000, &on_trackbarX);
     cv::createTrackbar("Y(-5,5)", "Image", &Y, 1000, &on_trackbarY);
     cv::createTrackbar("Z(-5,5)", "Image", &Z, 1000, &on_trackbarZ);
-    cv::createTrackbar("theta(-1,1)", "Image", &theta, 1000, &on_trackbarTheta);
-    cv::createTrackbar("phi(-1,1)", "Image", &phi, 1000, &on_trackbarPhi);
-    cv::createTrackbar("Calibrate", "Image", &calibrateState, 1, &on_trackbarCalibrate);
-    cv::setMouseCallback("Image", mouse_callback);
+    cv::createTrackbar("Roll(-1,1)", "Image", &roll, 1000, &on_trackbarRoll);
+    cv::createTrackbar("Pitch(-1,1)", "Image", &pitch, 1000, &on_trackbarPitch);
+    cv::createTrackbar("Yaw(-1,1)", "Image", &yaw, 1000, &on_trackbarYaw);
 
     id_img = cv::Mat::zeros(height, width, CV_16SC1);
     reprojected = cv::Mat::zeros(height, width, CV_8UC3);
