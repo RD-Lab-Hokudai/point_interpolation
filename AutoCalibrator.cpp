@@ -17,6 +17,8 @@ using namespace open3d;
 
 const int width = 640;
 const int height = 480;
+//const int width = 672;
+//const int height = 376;
 const int min_points = 1000;
 
 // Calibration
@@ -100,7 +102,7 @@ Eigen::VectorXd calc_filtered(const Eigen::VectorXd &params, bool see_res = fals
     vector<vector<Eigen::Vector3d>> layers;
     vector<vector<int>> is_edges;
     cv::Mat all_layer_img = cv::Mat::zeros(height, width, CV_8UC3);
-    cv::Mat layer_img = cv::Mat::zeros(height, width, CV_8UC3);
+    cv::Mat layer_img = cv::Mat::zeros(height, width, CV_32F);
     for (int i = 0; i < height; i++)
     {
         for (int j = 0; j < width; j++)
@@ -109,6 +111,7 @@ Eigen::VectorXd calc_filtered(const Eigen::VectorXd &params, bool see_res = fals
         }
     }
 
+    cv::Mat interpolated = cv::Mat::zeros(height, width, CV_32F);
     for (int i = 0; i < 64; i++)
     {
         // no sort
@@ -132,8 +135,23 @@ Eigen::VectorXd calc_filtered(const Eigen::VectorXd &params, bool see_res = fals
         {
             int u = (int)(width / 2 + f_x * removed[j][0] / removed[j][2]);
             int v = (int)(height / 2 + f_x * removed[j][1] / removed[j][2]);
+            interpolated.at<float>(v, u) = 50 * removed[j][2];
+
             if (j > 0)
             {
+                if (u > u0)
+                {
+                    float delta = (v - v0) / (u - u0);
+                    int uTmp = u0 + 1;
+                    float vTmp = v0 + delta;
+                    while (uTmp < u)
+                    {
+                        interpolated.at<float>((int)vTmp, uTmp) = 50 * (removed[j - 1][2] + (removed[j][2] - removed[j - 1][2]) * (uTmp - u0) / (u - u0));
+                        uTmp++;
+                        vTmp += delta;
+                    }
+                }
+
                 float yF = v0;
                 int x = u0;
                 cv::line(all_layer_img, cv::Point(u0, v0), cv::Point(u, v), cv::Scalar(0, 255, 0), 1, 8);
@@ -171,6 +189,131 @@ Eigen::VectorXd calc_filtered(const Eigen::VectorXd &params, bool see_res = fals
             }
         }
     }
+
+    for (int j = 0; j < width; j++)
+    {
+        vector<int> up(height, -1);
+        for (int i = 0; i < height; i++)
+        {
+            if (interpolated.at<float>(i, j) > 0)
+            {
+                up[i] = i;
+            }
+            else if (i > 0)
+            {
+                up[i] = up[i - 1];
+            }
+        }
+
+        vector<int> down(height, -1);
+        for (int i = height - 1; i >= 0; i--)
+        {
+            if (interpolated.at<float>(i, j) > 0)
+            {
+                down[i] = i;
+            }
+            else if (i + 1 < height)
+            {
+                down[i] = down[i + 1];
+            }
+        }
+
+        for (int i = 0; i < height; i++)
+        {
+            if (up[i] == -1 && down[i] == -1)
+            {
+                interpolated.at<float>(i, j) = -1;
+            }
+            else if (up[i] == -1 || down[i] == -1 || up[i] == i)
+            {
+                interpolated.at<float>(i, j) = interpolated.at<float>(max(up[i], down[i]), j);
+            }
+            else
+            {
+                interpolated.at<float>(i, j) = (interpolated.at<float>(down[i], j) * (i - up[i]) + interpolated.at<float>(up[i], j) * (down[i] - i)) / (down[i] - up[i]);
+            }
+        }
+    }
+    for (int i = 0; i < height; i++)
+    {
+        vector<int> left(width, -1);
+        for (int j = 0; j < width; j++)
+        {
+            if (interpolated.at<float>(i, j) > 0)
+            {
+                left[j] = j;
+            }
+            else if (j > 0)
+            {
+                left[j] = left[j - 1];
+            }
+        }
+
+        vector<int> right(width, -1);
+        for (int j = width - 1; j >= 0; j--)
+        {
+            if (interpolated.at<float>(i, j) > 0)
+            {
+                right[j] = j;
+            }
+            else if (j + 1 < width)
+            {
+                right[j] = right[j + 1];
+            }
+        }
+
+        for (int j = 0; j < width; j++)
+        {
+            if (left[j] == -1 && right[j] == -1)
+            {
+                interpolated.at<float>(i, j) = -1;
+            }
+            else if (left[j] == -1 || right[j] == -1 || left[j] == j)
+            {
+                interpolated.at<float>(i, j) = interpolated.at<float>(i, max(left[j], right[j]));
+            }
+            else
+            {
+                interpolated.at<float>(i, j) = (interpolated.at<float>(i, right[j]) * (j - left[j]) + interpolated.at<float>(i, left[j]) * (right[j] - j)) / (right[j] - left[j]);
+            }
+        }
+    }
+
+    float minDepth = 10000;
+    float maxDepth = 0;
+    for (int i = 0; i < height; i++)
+    {
+        for (int j = 0; j < width; j++)
+        {
+            float val = interpolated.at<float>(i, j);
+            minDepth = min(minDepth, val);
+            maxDepth = max(maxDepth, val);
+        }
+    }
+    cv::Mat interpolated_img = cv::Mat::zeros(height, width, CV_8UC1);
+    for (int i = 0; i < height; i++)
+    {
+        for (int j = 0; j < width; j++)
+        {
+            interpolated_img.at<uchar>(i, j) = 255 * (interpolated.at<float>(i, j) - minDepth) / (maxDepth - minDepth);
+        }
+    }
+
+    cv::Mat img_edges;
+    cv::Laplacian(img, img_edges, CV_32F, 3);
+    cv::Canny(img, img_edges, 30, 50);
+    cv::Mat descriptors1, descriptors2;
+    cv::Ptr<cv::AKAZE> akaze = cv::AKAZE::create();
+    vector<cv::KeyPoint> keypoint1, keypoint2;
+    cv::Mat descriptro1, descriptro2;
+    akaze->detectAndCompute(img, cv::noArray(), keypoint1, descriptors1);
+    akaze->detectAndCompute(interpolated_img, cv::noArray(), keypoint2, descriptors2);
+    cv::Mat key_img1, key_img2;
+    cv::drawKeypoints(img, keypoint1, key_img1);
+    cv::drawKeypoints(interpolated_img, keypoint2, key_img2);
+    cv::imshow("A!", key_img1);
+    cv::imshow("B!", key_img2);
+    cv::waitKey();
 
     Eigen::VectorXd res = Eigen::VectorXd::Zero(min_points);
     int in_cnt = 0;
