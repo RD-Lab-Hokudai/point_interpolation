@@ -16,26 +16,30 @@
 using namespace std;
 using namespace open3d;
 
-const int width = 672;
+const int width = 938;
+//672;
 //640;
-const int height = 376;
+const int height = 606;
+//376;
 //480;
 
 // Calibration
 // 02_04_13jo
+/*
 int X = 498;
 int Y = 485;
 int Z = 509;
 int theta = 483;
 int phi = 518;
+*/
 // 02_04_miyanosawa
-/*
+
 int X = 495;
 int Y = 475;
 int Z = 458;
 int theta = 438;
 int phi = 512;
-*/
+
 // 03_03_miyanosawa
 /*
 int X = 500;
@@ -99,6 +103,7 @@ Eigen::VectorXd calc_filtered(const Eigen::VectorXd &params, bool see_res = fals
     vector<vector<Eigen::Vector3d>> layers;
     vector<vector<int>> is_edges;
     cv::Mat all_layer_img = cv::Mat::zeros(height, width, CV_8UC3);
+    cv::Mat edge_img = cv::Mat::zeros(height, width, CV_8UC3);
     cv::Mat layer_img = cv::Mat::zeros(height, width, CV_8UC3);
     for (int i = 0; i < height; i++)
     {
@@ -149,6 +154,7 @@ Eigen::VectorXd calc_filtered(const Eigen::VectorXd &params, bool see_res = fals
                     else
                     {
                         // # circle(画像, 中心座標, 半径, 色, 線幅, 連結)
+                        edge_img.at<cv::Vec3b>(v, u) = cv::Vec3b(255, 255, 255);
                         cv::circle(all_layer_img, cv::Point(u, v), 1, cv::Scalar(255, 0, 255), 1, cv::LINE_AA);
                         is_edges[i].emplace_back(2);
                     }
@@ -167,6 +173,7 @@ Eigen::VectorXd calc_filtered(const Eigen::VectorXd &params, bool see_res = fals
                 int u = (int)(width / 2 + f_x * removed[j][0] / removed[j][2]);
                 int v = (int)(height / 2 + f_x * removed[j][1] / removed[j][2]);
                 is_edges[i][j] = 1;
+                edge_img.at<cv::Vec3b>(v, u) = cv::Vec3b(255, 255, 255);
                 cv::circle(all_layer_img, cv::Point(u, v), 1, cv::Scalar(255, 0, 255), 1, cv::LINE_AA);
             }
         }
@@ -204,8 +211,28 @@ Eigen::VectorXd calc_filtered(const Eigen::VectorXd &params, bool see_res = fals
         // (n_left * n_right);
     }
 
+    cv::Mat img_edge_img = cv::Mat::zeros(height, width, CV_8UC3);
+    { // Calc edge in Image
+        int thres = 10;
+        for (int i = 0; i < height; i++)
+        {
+            for (int j = 0; j + 1 < width; j++)
+            {
+                if (abs(img.at<uchar>(i, j) - img.at<uchar>(i, j + 1)) >= thres)
+                {
+                    img_edge_img.at<cv::Vec3b>(i, j) = cv::Vec3b(255, 255, 255);
+                }
+            }
+        }
+    }
+
+    cv::Canny(img, img_edge_img, 20, 50);
     if (see_res)
     {
+        cv::imshow("E", edge_img);
+        cv::imshow("E_IMG", img_edge_img);
+        cv::imwrite("point_edge.png", edge_img);
+        cv::imwrite("image_edge.png", img_edge_img);
         cv::imshow("U", all_layer_img);
         cv::imshow("T", layer_img);
         cv::imshow("S", img);
@@ -249,8 +276,8 @@ struct misra1a_functor : Functor<double>
 
 void segmentate(int data_no, bool see_res = false)
 {
-    const string png_path = "../../../data/2020_02_19_13jo_raw/" + to_string(data_no) + "_rgb.png";
-    const string pcd_path = "../../../data/2020_02_19_13jo_raw/" + to_string(data_no) + ".pcd";
+    const string png_path = "../../../data/2020_02_04_miyanosawa/" + to_string(data_no) + ".png";
+    const string pcd_path = "../../../data/2020_02_04_miyanosawa/" + to_string(data_no) + ".pcd";
 
     geometry::PointCloud pointcloud;
     raw_pcd_ptr = make_shared<geometry::PointCloud>();
@@ -261,8 +288,6 @@ void segmentate(int data_no, bool see_res = false)
     *raw_pcd_ptr = pointcloud;
 
     img = cv::imread(png_path, CV_LOAD_IMAGE_ANYDEPTH);
-    cv::imshow("U", img);
-    cv::waitKey();
 
     Eigen::VectorXd params = Eigen::VectorXd::Zero(12);
     params[3] = width / 2;
@@ -367,8 +392,8 @@ void segmentate(int data_no, bool see_res = false)
 int main(int argc, char *argv[])
 {
     //vector<int> data_nos = {550, 1000, 1125, 1260, 1550}; // 03_03_miyanosawa
-    vector<int> data_nos = {10, 20, 30, 40, 50}; // 02_04_13jo
-    //vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
+    //vector<int> data_nos = {10, 20, 30, 40, 50}; // 02_04_13jo
+    vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
     for (int i = 0; i < data_nos.size(); i++)
     {
         segmentate(data_nos[i], true);

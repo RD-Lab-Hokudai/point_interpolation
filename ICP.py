@@ -1,6 +1,7 @@
 from scipy.spatial import KDTree
 import numpy as np
 from math import sin, cos
+import cv2
 
 
 def calcRigidTransformation(MatA, MatB):
@@ -64,6 +65,8 @@ class ICP(object):
 
 
 def icp_test():
+    #point_edges = cv2.imread('build/point_edge.png')
+    #image_edges = cv2.imread('build/image_edge.png')
     Y, X = np.mgrid[0:100:5, 0:100:5]
     Z = Y ** 2 + X ** 2
     A = np.vstack([Y.reshape(-1), X.reshape(-1), Z.reshape(-1)]).T
