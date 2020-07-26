@@ -36,8 +36,8 @@ int yaw = 502;
 int X = 495;
 int Y = 475;
 int Z = 458;
-int roll = 512;
-int pitch = 560;
+int roll = 488;
+int pitch = 568;
 int yaw = 500;
 
 // 03_03_miyanosawa

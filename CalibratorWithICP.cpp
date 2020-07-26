@@ -36,8 +36,8 @@ int yaw = 502;
 int X = 495;
 int Y = 475;
 int Z = 458;
-int roll = 512;
-int pitch = 560;
+int roll = 488;
+int pitch = 568;
 int yaw = 500;
 
 // 03_03_miyanosawa
@@ -118,6 +118,55 @@ void reproject()
             }
         }
     }
+
+    {
+        auto points_pcd = make_shared<open3d::geometry::PointCloud>();
+        auto img_pcd = make_shared<open3d::geometry::PointCloud>();
+
+        vector<bool> is_edges;
+        for (int i = 0; i < pcd_ptrs[dataNo]->points_.size(); i++)
+        {
+            double l1;
+            if (pcd_ptrs[dataNo]->points_[i][0] > pcd_ptrs[dataNo]->points_[i + 1][0])
+            {
+                continue;
+            }
+        }
+        for (int i = 0; i + 1 < pcd_ptrs[dataNo]->points_.size(); i++)
+        {
+            if (pcd_ptrs[dataNo]->points_[i][0] > pcd_ptrs[dataNo]->points_[i + 1][0])
+            {
+                continue;
+            }
+        }
+
+        cv::Mat img_edges;
+        cv::Canny(imgs[dataNo], img_edges, 30, 50);
+        for (int i = 0; i < height; i++)
+        {
+            for (int j = 0; j < width; j++)
+            {
+                if (point_edges.at<cv::Vec3b>(i, j)[0] > 0)
+                {
+                    points_pcd->points_.emplace_back(j, i, 0);
+                    points_pcd->colors_.emplace_back(1, 0, 0);
+                }
+                if (img_edges.at<uchar>(i, j) > 0)
+                {
+                    img_pcd->points_.emplace_back(j, i, 0);
+                    img_pcd->colors_.emplace_back(0, 1, 0);
+                }
+            }
+        }
+
+        auto res_icp = open3d::registration::RegistrationICP(*points_pcd, *img_pcd, 5);
+        cout << res_icp.transformation_ << endl;
+        open3d::visualization::DrawGeometries({points_pcd, img_pcd}, "PointCloud", 1600, 900);
+        auto transformed_pcd = make_shared<open3d::geometry::PointCloud>();
+        *transformed_pcd = points_pcd->Transform(res_icp.transformation_);
+        open3d::visualization::DrawGeometries({transformed_pcd, img_pcd}, "PointCloud", 1600, 900);
+    }
+
     cv::imshow("Image", reprojected);
 }
 
@@ -190,7 +239,7 @@ int main(int argc, char *argv[])
         tans.emplace_back(tan(rad));
         rad += delta_rad;
     }
-    int layers = 16;
+    int layer_cnt = 64;
 
     for (int i = 0; i < data_ids.size(); i++)
     {
@@ -200,6 +249,7 @@ int main(int argc, char *argv[])
         string pcd_path = "../../../data/2020_02_04_miyanosawa/" + to_string(data_ids[i]) + ".pcd";
         open3d::geometry::PointCloud pointcloud;
         auto pcd_ptr = make_shared<open3d::geometry::PointCloud>();
+        vector<vector<Eigen::Vector3d>> layers(layer_cnt, vector<Eigen::Vector3d>());
         if (!open3d::io::ReadPointCloud(pcd_path, pointcloud))
         {
             cout << "Cannot read" << endl;
@@ -213,9 +263,16 @@ int main(int argc, char *argv[])
             double r = sqrt(x * x + z * z);
             auto it = lower_bound(tans.begin(), tans.end(), y / r);
             int index = it - tans.begin();
-            if (index % (64 / layers) == 0)
+            if (index % (64 / layer_cnt) == 0)
             {
-                pcd_ptr->points_.emplace_back(x, y, z);
+                layers[index / (64 / layer_cnt)].emplace_back(x, y, z);
+            }
+        }
+        for (int i = 0; i < layer_cnt; i++)
+        {
+            for (int j = 0; j < layers[i].size(); j++)
+            {
+                pcd_ptr->points_.emplace_back(layers[i][j]);
             }
         }
         pcd_ptrs.emplace_back(pcd_ptr);
