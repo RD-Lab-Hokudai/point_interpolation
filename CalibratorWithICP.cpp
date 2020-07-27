@@ -74,6 +74,8 @@ void reproject()
             id_img.at<unsigned short>(i, j) = 0;
         }
     }
+
+    vector<tuple<int, int>> uvs(pcd_ptrs[dataNo]->points_.size());
     for (int i = 0; i < pcd_ptrs[dataNo]->points_.size(); i++)
     {
 
@@ -96,6 +98,7 @@ void reproject()
         {
             int u = (int)(width / 2 + f_x * x / z);
             int v = (int)(height / 2 + f_x * y / z);
+            uvs[i] = make_tuple(u, v);
             if (0 <= u && u < width && 0 <= v && v < height)
             {
                 id_img.at<unsigned short>(v, u) = i + 1;
@@ -123,20 +126,35 @@ void reproject()
         auto points_pcd = make_shared<open3d::geometry::PointCloud>();
         auto img_pcd = make_shared<open3d::geometry::PointCloud>();
 
-        vector<bool> is_edges;
-        for (int i = 0; i < pcd_ptrs[dataNo]->points_.size(); i++)
+        vector<int> is_edges(pcd_ptrs[dataNo]->points_.size(), 0);
+        cv::Mat point_edge_img = cv::Mat::zeros(height, width, CV_8UC1);
+        for (int i = 1; i < pcd_ptrs[dataNo]->points_.size(); i++)
         {
-            double l1;
-            if (pcd_ptrs[dataNo]->points_[i][0] > pcd_ptrs[dataNo]->points_[i + 1][0])
+            while (i + 1 < pcd_ptrs[dataNo]->points_.size() && pcd_ptrs[dataNo]->points_[i][0] < pcd_ptrs[dataNo]->points_[i + 1][0])
             {
-                continue;
+                double l1 = (pcd_ptrs[dataNo]->points_[i] - pcd_ptrs[dataNo]->points_[i - 1]).norm();
+                double l2 = (pcd_ptrs[dataNo]->points_[i + 1] - pcd_ptrs[dataNo]->points_[i]).norm();
+                if (max(l1, l2) / min(l1, l2) <= 4)
+                {
+                    is_edges[i] = 2;
+                }
+                i++;
             }
         }
-        for (int i = 0; i + 1 < pcd_ptrs[dataNo]->points_.size(); i++)
+        for (int i = 0; i < pcd_ptrs[dataNo]->points_.size(); i++)
         {
-            if (pcd_ptrs[dataNo]->points_[i][0] > pcd_ptrs[dataNo]->points_[i + 1][0])
+            if (i - 1 >= 0 && i + 1 < pcd_ptrs[dataNo]->points_.size() && is_edges[i - 1] == 2 && is_edges[i + 1] == 2)
             {
-                continue;
+                is_edges[i] = 1;
+            }
+            if (is_edges[i] > 0)
+            {
+                int u = get<0>(uvs[i]);
+                int v = get<1>(uvs[i]);
+                if (0 <= u && u < width && 0 <= v && v < height)
+                {
+                    point_edge_img.at<uchar>(v, u) = 255;
+                }
             }
         }
 
@@ -146,7 +164,7 @@ void reproject()
         {
             for (int j = 0; j < width; j++)
             {
-                if (point_edges.at<cv::Vec3b>(i, j)[0] > 0)
+                if (point_edge_img.at<uchar>(i, j) > 0)
                 {
                     points_pcd->points_.emplace_back(j, i, 0);
                     points_pcd->colors_.emplace_back(1, 0, 0);
@@ -165,8 +183,9 @@ void reproject()
         auto transformed_pcd = make_shared<open3d::geometry::PointCloud>();
         *transformed_pcd = points_pcd->Transform(res_icp.transformation_);
         open3d::visualization::DrawGeometries({transformed_pcd, img_pcd}, "PointCloud", 1600, 900);
+        cv::imshow("A", point_edge_img);
+        cv::waitKey();
     }
-
     cv::imshow("Image", reprojected);
 }
 
