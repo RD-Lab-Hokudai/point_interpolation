@@ -23,21 +23,21 @@ const double f_x = width / 2 * 1.01;
 
 // Calibration
 // 02_04_13jo
-/*
+
 int X = 498;
 int Y = 485;
 int Z = 509;
 int theta = 483;
 int phi = 518;
-*/
-// 02_04_miyanosawa
 
+// 02_04_miyanosawa
+/*
 int X = 495;
 int Y = 475;
 int Z = 458;
 int theta = 438;
 int phi = 512;
-
+*/
 // 03_03_miyanosawa
 /*
 int X = 500;
@@ -48,8 +48,7 @@ int phi = 527;
 */
 
 shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> raw_pcd_ptr,
-                                               vector<vector<double>> &base_z, vector<vector<double>> &filtered_z,
-                                               vector<vector<int>> &neighbors, int layer_cnt = 16)
+                                               vector<vector<double>> &base_z, vector<vector<double>> &filtered_z, int layer_cnt = 16)
 {
 
     vector<double> tans;
@@ -102,9 +101,6 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
     base_z = vector<vector<double>>(height, vector<double>(width));
     filtered_z = vector<vector<double>>(height, vector<double>(width));
     vector<vector<Eigen::Vector3d>> layers;
-    vector<vector<int>> is_edges;
-    cv::Mat all_layer_img = cv::imread("../../../data/2020_02_04_miyanosawa/1290.png");
-    cv::Mat layer_img = cv::imread("../../../data/2020_02_04_miyanosawa/1290.png");
     for (int i = 0; i < 64; i++)
     {
         // no sort
@@ -124,145 +120,7 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
         }
 
         layers.push_back(removed);
-        is_edges.push_back({0});
         filtered_cnt += removed.size();
-
-        int u0;
-        int v0;
-        double l1;
-        for (size_t j = 0; j < removed.size(); j++)
-        {
-            int u = (int)(width / 2 + f_x * removed[j][0] / removed[j][2]);
-            int v = (int)(height / 2 + f_x * removed[j][1] / removed[j][2]);
-            if (i % (64 / layer_cnt) == 0)
-            {
-                filtered_z[v][u] = removed[j][2];
-            }
-            base_z[v][u] = removed[j][2];
-            if (j > 0)
-            {
-                float yF = v0;
-                int x = u0;
-                float delta = 1.0f * (v - v0) / (u - u0);
-                while (x <= u)
-                {
-                    //all_layer_img.at<cv::Vec3b>((int)yF, x) = cv::Vec3b(255 * (shift % 2), 255 * ((shift + 1) % 2), 0);
-                    x++;
-                    yF += delta;
-                }
-                cv::line(all_layer_img, cv::Point(u0, v0), cv::Point(u, v), cv::Scalar(0, 255, 0), 1, 8);
-
-                if (j + 1 < removed.size())
-                {
-                    double l2 = (removed[j + 1] - removed[j]).norm();
-                    double rate = max(l1, l2) / min(l1, l2);
-                    if (j == 1 || (j >= 2 && rate < 4))
-                    {
-                        is_edges[i / (64 / layer_cnt)].emplace_back(0);
-                    }
-                    else
-                    {
-                        is_edges[i / (64 / layer_cnt)].emplace_back(2);
-                    }
-                    if (i == 60 && j < 50)
-                    {
-                        cout << j << endl;
-                        cout << removed[j] << endl;
-                        cout << removed[j + 1] << endl;
-                        cout << rate << endl;
-                    }
-                    l1 = l2;
-                    // # circle(画像, 中心座標, 半径, 色, 線幅, 連結)
-                    cv::circle(layer_img, cv::Point(u, v), 1, cv::Scalar(255 / rate, 255 * ((i / (64 / layer_cnt) % 2)), 255), 1, cv::LINE_AA);
-                }
-            }
-            u0 = u;
-            v0 = v;
-        }
-
-        for (size_t j = 1; j + 1 < is_edges[i / (64 / layer_cnt)].size(); j++)
-        {
-            if (is_edges[i / (64 / layer_cnt)][j - 1] == 2 && is_edges[i / (64 / layer_cnt)][j + 1] == 2)
-            {
-                int u = (int)(width / 2 + f_x * removed[j][0] / removed[j][2]);
-                int v = (int)(height / 2 + f_x * removed[j][1] / removed[j][2]);
-                is_edges[i / (64 / layer_cnt)][j] = 1;
-                cv::circle(all_layer_img, cv::Point(u, v), 1, cv::Scalar(255, 0, 255), 1, cv::LINE_AA);
-            }
-        }
-    }
-
-    cv::imshow("U", all_layer_img);
-    cv::imshow("T", layer_img);
-    cv::waitKey();
-
-    neighbors = vector<vector<int>>(filtered_cnt, vector<int>());
-    {
-        int point_cnt = 0;
-        // Find neighbors
-        for (int i = 0; i + 1 < layer_cnt; i++)
-        {
-            int uPrev = 0;
-            int vPrev = 0;
-            for (int j = 0; j < layers[i].size(); j++)
-            {
-                int u = (int)(width / 2 + f_x * layers[i][j][0] / layers[i][j][2]);
-                int v = (int)(height / 2 + f_x * layers[i][j][1] / layers[i][j][2]);
-
-                if (j > 0)
-                {
-                    //cv::line(all_layer_img, cv::Point(uPrev, vPrev), cv::Point(u, v), cv::Scalar(255, 0, 0), 1, 8);
-                }
-                uPrev = u;
-                vPrev = v;
-
-                int u0 = (int)(width / 2 + f_x * layers[i + 1][0][0] / layers[i + 1][0][2]);
-                if (u0 > u)
-                {
-                    int v0 = (int)(height / 2 + f_x * layers[i + 1][0][1] / layers[i + 1][0][2]);
-                    int from = point_cnt + j;
-                    int to = point_cnt + layers[i].size();
-
-                    neighbors[from].emplace_back(to);
-                    neighbors[to].emplace_back(from);
-                }
-                else
-                {
-                    int bottom = 0;
-                    int top = layers[i + 1].size();
-                    while (bottom + 1 < top)
-                    {
-                        int mid = (bottom + top) / 2;
-                        int uTmp = (int)(width / 2 + f_x * layers[i + 1][mid][0] / layers[i + 1][mid][2]);
-
-                        if (uTmp <= u)
-                        {
-                            bottom = mid;
-                        }
-                        else
-                        {
-                            top = mid;
-                        }
-                    }
-                    for (int ii = max(bottom - 1, 0); ii < min(bottom + 2, (int)layers[i + 1].size()); ii++)
-                    {
-                        int u2 = (int)(width / 2 + f_x * layers[i + 1][ii][0] / layers[i + 1][ii][2]);
-                        int v2 = (int)(height / 2 + f_x * layers[i + 1][ii][1] / layers[i + 1][ii][2]);
-                        int from = point_cnt + j;
-                        int to = point_cnt + layers[i].size() + ii;
-                        neighbors[from].emplace_back(to);
-                        neighbors[to].emplace_back(from);
-                    }
-                }
-                if (j + 1 < layers[i].size())
-                {
-                    neighbors[point_cnt + j].emplace_back(point_cnt + j + 1);
-                    neighbors[point_cnt + j + 1].emplace_back(point_cnt + j);
-                }
-                neighbors[point_cnt + j].emplace_back(point_cnt + j); // Contains myself
-            }
-            point_cnt += layers[i].size();
-        }
     }
 
     auto sorted_ptr = make_shared<geometry::PointCloud>();
@@ -272,40 +130,25 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
             for (int j = 0; j < layers[i].size(); j++)
             {
                 sorted_ptr->points_.emplace_back(layers[i][j]);
-                sorted_ptr->colors_.emplace_back(i % 2, (i + 1) % 2, min(is_edges[i][j], 1));
             }
         }
     }
 
+    for (int i = 0; i < 64; i++)
     {
-        int point_cnt = 0;
-        for (int i = 0; i < sorted_ptr->points_.size(); i++)
+        for (int j = 0; j < all_layers[i].size(); j++)
         {
-            Eigen::Vector3d pa = Eigen::Vector3d::Zero();
-            for (int j = 0; j < neighbors[i].size(); j++)
-            {
-                pa += sorted_ptr->points_[neighbors[i][j]];
-            }
-            pa /= neighbors[i].size();
-            Eigen::Matrix3d Q = Eigen::Matrix3d::Zero();
-            for (int j = 0; j < neighbors[i].size(); j++)
-            {
-                for (int ii = 0; ii < 3; ii++)
-                {
-                    for (int jj = 0; jj < 3; jj++)
-                    {
-                        Q(ii, jj) += (sorted_ptr->points_[neighbors[i][j]][ii] - pa[ii]) * (sorted_ptr->points_[neighbors[i][j]][jj] - pa[jj]);
-                    }
-                }
-            }
+            double x = all_layers[i][j][0];
+            double y = all_layers[i][j][1];
+            double z = all_layers[i][j][2];
+            int u = (int)(width / 2 + f_x * x / z);
+            int v = (int)(height / 2 + f_x * y / z);
 
-            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> ES(Q);
-            if (ES.info() != Eigen::Success)
+            if (i % (64 / layer_cnt) == 0)
             {
-                continue;
+                filtered_z[v][u] = z;
             }
-
-            //sorted_ptr->normals_.emplace_back(ES.eigenvectors().col(0));
+            base_z[v][u] = z;
         }
     }
 
@@ -314,7 +157,7 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
 
 void segmentate(int data_no, bool see_res = false)
 {
-    const string pcd_path = "../../../data/2020_02_04_miyanosawa/" + to_string(data_no) + ".pcd";
+    const string pcd_path = "../../../data/2020_02_04_13jo/" + to_string(data_no) + ".pcd";
     const bool vertical = true;
 
     geometry::PointCloud pointcloud;
@@ -326,9 +169,8 @@ void segmentate(int data_no, bool see_res = false)
     *pcd_ptr = pointcloud;
 
     vector<vector<double>> base_z, filtered_z;
-    vector<vector<int>> neighbors;
     int layer_cnt = 16;
-    shared_ptr<geometry::PointCloud> filtered_ptr = calc_filtered(pcd_ptr, base_z, filtered_z, neighbors, layer_cnt);
+    shared_ptr<geometry::PointCloud> filtered_ptr = calc_filtered(pcd_ptr, base_z, filtered_z, layer_cnt);
 
     auto start = chrono::system_clock::now();
     vector<vector<double>> interpolated_z(height, vector<double>(width));
@@ -361,9 +203,6 @@ void segmentate(int data_no, bool see_res = false)
                 }
             }
         }
-
-        //cv::imshow("a", layer_img);
-        //cv::waitKey();
     }
 
     if (vertical)
@@ -549,48 +388,16 @@ void segmentate(int data_no, bool see_res = false)
         }
     }
 
-    {
-        cv::Mat linear_depth_img = cv::Mat::zeros(height, width, CV_8UC3);
-        double minDepth = 10000;
-        double maxDepth = 0;
-        for (int i = 0; i < height; i++)
-        {
-            for (int j = 0; j < width; j++)
-            {
-                minDepth = min(minDepth, interpolated_z[i][j]);
-                maxDepth = max(maxDepth, interpolated_z[i][j]);
-            }
-        }
-
-        for (int i = 0; i < height; i++)
-        {
-            for (int j = 0; j < width; j++)
-            {
-                unsigned char val = 255 * (interpolated_z[i][j] - minDepth) / (maxDepth - minDepth);
-                linear_depth_img.at<cv::Vec3b>(i, j) = cv::Vec3b(val, val, val);
-            }
-        }
-
-        cv::Ptr<cv::ORB> point_orb = cv::ORB::create();
-        vector<cv::KeyPoint> point_key;
-        cv::Mat point_descriptor;
-        point_orb->detectAndCompute(linear_depth_img, cv::Mat(), point_key, point_descriptor);
-        cv::Mat point_key_img = cv::Mat::zeros(height, width, CV_8UC3);
-        cv::drawKeypoints(linear_depth_img, point_key, point_key_img);
-        cv::imshow("Keys", point_key_img);
-        cv::waitKey();
-    }
-
     auto linear_interpolation_ptr = make_shared<geometry::PointCloud>();
     for (int i = 0; i < height; i++)
     {
         for (int j = 0; j < width; j++)
         {
-            /*
+
             if (base_z[i][j] == 0)
             {
                 continue;
-            }*/
+            }
 
             double z = interpolated_z[i][j];
             if (z == -1)
@@ -602,7 +409,6 @@ void segmentate(int data_no, bool see_res = false)
             linear_interpolation_ptr->points_.emplace_back(x, y, z);
         }
     }
-    cout << linear_interpolation_ptr->points_.size() << endl;
 
     auto end = chrono::system_clock::now(); // 計測終了時刻を保存
     auto dur = end - start;                 // 要した時間を計算
@@ -643,16 +449,15 @@ void segmentate(int data_no, bool see_res = false)
         pcd_ptr->Transform(front);
         filtered_ptr->Transform(front);
         linear_interpolation_ptr->Transform(front);
-
-        visualization::DrawGeometries({filtered_ptr /*, linear_interpolation_ptr*/}, "PointCloud", 1600, 900);
+        visualization::DrawGeometries({linear_interpolation_ptr}, "PointCloud", 1600, 900);
     }
 }
 
 int main(int argc, char *argv[])
 {
     //vector<int> data_nos = {550, 1000, 1125, 1260, 1550}; // 03_03_miyanosawa
-    //vector<int> data_nos = {10, 20, 30, 40, 50}; // 02_04_13jo
-    vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
+    vector<int> data_nos = {10, 20, 30, 40, 50}; // 02_04_13jo
+    //vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
     for (int i = 0; i < data_nos.size(); i++)
     {
         segmentate(data_nos[i], true);

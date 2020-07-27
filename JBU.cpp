@@ -24,23 +24,23 @@ const double f_x = width / 2 * 1.01;
 
 // Calibration
 // 02_19_13jo
-/*
-int X = 495;
+
+int X = 498;
 int Y = 485;
 int Z = 509;
 int roll = 481;
-int pitch = 524;
-int yaw = 502;
-*/
-// 02_04_miyanosawa
+int pitch = 517;
+int yaw = 500;
 
+// 02_04_miyanosawa
+/*
 int X = 495;
 int Y = 475;
 int Z = 458;
 int roll = 488;
 int pitch = 568;
 int yaw = 500;
-
+*/
 // 03_03_miyanosawa
 /*
 int X = 500;
@@ -187,13 +187,14 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
         cout << res_icp.transformation_ << endl;
         cout << res_icp.fitness_ << endl;
         transformation = res_icp.transformation_;
-        open3d::visualization::DrawGeometries({points_pcd, img_pcd}, "PointCloud", 1600, 900);
+        //open3d::visualization::DrawGeometries({points_pcd, img_pcd}, "PointCloud", 1600, 900);
         points_pcd->Transform(res_icp.transformation_);
-        open3d::visualization::DrawGeometries({points_pcd, img_pcd}, "PointCloud", 1600, 900);
+        //open3d::visualization::DrawGeometries({points_pcd, img_pcd}, "PointCloud", 1600, 900);
     }
 
     base_z = vector<vector<double>>(height, vector<double>(width));
     filtered_z = vector<vector<double>>(height, vector<double>(width));
+    cv::Mat check_img = cv::Mat::zeros(height, width, CV_8UC3);
     for (int i = 0; i < 64; i++)
     {
         for (int j = 0; j < all_layers[i].size(); j++)
@@ -209,26 +210,40 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
 
             int u = (int)(width / 2 + f_x * x / z);
             int v = (int)(height / 2 + f_x * y / z);
-            int u2 = (int)(u * transformation(0, 0) + v * transformation(0, 1) + transformation(0, 3));
-            int v2 = (int)(u * transformation(1, 0) + v * transformation(1, 1) + transformation(1, 3));
+            int u2 = u;
+            u2 = (int)(u * transformation(0, 0) + v * transformation(0, 1) + transformation(0, 3));
+            int v2 = v;
+            v2 = (int)(u * transformation(1, 0) + v * transformation(1, 1) + transformation(1, 3));
             if (0 <= u2 && u2 < width && 0 <= v2 && v2 < height)
             {
                 base_z[v2][u2] = z;
                 if (i % (64 / layer_cnt) == 0)
                 {
                     filtered_z[v2][u2] = z;
+                    check_img.at<cv::Vec3b>(v2, u2) = cv::Vec3b(0, 255, 0);
                 }
+                else
+                {
+                    check_img.at<cv::Vec3b>(v2, u2) = cv::Vec3b(0, 0, 255);
+                }
+            }
+            if (0 <= u && u < width && 0 <= v && v < height)
+            {
+                check_img.at<cv::Vec3b>(v, u) = cv::Vec3b(255, 0, 0);
             }
         }
     }
+    //cv::imshow("C", check_img);
+    //cv::waitKey();
 
     return sorted_ptr;
 }
 
 double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double sigma_r = 20, int r = 10, bool see_res = false)
 {
-    const string pcd_path = "../../../data/2020_02_04_13jo/" + to_string(data_no) + ".pcd";
-    const string img_path = "../../../data/2020_02_04_13jo/" + to_string(data_no) + ".png";
+    const string folder_path = "../../../data/2020_02_04_13jo/";
+    const string pcd_path = folder_path + to_string(data_no) + ".pcd";
+    const string img_path = folder_path + to_string(data_no) + ".png";
 
     cv::Mat img = cv::imread(img_path);
 
@@ -435,7 +450,7 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < data_nos.size(); i++)
     {
-        cout << segmentate(data_nos[i], 91, 46, 1, 19, false) << endl;
+        cout << segmentate(data_nos[i], 91, 46, 1, 19, true) << endl;
     }
 
     double best_error = 1000;

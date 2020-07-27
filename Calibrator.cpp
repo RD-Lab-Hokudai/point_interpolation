@@ -23,23 +23,23 @@ cv::Mat id_img;
 int dataNo = 0;
 
 // 02_19_13jo
-/*
+
 int X = 495;
 int Y = 485;
 int Z = 509;
 int roll = 481;
 int pitch = 524;
 int yaw = 502;
-*/
-// 02_04_miyanosawa
 
+// 02_04_miyanosawa
+/*
 int X = 495;
 int Y = 475;
 int Z = 458;
 int roll = 488;
 int pitch = 568;
 int yaw = 500;
-
+*/
 // 03_03_miyanosawa
 /*
 int X = 500;
@@ -170,8 +170,8 @@ void on_trackbarV0(int val, void *object)
 
 int main(int argc, char *argv[])
 {
-    vector<int> data_ids = {700, 1290, 1460, 2350, 3850}; //1100 // 2/4 miyanosawa
-    //vector<int> data_ids = {10, 20, 30, 40, 50}; // 2/19 13jo
+    //vector<int> data_ids = {700, 1290, 1460, 2350, 3850}; //1100 // 2/4 miyanosawa
+    vector<int> data_ids = {10, 20, 30, 40, 50}; // 2/19 13jo
 
     /*
     for (int i = 0; i < 10; i += 1)
@@ -194,10 +194,11 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < data_ids.size(); i++)
     {
-        string img_path = "../../../data/2020_02_04_miyanosawa/" + to_string(data_ids[i]) + ".png";
+        string folder_path = "../../../data/2020_02_04_13jo/";
+        string img_path = folder_path + to_string(data_ids[i]) + ".png";
         imgs.emplace_back(cv::imread(img_path));
 
-        string pcd_path = "../../../data/2020_02_04_miyanosawa/" + to_string(data_ids[i]) + ".pcd";
+        string pcd_path = folder_path + to_string(data_ids[i]) + ".pcd";
         open3d::geometry::PointCloud pointcloud;
         auto pcd_ptr = make_shared<open3d::geometry::PointCloud>();
         if (!open3d::io::ReadPointCloud(pcd_path, pointcloud))
