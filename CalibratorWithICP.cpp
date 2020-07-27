@@ -18,7 +18,6 @@ const double f_x = width / 2 * 1.01;
 vector<cv::Mat> imgs;
 vector<shared_ptr<open3d::geometry::PointCloud>> pcd_ptrs;
 cv::Mat reprojected;
-cv::Mat id_img;
 
 int dataNo = 0;
 
@@ -56,6 +55,7 @@ void reproject()
 {
     cv::Mat thermal_img = cv::Mat::zeros(height, width, CV_8UC3);
     cv::Mat points_img = cv::Mat::zeros(height, width, CV_8UC3);
+    cv::Mat reprojected2 = cv::Mat::zeros(height, width, CV_8UC3);
     for (int i = 0; i < height; i++)
     {
         for (int j = 0; j < width; j++)
@@ -67,11 +67,11 @@ void reproject()
                     for (int k2 = 0; k2 < rate; k2++)
                     {
                         reprojected.at<cv::Vec3b>((i - v0) * rate + k1, (j - u0) * rate + k2) = imgs[dataNo].at<cv::Vec3b>(i, j);
+                        reprojected2.at<cv::Vec3b>((i - v0) * rate + k1, (j - u0) * rate + k2) = imgs[dataNo].at<cv::Vec3b>(i, j);
                         thermal_img.at<cv::Vec3b>((i - v0) * rate + k1, (j - u0) * rate + k2) = imgs[dataNo].at<cv::Vec3b>(i, j);
                     }
                 }
             }
-            id_img.at<unsigned short>(i, j) = 0;
         }
     }
 
@@ -101,7 +101,6 @@ void reproject()
             uvs[i] = make_tuple(u, v);
             if (0 <= u && u < width && 0 <= v && v < height)
             {
-                id_img.at<unsigned short>(v, u) = i + 1;
                 if (v0 <= v && v < v0 + height / rate && u0 <= u && u < u0 + width / rate)
                 {
                     int color = (int)(z * 1000);
@@ -134,7 +133,7 @@ void reproject()
             {
                 double l1 = (pcd_ptrs[dataNo]->points_[i] - pcd_ptrs[dataNo]->points_[i - 1]).norm();
                 double l2 = (pcd_ptrs[dataNo]->points_[i + 1] - pcd_ptrs[dataNo]->points_[i]).norm();
-                if (max(l1, l2) / min(l1, l2) <= 4)
+                if (max(l1, l2) / min(l1, l2) > 4)
                 {
                     is_edges[i] = 2;
                 }
@@ -158,7 +157,20 @@ void reproject()
             }
         }
 
-        cv::Mat img_edges;
+        cv::Mat img_edges = cv::Mat::zeros(height, width, CV_8UC1);
+        //vector<vector<int>> is_edges_img(height, vector<int>(width, 0));
+        for (int i = 0; i < height; i++)
+        {
+            for (int j = 1; j + 1 < width; j++)
+            {
+                double l1 = imgs[dataNo].at<cv::Vec3b>(i, j)[0] - imgs[dataNo].at<cv::Vec3b>(i, j - 1)[0];
+                double l2 = imgs[dataNo].at<cv::Vec3b>(i, j + 1)[0] - imgs[dataNo].at<cv::Vec3b>(i, j)[0];
+                if (max(l1, l2) / min(l1, l2) > 100)
+                {
+                    img_edges.at<uchar>(i, j) = 255;
+                }
+            }
+        }
         cv::Canny(imgs[dataNo], img_edges, 30, 50);
         for (int i = 0; i < height; i++)
         {
@@ -179,11 +191,30 @@ void reproject()
 
         auto res_icp = open3d::registration::RegistrationICP(*points_pcd, *img_pcd, 5);
         cout << res_icp.transformation_ << endl;
+        cout << res_icp.fitness_ << endl;
         open3d::visualization::DrawGeometries({points_pcd, img_pcd}, "PointCloud", 1600, 900);
-        auto transformed_pcd = make_shared<open3d::geometry::PointCloud>();
-        *transformed_pcd = points_pcd->Transform(res_icp.transformation_);
-        open3d::visualization::DrawGeometries({transformed_pcd, img_pcd}, "PointCloud", 1600, 900);
+        points_pcd->Transform(res_icp.transformation_);
+        open3d::visualization::DrawGeometries({points_pcd, img_pcd}, "PointCloud", 1600, 900);
+        for (int i = 0; i < points_pcd->points_.size(); i++)
+        {
+            int u = points_pcd->points_[i][0];
+            int v = points_pcd->points_[i][1];
+            if (v0 <= v && v < v0 + height / rate && u0 <= u && u < u0 + width / rate)
+            {
+                for (int k1 = 0; k1 < rate; k1++)
+                {
+                    for (int k2 = 0; k2 < rate; k2++)
+                    {
+                        reprojected2.at<cv::Vec3b>((v - v0) * rate + k1, (u - u0) * rate + k2)[0] = 255;
+                        reprojected2.at<cv::Vec3b>((v - v0) * rate + k1, (u - u0) * rate + k2)[1] = 255;
+                        reprojected2.at<cv::Vec3b>((v - v0) * rate + k1, (u - u0) * rate + k2)[2] = 255;
+                    }
+                }
+            }
+        }
         cv::imshow("A", point_edge_img);
+        cv::imshow("B", img_edges);
+        cv::imshow("C", reprojected2);
         cv::waitKey();
     }
     cv::imshow("Image", reprojected);
@@ -258,7 +289,7 @@ int main(int argc, char *argv[])
         tans.emplace_back(tan(rad));
         rad += delta_rad;
     }
-    int layer_cnt = 64;
+    int layer_cnt = 16;
 
     for (int i = 0; i < data_ids.size(); i++)
     {
@@ -311,7 +342,6 @@ int main(int argc, char *argv[])
     cv::createTrackbar("Pitch(-1,1)", "Image", &pitch, 1000, &on_trackbarPitch);
     cv::createTrackbar("Yaw(-1,1)", "Image", &yaw, 1000, &on_trackbarYaw);
 
-    id_img = cv::Mat::zeros(height, width, CV_16SC1);
     reprojected = cv::Mat::zeros(height, width, CV_8UC3);
     reproject();
 
