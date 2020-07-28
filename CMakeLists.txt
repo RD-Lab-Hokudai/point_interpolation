@@ -95,11 +95,11 @@ if (Open3D_FOUND)
 
     target_include_directories(NeighborTest PUBLIC ${Open3D_INCLUDE_DIRS})
 
-    add_executable(JBU JBU.cpp)
+    add_executable(PWAS_ICP PWAS_ICP.cpp)
 
-    target_link_libraries(JBU ${Open3D_LIBRARIES} ${OpenCV_LIBS})
+    target_link_libraries(PWAS_ICP ${Open3D_LIBRARIES} ${OpenCV_LIBS})
 
-    target_include_directories(JBU PUBLIC ${Open3D_INCLUDE_DIRS})
+    target_include_directories(PWAS_ICP PUBLIC ${Open3D_INCLUDE_DIRS})
 
     add_executable(CalibratorRGB CalibratorRGB.cpp)
 
@@ -124,6 +124,12 @@ if (Open3D_FOUND)
     target_link_libraries(CalibratorWithICP ${Open3D_LIBRARIES} ${OpenCV_LIBS})
 
     target_include_directories(CalibratorWithICP PUBLIC ${Open3D_INCLUDE_DIRS})
+
+    add_executable(PWAS PWAS.cpp)
+
+    target_link_libraries(PWAS ${Open3D_LIBRARIES} ${OpenCV_LIBS})
+
+    target_include_directories(PWAS PUBLIC ${Open3D_INCLUDE_DIRS})
 
     # Hot fix windows dll not found issue, assumming we're using the Release build
     option(BUILD_SHARED_LIBS "Whether Open3D was build as shared library" OFF)
