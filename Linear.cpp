@@ -15,6 +15,8 @@
 using namespace std;
 using namespace open3d;
 
+ofstream ofs("res_linear.csv");
+
 const int width = 938;
 const int height = 606;
 //const int width = 882;
@@ -433,8 +435,10 @@ void segmentate(int data_no, bool see_res = false)
                 }
             }
         }
+        error /= cnt;
         cout << "cannot cnt = " << cannot_cnt - cnt << endl;
-        cout << "Error = " << error / cnt << endl;
+        cout << "Error = " << error << endl;
+        ofs << data_no << "," << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "," << error << "," << endl;
     }
 
     if (see_res)
@@ -455,10 +459,16 @@ int main(int argc, char *argv[])
 {
     //vector<int> data_nos = {550, 1000, 1125, 1260, 1550}; // 03_03_miyanosawa
     //vector<int> data_nos = {10, 20, 30, 40, 50}; // 02_04_13jo
-    vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
+    //vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
+    vector<int> data_nos;
+    for (int i = 1100; i < 1300; i++)
+    {
+        data_nos.emplace_back(i);
+    }
+
     for (int i = 0; i < data_nos.size(); i++)
     {
-        segmentate(data_nos[i], true);
+        segmentate(data_nos[i], false);
     }
     return 0;
 }
