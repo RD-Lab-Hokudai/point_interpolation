@@ -28,24 +28,17 @@ const double f_x = width / 2 * 1.01;
 int X = 498;
 int Y = 485;
 int Z = 509;
-int roll = 481;
-int pitch = 517;
-int yaw = 500;
+int theta = 483;
+int phi = 518;
 */
 // 02_04_miyanosawa
-/*
-int X = 495;
-int Y = 475;
-int Z = 458;
-int roll = 488;
-int pitch = 562;
-int yaw = 500;
-*/
+
 int X = 495;
 int Y = 475;
 int Z = 458;
 int theta = 438;
 int phi = 512;
+
 // 03_03_miyanosawa
 /*
 int X = 500;
@@ -71,7 +64,9 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
         rad += delta_rad;
     }
 
-    vector<vector<Eigen::Vector3d>> all_layers(64, vector<Eigen::Vector3d>());
+    base_z = vector<vector<double>>(height, vector<double>(width));
+    filtered_z = vector<vector<double>>(height, vector<double>(width));
+    vector<vector<Eigen::Vector3d>> layers(layer_cnt, vector<Eigen::Vector3d>());
     for (int i = 0; i < raw_pcd_ptr->points_.size(); i++)
     {
         double rawX = raw_pcd_ptr->points_[i][1];
@@ -87,17 +82,6 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
         double x = xp + (X - 500) / 100.0;
         double y = yp + (Y - 500) / 100.0;
         double z = zp + (Z - 500) / 100.0;
-        /*
-        double rollVal = (roll - 500) / 1000.0;
-        double pitchVal = (pitch - 500) / 1000.0;
-        double yawVal = (yaw - 500) / 1000.0;
-        double xp = cos(yawVal) * cos(pitchVal) * rawX + (cos(yawVal) * sin(pitchVal) * sin(rollVal) - sin(yawVal) * cos(rollVal)) * rawY + (cos(yawVal) * sin(pitchVal) * cos(rollVal) + sin(yawVal) * sin(rollVal)) * rawZ;
-        double yp = sin(yawVal) * cos(pitchVal) * rawX + (sin(yawVal) * sin(pitchVal) * sin(rollVal) + cos(yawVal) * cos(rollVal)) * rawY + (sin(yawVal) * sin(pitchVal) * cos(rollVal) - cos(yawVal) * sin(rollVal)) * rawZ;
-        double zp = -sin(pitchVal) * rawX + cos(pitchVal) * sin(rollVal) * rawY + cos(pitchVal) * cos(rollVal) * rawZ;
-        double x = xp + (X - 500) / 100.0;
-        double y = yp + (Y - 500) / 100.0;
-        double z = zp + (Z - 500) / 100.0;
-        */
 
         if (z > 0)
         {
@@ -107,47 +91,22 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
             {
                 auto it = lower_bound(tans.begin(), tans.end(), rawY / r);
                 int index = it - tans.begin();
-                all_layers[index].emplace_back(x, y, z);
+                if (index % (64 / layer_cnt) == 0)
+                {
+                    layers[index / (64 / layer_cnt)].emplace_back(x, y, z);
+                    filtered_z[v][u] = z;
+                }
+                base_z[v][u] = z;
             }
         }
     }
 
     int filtered_cnt = 0;
-    base_z = vector<vector<double>>(height, vector<double>(width));
-    filtered_z = vector<vector<double>>(height, vector<double>(width));
-    vector<vector<Eigen::Vector3d>> layers;
-    for (int i = 0; i < 64; i++)
+    for (int i = 0; i < layer_cnt; i++)
     {
-        // no sort
-        vector<Eigen::Vector3d> removed;
-        for (size_t j = 0; j < all_layers[i].size(); j++)
-        {
-            //Filter occlusion
-            /*
-            while (removed.size() > 0 && removed.back()[0] / removed.back()[2] > all_layers[i][j][0] / all_layers[i][j][2])
-            {
-                removed.pop_back();
-            }
-*/
-            removed.emplace_back(all_layers[i][j]);
-        }
-
-        if (i % (64 / layer_cnt) == 0)
-        {
-            layers.push_back(removed);
-            filtered_cnt += removed.size();
-        }
-
-        for (size_t j = 0; j < removed.size(); j++)
-        {
-            int u = (int)(width / 2 + f_x * removed[j][0] / removed[j][2]);
-            int v = (int)(height / 2 + f_x * removed[j][1] / removed[j][2]);
-            if (i % (64 / layer_cnt) == 0)
-            {
-                filtered_z[v][u] = removed[j][2];
-            }
-            base_z[v][u] = removed[j][2];
-        }
+        sort(begin(layers[i]), end(layers[i]),
+             [](Eigen::Vector3d a, Eigen::Vector3d b) { return a[0] / a[2] < b[0] / b[2]; });
+        filtered_cnt += layers[i].size();
     }
 
     neighbors = vector<vector<int>>(filtered_cnt, vector<int>());
@@ -160,7 +119,6 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
             {
                 int u = (int)(width / 2 + f_x * layers[i][j][0] / layers[i][j][2]);
                 int v = (int)(height / 2 + f_x * layers[i][j][1] / layers[i][j][2]);
-
                 int u0 = (int)(width / 2 + f_x * layers[i + 1][0][0] / layers[i + 1][0][2]);
                 if (u0 > u)
                 {
@@ -258,9 +216,8 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
 
 double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double sigma_r = 20, int r = 10, bool see_res = false)
 {
-    const string folder_path = "../../../data/2020_02_04_miyanosawa/";
-    const string pcd_path = folder_path + to_string(data_no) + ".pcd";
-    const string img_path = folder_path + to_string(data_no) + ".png";
+    const string pcd_path = "../../../data/2020_02_04_miyanosawa/" + to_string(data_no) + ".pcd";
+    const string img_path = "../../../data/2020_02_04_miyanosawa/" + to_string(data_no) + ".png";
 
     cv::Mat img = cv::imread(img_path);
 
@@ -296,15 +253,16 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
 
         queue<int> que;
         vector<vector<int>> costs(height, vector<int>(width, 100000));
+        vector<vector<int>> cnts(height, vector<int>(width, 0));
         for (int i = 0; i < height; i++)
         {
             for (int j = 0; j < width; j++)
             {
                 if (filtered_z[i][j] > 0)
                 {
-                    ushort tmp = 65535 * (filtered_z[i][j] - min_depth) / (max_depth - min_depth);
-                    range_img.at<ushort>(i, j) = (ushort)(65535 * (filtered_z[i][j] - min_depth) / (max_depth - min_depth));
+                    range_img.at<unsigned short>(i, j) = (unsigned short)(65535 * (filtered_z[i][j] - min_depth) / (max_depth - min_depth));
                     costs[i][j] = 0;
+                    cnts[i][j]++;
                     que.push(i * width + j);
                 }
             }
@@ -321,7 +279,7 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
             int y = now / width;
             que.pop();
 
-            ushort val = range_img.at<ushort>(y, x);
+            unsigned short val = range_img.at<unsigned short>(y, x);
             int next_cost = costs[y][x] + 1;
             for (int i = 0; i < 4; i++)
             {
@@ -342,23 +300,33 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
                     que.push(toY * width + toX);
                 }
 
-                range_img.at<ushort>(toY, toX) = val;
+                //unsigned short tmp = range_img.at<unsigned short>(toY, toX);
+                //range_img.at<unsigned short>(toY, toX) = (unsigned short)(((int)tmp * cnts[toY][toX] + val * cnts[y][x]) / (cnts[toY][toX] + cnts[y][x]));
+                range_img.at<unsigned short>(toY, toX) = val;
                 costs[toY][toX] = next_cost;
+                cnts[toY][toX] += cnts[y][x];
             }
         }
+        //cout << "Sample time[ms] = " << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << endl;
+
+        //cv::imshow("a", range_img);
+        //cv::waitKey();
     }
 
     cv::Mat credibility_img = cv::Mat::zeros(height, width, CV_16UC1);
     {
         cv::Laplacian(range_img, credibility_img, CV_16UC1);
+        cout << (credibility_img.type() == CV_16SC3 ? "3" : "1") << endl;
         for (int i = 0; i < height; i++)
         {
             for (int j = 0; j < width; j++)
             {
-                ushort val = credibility_img.at<ushort>(i, j);
-                credibility_img.at<ushort>(i, j) = (ushort)(65535 * exp(-val * val / 2 / sigma_c / sigma_c));
+                int val = credibility_img.at<unsigned short>(i, j);
+                credibility_img.at<unsigned short>(i, j) = (unsigned short)(65535 * exp(-val * val / 2 / sigma_c / sigma_c));
             }
         }
+        cv::imshow("b", credibility_img);
+        cv::waitKey();
     }
 
     cv::Mat jbu_img = cv::Mat::zeros(height, width, CV_16UC1);
@@ -382,9 +350,9 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
                             continue;
                         }
                         int d1 = img.at<cv::Vec3b>(i + y, j + x)[0];
-                        double tmp = exp(-(x * x + y * y) / 2 / sigma_s / sigma_s) * exp(-(d0 - d1) * (d0 - d1) / 2 / sigma_r / sigma_r) * credibility_img.at<ushort>(i + y, j + x);
+                        double tmp = exp(-(x * x + y * y) / 2 / sigma_s / sigma_s) * exp(-(d0 - d1) * (d0 - d1) / 2 / sigma_r / sigma_r) * credibility_img.at<unsigned short>(i + y, j + x);
                         coef += tmp;
-                        val += tmp * range_img.at<ushort>(i + y, j + x);
+                        val += tmp * range_img.at<unsigned short>(i + y, j + x);
                     }
                 }
                 jbu_img.at<unsigned short>(i, j) = (unsigned short)(val / coef);
@@ -462,7 +430,7 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < data_nos.size(); i++)
     {
-        cout << segmentate(data_nos[i], 91, 46, 1, 19, true) << endl;
+        cout << segmentate(data_nos[i], 91, 46, 1, 19, false) << endl;
     }
 
     double best_error = 1000;

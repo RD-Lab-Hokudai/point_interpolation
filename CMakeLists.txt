@@ -101,6 +101,12 @@ if (Open3D_FOUND)
 
     target_include_directories(PWAS_ICP PUBLIC ${Open3D_INCLUDE_DIRS})
 
+    add_executable(PWAS_RAW PWAS_RAW.cpp)
+
+    target_link_libraries(PWAS_RAW ${Open3D_LIBRARIES} ${OpenCV_LIBS})
+
+    target_include_directories(PWAS_RAW PUBLIC ${Open3D_INCLUDE_DIRS})
+
     add_executable(CalibratorRGB CalibratorRGB.cpp)
 
     target_link_libraries(CalibratorRGB ${Open3D_LIBRARIES} ${OpenCV_LIBS})
