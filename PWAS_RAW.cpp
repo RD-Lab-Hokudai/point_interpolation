@@ -24,21 +24,23 @@ const double f_x = width / 2 * 1.01;
 
 // Calibration
 // 02_19_13jo
-/*
+
 int X = 498;
 int Y = 485;
 int Z = 509;
-int theta = 483;
-int phi = 518;
-*/
-// 02_04_miyanosawa
+int roll = 481;
+int pitch = 517;
+int yaw = 500;
 
+// 02_04_miyanosawa
+/*
 int X = 495;
 int Y = 475;
 int Z = 458;
-int theta = 438;
-int phi = 512;
-
+int roll = 488;
+int pitch = 568;
+int yaw = 500;
+*/
 // 03_03_miyanosawa
 /*
 int X = 500;
@@ -74,11 +76,12 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
         double rawZ = -raw_pcd_ptr->points_[i][0];
 
         double r = sqrt(rawX * rawX + rawZ * rawZ);
-        double thetaVal = (theta - 500) / 1000.0;
-        double phiVal = (phi - 500) / 1000.0;
-        double xp = (rawX * cos(phiVal) - rawY * sin(phiVal)) * cos(thetaVal) - (rawZ * cos(phiVal) - rawY * sin(phiVal)) * sin(thetaVal);
-        double yp = rawY * cos(phiVal) + r * sin(phiVal);
-        double zp = (rawX * cos(phiVal) - rawY * sin(phiVal)) * sin(thetaVal) + (rawZ * cos(phiVal) - rawY * sin(phiVal)) * cos(thetaVal);
+        double rollVal = (roll - 500) / 1000.0;
+        double pitchVal = (pitch - 500) / 1000.0;
+        double yawVal = (yaw - 500) / 1000.0;
+        double xp = cos(yawVal) * cos(pitchVal) * rawX + (cos(yawVal) * sin(pitchVal) * sin(rollVal) - sin(yawVal) * cos(rollVal)) * rawY + (cos(yawVal) * sin(pitchVal) * cos(rollVal) + sin(yawVal) * sin(rollVal)) * rawZ;
+        double yp = sin(yawVal) * cos(pitchVal) * rawX + (sin(yawVal) * sin(pitchVal) * sin(rollVal) + cos(yawVal) * cos(rollVal)) * rawY + (sin(yawVal) * sin(pitchVal) * cos(rollVal) - cos(yawVal) * sin(rollVal)) * rawZ;
+        double zp = -sin(pitchVal) * rawX + cos(pitchVal) * sin(rollVal) * rawY + cos(pitchVal) * cos(rollVal) * rawZ;
         double x = xp + (X - 500) / 100.0;
         double y = yp + (Y - 500) / 100.0;
         double z = zp + (Z - 500) / 100.0;
@@ -216,8 +219,8 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
 
 double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double sigma_r = 20, int r = 10, bool see_res = false)
 {
-    const string pcd_path = "../../../data/2020_02_04_miyanosawa/" + to_string(data_no) + ".pcd";
-    const string img_path = "../../../data/2020_02_04_miyanosawa/" + to_string(data_no) + ".png";
+    const string pcd_path = "../../../data/2020_02_04_13jo/" + to_string(data_no) + ".pcd";
+    const string img_path = "../../../data/2020_02_04_13jo/" + to_string(data_no) + ".png";
 
     cv::Mat img = cv::imread(img_path);
 
@@ -325,8 +328,6 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
                 credibility_img.at<unsigned short>(i, j) = (unsigned short)(65535 * exp(-val * val / 2 / sigma_c / sigma_c));
             }
         }
-        cv::imshow("b", credibility_img);
-        cv::waitKey();
     }
 
     cv::Mat jbu_img = cv::Mat::zeros(height, width, CV_16UC1);
@@ -425,8 +426,8 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
 int main(int argc, char *argv[])
 {
     //vector<int> data_nos = {550, 1000, 1125, 1260, 1550};
-    //vector<int> data_nos = {10, 20, 30, 40, 50}; // 02_19_13jo
-    vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
+    vector<int> data_nos = {10, 20, 30, 40, 50}; // 02_19_13jo
+    //vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
 
     for (int i = 0; i < data_nos.size(); i++)
     {

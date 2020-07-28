@@ -17,7 +17,7 @@
 using namespace std;
 using namespace open3d;
 
-ofstream ofs("res.csv");
+ofstream ofs("res_pwas_icp.csv");
 
 const int width = 938;
 const int height = 606;
@@ -423,7 +423,7 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
         cout << "cannot cnt = " << cannot_cnt - cnt << endl;
         //cout << "Error = " << error << endl;
     }
-    ofs << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "," << error << "," << endl;
+    ofs << data_no << "," << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "," << error << "," << endl;
     cout << "Total time[ms] = " << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << endl;
 
     if (see_res)
@@ -449,7 +449,7 @@ int main(int argc, char *argv[])
     //vector<int> data_nos = {10, 20, 30, 40, 50}; // 02_19_13jo
     //vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
     vector<int> data_nos;
-    for (int i = 266; i <= 300; i++)
+    for (int i = 1100; i < 1300; i++)
     {
         data_nos.emplace_back(i);
     }
@@ -458,6 +458,7 @@ int main(int argc, char *argv[])
     {
         cout << segmentate(data_nos[i], 91, 46, 1, 19, false) << endl;
     }
+    return 0;
 
     double best_error = 1000;
     double best_sigma_c = 1;
