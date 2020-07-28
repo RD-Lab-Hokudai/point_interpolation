@@ -24,11 +24,19 @@ const double f_x = width / 2 * 1.01;
 
 // Calibration
 // 02_19_13jo
+/*
 int X = 498;
 int Y = 485;
 int Z = 509;
 int theta = 483;
 int phi = 518;
+*/
+int X = 498;
+int Y = 485;
+int Z = 509;
+int roll = 481;
+int pitch = 517;
+int yaw = 500;
 // 02_04_miyanosawa
 /*
 int X = 495;
@@ -70,11 +78,22 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
         double rawZ = -raw_pcd_ptr->points_[i][0];
 
         double r = sqrt(rawX * rawX + rawZ * rawZ);
+        /*
         double thetaVal = (theta - 500) / 1000.0;
         double phiVal = (phi - 500) / 1000.0;
         double xp = (rawX * cos(phiVal) - rawY * sin(phiVal)) * cos(thetaVal) - (rawZ * cos(phiVal) - rawY * sin(phiVal)) * sin(thetaVal);
         double yp = rawY * cos(phiVal) + r * sin(phiVal);
         double zp = (rawX * cos(phiVal) - rawY * sin(phiVal)) * sin(thetaVal) + (rawZ * cos(phiVal) - rawY * sin(phiVal)) * cos(thetaVal);
+        double x = xp + (X - 500) / 100.0;
+        double y = yp + (Y - 500) / 100.0;
+        double z = zp + (Z - 500) / 100.0;
+        */
+        double rollVal = (roll - 500) / 1000.0;
+        double pitchVal = (pitch - 500) / 1000.0;
+        double yawVal = (yaw - 500) / 1000.0;
+        double xp = cos(yawVal) * cos(pitchVal) * rawX + (cos(yawVal) * sin(pitchVal) * sin(rollVal) - sin(yawVal) * cos(rollVal)) * rawY + (cos(yawVal) * sin(pitchVal) * cos(rollVal) + sin(yawVal) * sin(rollVal)) * rawZ;
+        double yp = sin(yawVal) * cos(pitchVal) * rawX + (sin(yawVal) * sin(pitchVal) * sin(rollVal) + cos(yawVal) * cos(rollVal)) * rawY + (sin(yawVal) * sin(pitchVal) * cos(rollVal) - cos(yawVal) * sin(rollVal)) * rawZ;
+        double zp = -sin(pitchVal) * rawX + cos(pitchVal) * sin(rollVal) * rawY + cos(pitchVal) * cos(rollVal) * rawZ;
         double x = xp + (X - 500) / 100.0;
         double y = yp + (Y - 500) / 100.0;
         double z = zp + (Z - 500) / 100.0;
@@ -103,11 +122,12 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
         for (size_t j = 0; j < all_layers[i].size(); j++)
         {
             //Filter occlusion
+            /*
             while (removed.size() > 0 && removed.back()[0] / removed.back()[2] > all_layers[i][j][0] / all_layers[i][j][2])
             {
                 removed.pop_back();
             }
-
+*/
             removed.emplace_back(all_layers[i][j]);
         }
 
