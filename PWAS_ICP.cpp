@@ -24,14 +24,19 @@ const double f_x = width / 2 * 1.01;
 
 // Calibration
 // 02_19_13jo
-
+int X = 498;
+int Y = 485;
+int Z = 509;
+int theta = 483;
+int phi = 518;
+/*
 int X = 498;
 int Y = 485;
 int Z = 509;
 int roll = 481;
 int pitch = 517;
 int yaw = 500;
-
+*/
 // 02_04_miyanosawa
 /*
 int X = 495;
@@ -73,6 +78,16 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
         double rawY = -raw_pcd_ptr->points_[i][2];
         double rawZ = -raw_pcd_ptr->points_[i][0];
 
+        double r = sqrt(rawX * rawX + rawZ * rawZ);
+        double thetaVal = (theta - 500) / 1000.0;
+        double phiVal = (phi - 500) / 1000.0;
+        double xp = (rawX * cos(phiVal) - rawY * sin(phiVal)) * cos(thetaVal) - (rawZ * cos(phiVal) - rawY * sin(phiVal)) * sin(thetaVal);
+        double yp = rawY * cos(phiVal) + r * sin(phiVal);
+        double zp = (rawX * cos(phiVal) - rawY * sin(phiVal)) * sin(thetaVal) + (rawZ * cos(phiVal) - rawY * sin(phiVal)) * cos(thetaVal);
+        double x = xp + (X - 500) / 100.0;
+        double y = yp + (Y - 500) / 100.0;
+        double z = zp + (Z - 500) / 100.0;
+        /*
         double rollVal = (roll - 500) / 1000.0;
         double pitchVal = (pitch - 500) / 1000.0;
         double yawVal = (yaw - 500) / 1000.0;
@@ -82,9 +97,9 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
         double x = xp + (X - 500) / 100.0;
         double y = yp + (Y - 500) / 100.0;
         double z = zp + (Z - 500) / 100.0;
+        */
 
-        double r = sqrt(x * x + z * z);
-        auto it = lower_bound(tans.begin(), tans.end(), y / r);
+        auto it = lower_bound(tans.begin(), tans.end(), rawY / r);
         int index = it - tans.begin();
         all_layers[index].emplace_back(x, y, z);
     }
@@ -211,9 +226,9 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
             int u = (int)(width / 2 + f_x * x / z);
             int v = (int)(height / 2 + f_x * y / z);
             int u2 = u;
-            u2 = (int)(u * transformation(0, 0) + v * transformation(0, 1) + transformation(0, 3));
+            //u2 = (int)(u * transformation(0, 0) + v * transformation(0, 1) + transformation(0, 3));
             int v2 = v;
-            v2 = (int)(u * transformation(1, 0) + v * transformation(1, 1) + transformation(1, 3));
+            //v2 = (int)(u * transformation(1, 0) + v * transformation(1, 1) + transformation(1, 3));
             if (0 <= u2 && u2 < width && 0 <= v2 && v2 < height)
             {
                 base_z[v2][u2] = z;

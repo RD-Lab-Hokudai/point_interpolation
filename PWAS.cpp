@@ -102,10 +102,12 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
         vector<Eigen::Vector3d> removed;
         for (size_t j = 0; j < all_layers[i].size(); j++)
         {
+            //Filter occlusion
             while (removed.size() > 0 && removed.back()[0] / removed.back()[2] > all_layers[i][j][0] / all_layers[i][j][2])
             {
                 removed.pop_back();
             }
+
             removed.emplace_back(all_layers[i][j]);
         }
 
