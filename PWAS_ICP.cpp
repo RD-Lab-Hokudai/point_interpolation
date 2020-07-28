@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <vector>
 #include <stack>
 #include <map>
@@ -15,6 +16,8 @@
 
 using namespace std;
 using namespace open3d;
+
+ofstream ofs("res.csv");
 
 const int width = 938;
 const int height = 606;
@@ -52,7 +55,7 @@ int phi = 527;
 
 shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> raw_pcd_ptr, cv::Mat &img,
                                                vector<vector<double>> &base_z, vector<vector<double>> &filtered_z,
-                                               vector<vector<int>> &neighbors, int layer_cnt = 16)
+                                               int layer_cnt = 16)
 {
 
     vector<double> tans;
@@ -93,6 +96,7 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
     }
 
     // Filter occlusion
+
     for (int i = 0; i < 64; i++)
     {
         // no sort
@@ -259,10 +263,10 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
     vector<vector<double>> base_z, filtered_z;
     vector<vector<int>> neighbors;
     int layer_cnt = 16;
-    shared_ptr<geometry::PointCloud> filtered_ptr = calc_filtered(pcd_ptr, img, base_z, filtered_z, neighbors, layer_cnt);
+    shared_ptr<geometry::PointCloud> filtered_ptr = calc_filtered(pcd_ptr, img, base_z, filtered_z, layer_cnt);
 
     auto start = chrono::system_clock::now();
-    cv::Mat range_img = cv::Mat::zeros(height, width, CV_16UC3);
+    cv::Mat range_img = cv::Mat::zeros(height, width, CV_16UC1);
     double min_depth = 10000;
     double max_depth = 0;
     {
@@ -280,17 +284,15 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
 
         queue<int> que;
         vector<vector<int>> costs(height, vector<int>(width, 100000));
-        vector<vector<int>> cnts(height, vector<int>(width, 0));
         for (int i = 0; i < height; i++)
         {
             for (int j = 0; j < width; j++)
             {
                 if (filtered_z[i][j] > 0)
                 {
-                    unsigned short tmp = 65535 * (filtered_z[i][j] - min_depth) / (max_depth - min_depth);
-                    range_img.at<cv::Vec3s>(i, j) = cv::Vec3s(tmp, tmp, tmp);
+                    ushort tmp = 65535 * (filtered_z[i][j] - min_depth) / (max_depth - min_depth);
+                    range_img.at<ushort>(i, j) = (ushort)(65535 * (filtered_z[i][j] - min_depth) / (max_depth - min_depth));
                     costs[i][j] = 0;
-                    cnts[i][j]++;
                     que.push(i * width + j);
                 }
             }
@@ -307,7 +309,7 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
             int y = now / width;
             que.pop();
 
-            unsigned short val = range_img.at<cv::Vec3s>(y, x)[0];
+            ushort val = range_img.at<ushort>(y, x);
             int next_cost = costs[y][x] + 1;
             for (int i = 0; i < 4; i++)
             {
@@ -328,9 +330,8 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
                     que.push(toY * width + toX);
                 }
 
-                range_img.at<cv::Vec3s>(toY, toX) = cv::Vec3s(val, val, val);
+                range_img.at<ushort>(toY, toX) = val;
                 costs[toY][toX] = next_cost;
-                cnts[toY][toX] += cnts[y][x];
             }
         }
     }
@@ -342,12 +343,10 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
         {
             for (int j = 0; j < width; j++)
             {
-                int val = credibility_img.at<unsigned short>(i, j);
-                credibility_img.at<unsigned short>(i, j) = (unsigned short)(65535 * exp(-val * val / 2 / sigma_c / sigma_c));
+                ushort val = credibility_img.at<ushort>(i, j);
+                credibility_img.at<ushort>(i, j) = (ushort)(65535 * exp(-val * val / 2 / sigma_c / sigma_c));
             }
         }
-        //cv::imshow("b", credibility_img);
-        //cv::waitKey();
     }
 
     cv::Mat jbu_img = cv::Mat::zeros(height, width, CV_16UC1);
@@ -371,9 +370,9 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
                             continue;
                         }
                         int d1 = img.at<cv::Vec3b>(i + y, j + x)[0];
-                        double tmp = exp(-(x * x + y * y) / 2 / sigma_s / sigma_s) * exp(-(d0 - d1) * (d0 - d1) / 2 / sigma_r / sigma_r) * credibility_img.at<unsigned short>(i + y, j + x);
+                        double tmp = exp(-(x * x + y * y) / 2 / sigma_s / sigma_s) * exp(-(d0 - d1) * (d0 - d1) / 2 / sigma_r / sigma_r) * credibility_img.at<ushort>(i + y, j + x);
                         coef += tmp;
-                        val += tmp * range_img.at<cv::Vec3s>(i + y, j + x)[0];
+                        val += tmp * range_img.at<ushort>(i + y, j + x);
                     }
                 }
                 jbu_img.at<unsigned short>(i, j) = (unsigned short)(val / coef);
@@ -424,6 +423,7 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
         cout << "cannot cnt = " << cannot_cnt - cnt << endl;
         //cout << "Error = " << error << endl;
     }
+    ofs << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "," << error << "," << endl;
     cout << "Total time[ms] = " << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << endl;
 
     if (see_res)
@@ -447,7 +447,12 @@ int main(int argc, char *argv[])
 {
     //vector<int> data_nos = {550, 1000, 1125, 1260, 1550};
     //vector<int> data_nos = {10, 20, 30, 40, 50}; // 02_19_13jo
-    vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
+    //vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
+    vector<int> data_nos;
+    for (int i = 266; i <= 300; i++)
+    {
+        data_nos.emplace_back(i);
+    }
 
     for (int i = 0; i < data_nos.size(); i++)
     {

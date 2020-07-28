@@ -24,28 +24,23 @@ const double f_x = width / 2 * 1.01;
 
 // Calibration
 // 02_19_13jo
-/*
+
 int X = 498;
 int Y = 485;
 int Z = 509;
 int roll = 481;
 int pitch = 517;
 int yaw = 500;
-*/
+
 // 02_04_miyanosawa
 /*
 int X = 495;
 int Y = 475;
 int Z = 458;
 int roll = 488;
-int pitch = 562;
+int pitch = 568;
 int yaw = 500;
 */
-int X = 495;
-int Y = 475;
-int Z = 458;
-int theta = 438;
-int phi = 512;
 // 03_03_miyanosawa
 /*
 int X = 500;
@@ -57,7 +52,7 @@ int phi = 527;
 
 shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> raw_pcd_ptr,
                                                vector<vector<double>> &base_z, vector<vector<double>> &filtered_z,
-                                               vector<vector<int>> &neighbors, int layer_cnt = 16)
+                                               int layer_cnt = 16)
 {
 
     vector<double> tans;
@@ -79,15 +74,6 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
         double rawZ = -raw_pcd_ptr->points_[i][0];
 
         double r = sqrt(rawX * rawX + rawZ * rawZ);
-        double thetaVal = (theta - 500) / 1000.0;
-        double phiVal = (phi - 500) / 1000.0;
-        double xp = (rawX * cos(phiVal) - rawY * sin(phiVal)) * cos(thetaVal) - (rawZ * cos(phiVal) - rawY * sin(phiVal)) * sin(thetaVal);
-        double yp = rawY * cos(phiVal) + r * sin(phiVal);
-        double zp = (rawX * cos(phiVal) - rawY * sin(phiVal)) * sin(thetaVal) + (rawZ * cos(phiVal) - rawY * sin(phiVal)) * cos(thetaVal);
-        double x = xp + (X - 500) / 100.0;
-        double y = yp + (Y - 500) / 100.0;
-        double z = zp + (Z - 500) / 100.0;
-        /*
         double rollVal = (roll - 500) / 1000.0;
         double pitchVal = (pitch - 500) / 1000.0;
         double yawVal = (yaw - 500) / 1000.0;
@@ -97,18 +83,12 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
         double x = xp + (X - 500) / 100.0;
         double y = yp + (Y - 500) / 100.0;
         double z = zp + (Z - 500) / 100.0;
-        */
 
         if (z > 0)
         {
-            int u = (int)(width / 2 + f_x * x / z);
-            int v = (int)(height / 2 + f_x * y / z);
-            if (0 <= u && u < width && 0 <= v && v < height)
-            {
-                auto it = lower_bound(tans.begin(), tans.end(), rawY / r);
-                int index = it - tans.begin();
-                all_layers[index].emplace_back(x, y, z);
-            }
+            auto it = lower_bound(tans.begin(), tans.end(), rawY / r);
+            int index = it - tans.begin();
+            all_layers[index].emplace_back(x, y, z);
         }
     }
 
@@ -123,12 +103,12 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
         for (size_t j = 0; j < all_layers[i].size(); j++)
         {
             //Filter occlusion
-            /*
+
             while (removed.size() > 0 && removed.back()[0] / removed.back()[2] > all_layers[i][j][0] / all_layers[i][j][2])
             {
                 removed.pop_back();
             }
-*/
+
             removed.emplace_back(all_layers[i][j]);
         }
 
@@ -142,71 +122,14 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
         {
             int u = (int)(width / 2 + f_x * removed[j][0] / removed[j][2]);
             int v = (int)(height / 2 + f_x * removed[j][1] / removed[j][2]);
-            if (i % (64 / layer_cnt) == 0)
+            if (0 <= u && u < width && 0 <= v && v < height)
             {
-                filtered_z[v][u] = removed[j][2];
+                if (i % (64 / layer_cnt) == 0)
+                {
+                    filtered_z[v][u] = removed[j][2];
+                }
+                base_z[v][u] = removed[j][2];
             }
-            base_z[v][u] = removed[j][2];
-        }
-    }
-
-    neighbors = vector<vector<int>>(filtered_cnt, vector<int>());
-    {
-        int point_cnt = 0;
-        // Find neighbors
-        for (int i = 0; i + 1 < layer_cnt; i++)
-        {
-            for (int j = 0; j < layers[i].size(); j++)
-            {
-                int u = (int)(width / 2 + f_x * layers[i][j][0] / layers[i][j][2]);
-                int v = (int)(height / 2 + f_x * layers[i][j][1] / layers[i][j][2]);
-
-                int u0 = (int)(width / 2 + f_x * layers[i + 1][0][0] / layers[i + 1][0][2]);
-                if (u0 > u)
-                {
-                    int v0 = (int)(height / 2 + f_x * layers[i + 1][0][1] / layers[i + 1][0][2]);
-                    int from = point_cnt + j;
-                    int to = point_cnt + layers[i].size();
-
-                    neighbors[from].emplace_back(to);
-                    neighbors[to].emplace_back(from);
-                }
-                else
-                {
-                    int bottom = 0;
-                    int top = layers[i + 1].size();
-                    while (bottom + 1 < top)
-                    {
-                        int mid = (bottom + top) / 2;
-                        int uTmp = (int)(width / 2 + f_x * layers[i + 1][mid][0] / layers[i + 1][mid][2]);
-
-                        if (uTmp <= u)
-                        {
-                            bottom = mid;
-                        }
-                        else
-                        {
-                            top = mid;
-                        }
-                    }
-                    for (int ii = max(bottom - 1, 0); ii < min(bottom + 2, (int)layers[i + 1].size()); ii++)
-                    {
-                        int u2 = (int)(width / 2 + f_x * layers[i + 1][ii][0] / layers[i + 1][ii][2]);
-                        int v2 = (int)(height / 2 + f_x * layers[i + 1][ii][1] / layers[i + 1][ii][2]);
-                        int from = point_cnt + j;
-                        int to = point_cnt + layers[i].size() + ii;
-                        neighbors[from].emplace_back(to);
-                        neighbors[to].emplace_back(from);
-                    }
-                }
-                if (j + 1 < layers[i].size())
-                {
-                    neighbors[point_cnt + j].emplace_back(point_cnt + j + 1);
-                    neighbors[point_cnt + j + 1].emplace_back(point_cnt + j);
-                }
-                neighbors[point_cnt + j].emplace_back(point_cnt + j); // Contains myself
-            }
-            point_cnt += layers[i].size();
         }
     }
 
@@ -221,44 +144,12 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
         }
     }
 
-    {
-        int point_cnt = 0;
-        for (int i = 0; i < sorted_ptr->points_.size(); i++)
-        {
-            Eigen::Vector3d pa = Eigen::Vector3d::Zero();
-            for (int j = 0; j < neighbors[i].size(); j++)
-            {
-                pa += sorted_ptr->points_[neighbors[i][j]];
-            }
-            pa /= neighbors[i].size();
-            Eigen::Matrix3d Q = Eigen::Matrix3d::Zero();
-            for (int j = 0; j < neighbors[i].size(); j++)
-            {
-                for (int ii = 0; ii < 3; ii++)
-                {
-                    for (int jj = 0; jj < 3; jj++)
-                    {
-                        Q(ii, jj) += (sorted_ptr->points_[neighbors[i][j]][ii] - pa[ii]) * (sorted_ptr->points_[neighbors[i][j]][jj] - pa[jj]);
-                    }
-                }
-            }
-
-            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> ES(Q);
-            if (ES.info() != Eigen::Success)
-            {
-                continue;
-            }
-
-            sorted_ptr->normals_.emplace_back(ES.eigenvectors().col(0));
-        }
-    }
-
     return sorted_ptr;
 }
 
 double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double sigma_r = 20, int r = 10, bool see_res = false)
 {
-    const string folder_path = "../../../data/2020_02_04_miyanosawa/";
+    const string folder_path = "../../../data/2020_02_04_13jo/";
     const string pcd_path = folder_path + to_string(data_no) + ".pcd";
     const string img_path = folder_path + to_string(data_no) + ".png";
 
@@ -275,7 +166,7 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
     vector<vector<double>> base_z, filtered_z;
     vector<vector<int>> neighbors;
     int layer_cnt = 16;
-    shared_ptr<geometry::PointCloud> filtered_ptr = calc_filtered(pcd_ptr, base_z, filtered_z, neighbors, layer_cnt);
+    shared_ptr<geometry::PointCloud> filtered_ptr = calc_filtered(pcd_ptr, base_z, filtered_z, layer_cnt);
 
     auto start = chrono::system_clock::now();
     cv::Mat range_img = cv::Mat::zeros(height, width, CV_16UC1);
@@ -457,12 +348,12 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
 int main(int argc, char *argv[])
 {
     //vector<int> data_nos = {550, 1000, 1125, 1260, 1550};
-    //vector<int> data_nos = {10, 20, 30, 40, 50}; // 02_19_13jo
-    vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
+    vector<int> data_nos = {10, 20, 30, 40, 50}; // 02_19_13jo
+    //vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
 
     for (int i = 0; i < data_nos.size(); i++)
     {
-        cout << segmentate(data_nos[i], 91, 46, 1, 19, true) << endl;
+        cout << segmentate(data_nos[i], 91, 46, 1, 19, false) << endl;
     }
 
     double best_error = 1000;
