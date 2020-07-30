@@ -137,6 +137,12 @@ if (Open3D_FOUND)
 
     target_include_directories(PWAS PUBLIC ${Open3D_INCLUDE_DIRS})
 
+    add_executable(PWAS2 PWAS2.cpp)
+
+    target_link_libraries(PWAS2 ${Open3D_LIBRARIES} ${OpenCV_LIBS})
+
+    target_include_directories(PWAS2 PUBLIC ${Open3D_INCLUDE_DIRS})
+
     # Hot fix windows dll not found issue, assumming we're using the Release build
     option(BUILD_SHARED_LIBS "Whether Open3D was build as shared library" OFF)
     if(WIN32 AND BUILD_SHARED_LIBS)
