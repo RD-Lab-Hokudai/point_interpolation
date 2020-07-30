@@ -27,23 +27,23 @@ const double f_x = width / 2 * 1.01;
 
 // Calibration
 // 02_19_13jo
-/*
+
 int X = 498;
 int Y = 485;
 int Z = 509;
 int roll = 481;
 int pitch = 517;
 int yaw = 500;
-*/
-// 02_04_miyanosawa
 
+// 02_04_miyanosawa
+/*
 int X = 495;
 int Y = 475;
 int Z = 458;
 int roll = 488;
 int pitch = 568;
 int yaw = 500;
-
+*/
 // 03_03_miyanosawa
 /*
 int X = 500;
@@ -246,7 +246,7 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
 
 double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double sigma_r = 20, int r = 10, bool see_res = false)
 {
-    const string folder_path = "../../../data/2020_02_04_miyanosawa/";
+    const string folder_path = "../../../data/2020_02_04_13jo/";
     const string pcd_path = folder_path + to_string(data_no) + ".pcd";
     const string img_path = folder_path + to_string(data_no) + ".png";
 
@@ -387,7 +387,8 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
     {
         for (int j = 0; j < width; j++)
         {
-            if (base_z[i][j] == 0)
+            double tan = (i - height / 2) / f_x;
+            if (abs(tan) > 0.3057 /* base_z[i][j] == 0*/)
             {
                 continue;
             }
@@ -446,17 +447,19 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
 int main(int argc, char *argv[])
 {
     //vector<int> data_nos = {550, 1000, 1125, 1260, 1550};
-    //vector<int> data_nos = {10, 20, 30, 40, 50}; // 02_19_13jo
+    vector<int> data_nos = {10, 20, 30, 40, 50}; // 02_19_13jo
     //vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
+    /*
     vector<int> data_nos;
     for (int i = 1100; i < 1300; i++)
     {
         data_nos.emplace_back(i);
     }
+    */
 
     for (int i = 0; i < data_nos.size(); i++)
     {
-        cout << segmentate(data_nos[i], 91, 46, 1, 19, false) << endl;
+        cout << segmentate(data_nos[i], 91, 46, 1, 19, true) << endl;
     }
     return 0;
 

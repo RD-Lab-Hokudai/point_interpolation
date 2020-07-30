@@ -778,7 +778,7 @@ double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, share
             for (int j = 0; j < width; j++)
             {
                 double z = interpolated_z[i][j];
-                if (z < 0)
+                if (z < 0 || base_z[i][j] == 0)
                 {
                     continue;
                 }
@@ -855,27 +855,29 @@ double segmentation(cv::Mat img, shared_ptr<geometry::PointCloud> pcd_ptr, share
 int main(int argc, char *argv[])
 {
     //vector<int> data_nos = {550, 1000, 1125, 1260, 1550}; // 03_03_miyanosawa
-    //vector<int> data_nos = {10, 20, 30, 40, 50}; // 02_04_13jo
-    vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
+    vector<int> data_nos = {10, 20, 30, 40, 50}; // 02_04_13jo
+    //vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
     vector<cv::Mat> imgs;
     vector<shared_ptr<geometry::PointCloud>> pcd_ptrs;
     vector<shared_ptr<geometry::PointCloud>> downed_ptrs;
 
     // Calibration
     // 02_04_13jo
-    /*
-int X = 498;
-int Y = 485;
-int Z = 509;
-int theta = 483;
-int phi = 518;
-*/
+
+    int X = 498;
+    int Y = 485;
+    int Z = 509;
+    int theta = 483;
+    int phi = 518;
+
     // 02_04_miyanosawa
+    /*
     int X = 495;
     int Y = 475;
     int Z = 458;
     int theta = 438;
     int phi = 512;
+    */
     // 03_03_miyanosawa
     /*
 int X = 500;
@@ -898,10 +900,11 @@ int phi = 527;
 
     for (int i = 0; i < data_nos.size(); i++)
     {
-        string img_path = "../../../data/2020_02_04_miyanosawa/" + to_string(data_nos[i]) + ".png";
+        string foldeer_path = "../../../data/2020_02_04_13jo/";
+        string img_path = foldeer_path + to_string(data_nos[i]) + ".png";
         imgs.emplace_back(cv::imread(img_path));
 
-        string pcd_path = "../../../data/2020_02_04_miyanosawa/" + to_string(data_nos[i]) + ".pcd";
+        string pcd_path = foldeer_path + to_string(data_nos[i]) + ".pcd";
         geometry::PointCloud pointcloud;
         auto pcd_ptr = make_shared<geometry::PointCloud>();
         if (!io::ReadPointCloud(pcd_path, pointcloud))
@@ -947,7 +950,7 @@ int phi = 527;
 
     for (int i = 0; i < data_nos.size(); i++)
     {
-        cout << segmentation(imgs[i], pcd_ptrs[i], downed_ptrs[i], 49, 9, 0.5, 6, 19, 3, 1, false) << endl;
+        cout << segmentation(imgs[i], pcd_ptrs[i], downed_ptrs[i], 59, 9, 0.5, 6, 19, 3, 1, true) << endl;
     }
 
     //cout << segmentation(30, 0, 0.5, 6, 2, 3, 0, 81, true) << endl;
