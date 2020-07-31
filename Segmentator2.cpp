@@ -16,6 +16,27 @@
 using namespace std;
 using namespace open3d;
 
+const int width = 938;
+const int height = 606;
+//const int width = 882;
+//const int height = 560;
+const double f_x = width / 2 * 1.01;
+
+struct EnvParams
+{
+    int X;
+    int Y;
+    int Z;
+    int roll;
+    int pitch;
+    int yaw;
+
+    string folder_path;
+    vector<int> data_ids;
+
+    string of_name;
+};
+
 class UnionFind
 {
     vector<int> par;
@@ -314,43 +335,7 @@ struct misra1a_functor2 : Functor<double>
     int values() const { return values_; }
 };
 
-ofstream ofs("res_original.csv");
-
-const int width = 938;
-const int height = 606;
-//const int width = 882;
-//const int height = 560;
-const double f_x = width / 2 * 1.01;
-
-// Calibration
-// 02_04_13jo
-/*
-int X = 498;
-int Y = 485;
-int Z = 509;
-int roll = 481;
-int pitch = 517;
-int yaw = 500;
-*/
-// 02_04_miyanosawa
-
-int X = 495;
-int Y = 475;
-int Z = 458;
-int roll = 488;
-int pitch = 568;
-int yaw = 500;
-
-// 03_03_miyanosawa
-/*
-int X = 500;
-int Y = 474;
-int Z = 458;
-int theta = 506;
-int phi = 527;
-*/
-
-shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> raw_pcd_ptr,
+shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams,
                                                vector<vector<double>> &base_z, vector<vector<double>> &filtered_z,
                                                vector<vector<int>> &neighbors, int layer_cnt = 16)
 {
@@ -374,15 +359,15 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
         double rawZ = -raw_pcd_ptr->points_[i][0];
 
         double r = sqrt(rawX * rawX + rawZ * rawZ);
-        double rollVal = (roll - 500) / 1000.0;
-        double pitchVal = (pitch - 500) / 1000.0;
-        double yawVal = (yaw - 500) / 1000.0;
+        double rollVal = (envParams.roll - 500) / 1000.0;
+        double pitchVal = (envParams.pitch - 500) / 1000.0;
+        double yawVal = (envParams.yaw - 500) / 1000.0;
         double xp = cos(yawVal) * cos(pitchVal) * rawX + (cos(yawVal) * sin(pitchVal) * sin(rollVal) - sin(yawVal) * cos(rollVal)) * rawY + (cos(yawVal) * sin(pitchVal) * cos(rollVal) + sin(yawVal) * sin(rollVal)) * rawZ;
         double yp = sin(yawVal) * cos(pitchVal) * rawX + (sin(yawVal) * sin(pitchVal) * sin(rollVal) + cos(yawVal) * cos(rollVal)) * rawY + (sin(yawVal) * sin(pitchVal) * cos(rollVal) - cos(yawVal) * sin(rollVal)) * rawZ;
         double zp = -sin(pitchVal) * rawX + cos(pitchVal) * sin(rollVal) * rawY + cos(pitchVal) * cos(rollVal) * rawZ;
-        double x = xp + (X - 500) / 100.0;
-        double y = yp + (Y - 500) / 100.0;
-        double z = zp + (Z - 500) / 100.0;
+        double x = xp + (envParams.X - 500) / 100.0;
+        double y = yp + (envParams.Y - 500) / 100.0;
+        double z = zp + (envParams.Z - 500) / 100.0;
 
         if (z > 0)
         {
@@ -407,7 +392,7 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
         vector<Eigen::Vector3d> removed;
         for (size_t j = 0; j < all_layers[i].size(); j++)
         {
-            while (removed.size() > 0 && removed.back()[0] / removed.back()[2] > all_layers[i][j][0] / all_layers[i][j][2])
+            while (removed.size() > 0 && removed.back()[0] * all_layers[i][j][2] >= all_layers[i][j][0] * removed.back()[2])
             {
                 removed.pop_back();
             }
@@ -543,11 +528,12 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
     return sorted_ptr;
 }
 
-double segmentate(int data_no, double color_segment_k, int color_size_min, double gaussian_sigma, double point_segment_k, int point_size_min, double color_rate, bool see_res = false)
+double segmentate(int data_no, EnvParams envParams, double color_segment_k, int color_size_min, double gaussian_sigma, double point_segment_k, int point_size_min, double color_rate, bool see_res = false)
 {
-    const string folder_path = "../../../data/2020_02_04_miyanosawa/";
-    const string img_name = folder_path + to_string(data_no) + ".png";
-    const string file_name = folder_path + to_string(data_no) + ".pcd";
+    ofstream ofs(envParams.of_name);
+
+    const string img_name = envParams.folder_path + to_string(data_no) + ".png";
+    const string file_name = envParams.folder_path + to_string(data_no) + ".pcd";
     const bool vertical = true;
 
     auto img = cv::imread(img_name);
@@ -571,7 +557,7 @@ double segmentate(int data_no, double color_segment_k, int color_size_min, doubl
     vector<vector<int>> neighbors;
     *pcd_ptr = pointcloud;
     cout << data_no << endl;
-    shared_ptr<geometry::PointCloud> filtered_ptr = calc_filtered(pcd_ptr, base_z, filtered_z, neighbors);
+    shared_ptr<geometry::PointCloud> filtered_ptr = calc_filtered(pcd_ptr, envParams, base_z, filtered_z, neighbors);
     cout << data_no << endl;
 
     { // Coloring
@@ -940,9 +926,24 @@ int main(int argc, char *argv[])
         data_nos.emplace_back(i);
     }
 
-    for (int i = 0; i < data_nos.size(); i++)
+    // Calibration
+    // 03_03_miyanosawa
+    /*
+int X = 500;
+int Y = 474;
+int Z = 458;
+int theta = 506;
+int phi = 527;
+*/
+
+    EnvParams params_13jo = {498, 485, 509, 481, 517, 500, "../../../data/2020_02_04_13jo/", {10, 20, 30, 40, 50}};
+    EnvParams params_miyanosawa = {495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", data_nos};
+
+    EnvParams params_use = params_13jo;
+
+    for (int i = 0; i < params_use.data_ids.size(); i++)
     {
-        segmentate(data_nos[i], 0, 0, 0.5, 3, 3, 0, false);
+        segmentate(params_use.data_ids[i], params_use, 0, 0, 0.5, 3, 3, 0, true);
     }
     return 0;
 
@@ -969,7 +970,7 @@ int main(int argc, char *argv[])
                     for (int i = 0; i < data_nos.size(); i++)
                     {
                         auto start = chrono::system_clock::now();
-                        error += segmentate(data_nos[i], color_segment_k, color_size_min, 0.5, point_segment_k, 3, color_rate);
+                        error += segmentate(data_nos[i], params_miyanosawa, color_segment_k, color_size_min, 0.5, point_segment_k, 3, color_rate);
                         cout << "Time[ms] = " << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << endl;
                     }
                     error /= data_nos.size();
