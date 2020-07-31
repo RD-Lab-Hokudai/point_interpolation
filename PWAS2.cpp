@@ -322,7 +322,7 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
         for (int j = 0; j < width; j++)
         {
             double tan = (i - height / 2) / f_x;
-            if (abs(tan) > 0.3057 /* base_z[i][j] == 0*/)
+            if (/*abs(tan) > 0.3057*/ base_z[i][j] == 0)
             {
                 continue;
             }
@@ -361,6 +361,22 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
     ofs << data_no << "," << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "," << error << "," << endl;
     cout << "Total time[ms] = " << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << endl;
 
+    { // Evaluation 2
+        double c1 = pow(0.01 * 10, 2);
+        double c2 = pow(0.03 * 10, 2);
+
+        double mu_x = 0;
+        double mu_y = 0;
+        double sigma_x = 0;
+        double sigma_y = 0;
+        double sigma_xy = 0;
+
+        double ssim = 0;
+        int block_size = 5;
+        int blocks_per_height = height / block_size;
+        int blocks_per_width = width / block_size;
+    }
+
     if (see_res)
     {
         Eigen::MatrixXd front(4, 4);
@@ -382,7 +398,7 @@ int main(int argc, char *argv[])
 {
     //vector<int> data_nos = {550, 1000, 1125, 1260, 1550};
     //vector<int> data_nos = {10, 20, 30, 40, 50}; // 02_19_13jo
-    vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
+    vector<int> data_nos = {700, 1287, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
     /*
     vector<int> data_nos;
     for (int i = 1100; i < 1300; i++)

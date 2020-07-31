@@ -114,6 +114,8 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
             removed.emplace_back(all_layers[i][j]);
         }
 
+        all_layers[i] = removed;
+
         if (i % (64 / layer_cnt) > 0)
         {
             continue;
@@ -394,7 +396,7 @@ void segmentate(int data_no, bool see_res = false)
         for (int j = 0; j < width; j++)
         {
             double tan = (i - height / 2) / f_x;
-            if (abs(tan) > 0.3057 /*base_z[i][j] == 0*/)
+            if (/*abs(tan) > 0.3057*/ base_z[i][j] == 0)
             {
                 continue;
             }
@@ -437,8 +439,24 @@ void segmentate(int data_no, bool see_res = false)
         }
         error /= cnt;
         cout << "cannot cnt = " << cannot_cnt - cnt << endl;
-        cout << "Error = " << error << endl;
+        cout << "MRE = " << error << endl;
         ofs << data_no << "," << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "," << error << "," << endl;
+    }
+
+    { // Evaluation 2
+        double c1 = pow(0.01 * 10, 2);
+        double c2 = pow(0.03 * 10, 2);
+
+        double mu_x = 0;
+        double mu_y = 0;
+        double sigma_x = 0;
+        double sigma_y = 0;
+        double sigma_xy = 0;
+
+        double ssim = 0;
+        int block_size = 5;
+        int blocks_per_height = height / block_size;
+        int blocks_per_width = width / block_size;
     }
 
     if (see_res)
@@ -459,15 +477,14 @@ int main(int argc, char *argv[])
 {
     //vector<int> data_nos = {550, 1000, 1125, 1260, 1550}; // 03_03_miyanosawa
     //vector<int> data_nos = {10, 20, 30, 40, 50}; // 02_04_13jo
-    vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
-    /*
+    vector<int> data_nos = {700, 1287, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
+                                                                /*
     vector<int> data_nos;
     for (int i = 1100; i < 1300; i++)
     {
         data_nos.emplace_back(i);
     }
-    */
-
+*/
     for (int i = 0; i < data_nos.size(); i++)
     {
         segmentate(data_nos[i], true);

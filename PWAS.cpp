@@ -353,7 +353,7 @@ int main(int argc, char *argv[])
 {
     //vector<int> data_nos = {550, 1000, 1125, 1260, 1550};
     //vector<int> data_nos = {10, 20, 30, 40, 50}; // 02_19_13jo
-    vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
+    vector<int> data_nos = {700, 1287,1290, 1460, 2350, 3850}; // 02_04_miyanosawa
     /*
     vector<int> data_nos;
     for (int i = 1100; i < 1300; i++)
