@@ -43,251 +43,15 @@ struct EnvParams
     string of_name;
 };
 
-class UnionFind
-{
-    vector<int> par;
-    vector<int> elements;
-
-public:
-    UnionFind(int length)
-    {
-        for (int i = 0; i < length; i++)
-        {
-            par.emplace_back(i);
-            elements.emplace_back(1);
-        }
-    }
-
-    int root(int x)
-    {
-        int y = x;
-        while (par[y] != y)
-        {
-            y = par[y];
-        }
-        par[x] = y;
-        return y;
-    }
-
-    void unite(int x, int y)
-    {
-        int rx = root(x);
-        int ry = root(y);
-        if (rx == ry)
-        {
-            return;
-        }
-
-        if (rx > ry)
-        {
-            swap(rx, ry);
-        }
-        par[ry] = rx;
-        elements[rx] += elements[ry];
-    }
-
-    bool same(int x, int y)
-    {
-        int rx = root(x);
-        int ry = root(y);
-        return rx == ry;
-    }
-
-    int size(int x)
-    {
-        int rx = root(x);
-        return elements[rx];
-    }
-};
-
-class Graph
-{
-    vector<tuple<double, int, int>> edges;
-    int length;
-
-    double get_diff(cv::Vec3b &a, cv::Vec3b &b)
-    {
-        double diff = 1;
-        for (int i = 0; i < 3; i++)
-        {
-            diff -= abs(a[i] * b[i] / 255.0 / 255.0);
-        }
-        return diff;
-    }
-
-    double get_point_diff(Eigen::Vector3d a, Eigen::Vector3d b, Eigen::Vector3d a_color, Eigen::Vector3d b_color, double k)
-    {
-        double diff_normal = 1;
-        double diff_color = 1;
-        for (int i = 0; i < 3; i++)
-        {
-            diff_normal -= abs(a[i] * b[i]);
-            diff_color -= abs(a_color[i] * b_color[i]);
-        }
-        return diff_normal + k * diff_color;
-    }
-
-    double get_threshold(double k, int size)
-    {
-        return k / size;
-    }
-
-public:
-    Graph(cv::Mat *img)
-    {
-        length = img->rows * img->cols;
-        int dx[] = {1, 0, 0, -1};
-        int dy[] = {0, 1, -1, 0};
-        for (int i = 0; i < img->rows; i++)
-        {
-            cv::Vec3b *row = img->ptr<cv::Vec3b>(i);
-            for (int j = 0; j < img->cols; j++)
-            {
-                for (int k = 0; k < 2; k++)
-                {
-                    int to_x = j + dx[k];
-                    int to_y = i + dy[k];
-                    if (0 <= to_x && to_x < img->cols && 0 <= to_y && to_y < img->rows)
-                    {
-                        double diff = get_diff(row[j], img->at<cv::Vec3b>(to_y, to_x));
-                        edges.emplace_back(diff, i * img->cols + j, to_y * img->cols + to_x);
-                    }
-                }
-            }
-        }
-    }
-
-    Graph(shared_ptr<geometry::PointCloud> pcd_ptr, vector<vector<int>> neighbors, double color_rate)
-    {
-        length = pcd_ptr->points_.size();
-        for (int i = 0; i < length; i++)
-        {
-            for (int j = 0; j < neighbors[i].size(); j++)
-            {
-                int to = neighbors[i][j];
-                if (to <= i)
-                {
-                    continue;
-                }
-
-                double diff = get_point_diff(pcd_ptr->normals_[i], pcd_ptr->normals_[to],
-                                             pcd_ptr->colors_[i], pcd_ptr->colors_[to], color_rate);
-                edges.emplace_back(diff, i, to);
-            }
-        }
-    }
-
-    shared_ptr<UnionFind> segmentate(double k, int min_size)
-    {
-        auto start = chrono::system_clock::now();
-
-        auto unionFind = make_shared<UnionFind>(length);
-        vector<double> thresholds;
-        double diff_max = 0;
-        double diff_min = 1000000;
-        for (int i = 0; i < length; i++)
-        {
-            thresholds.emplace_back(get_threshold(k, 1));
-            double diff = get<0>(edges[i]);
-            diff_max = max(diff_max, diff);
-            diff_min = min(diff_min, diff);
-        }
-
-        cout << "Build thres time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
-
-        int bucket_len = 1000000;
-        vector<vector<int>> bucket(bucket_len + 1);
-        for (int i = 0; i < length; i++)
-        {
-            int diff_level = (int)(bucket_len * (get<0>(edges[i]) - diff_min) / (diff_max - diff_min));
-            bucket[diff_level].emplace_back(i);
-        }
-        cout << "Sort edges time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
-
-        for (int i = 0; i < bucket.size(); i++)
-        {
-            for (int j = 0; j < bucket[i].size(); j++)
-            {
-                double diff = get<0>(edges[bucket[i][j]]);
-                int from = get<1>(edges[bucket[i][j]]);
-                int to = get<2>(edges[bucket[i][j]]);
-
-                from = unionFind->root(from);
-                to = unionFind->root(to);
-
-                if (from == to)
-                {
-                    continue;
-                }
-
-                if (diff <= min(thresholds[from], thresholds[to]))
-                {
-                    unionFind->unite(from, to);
-                    int root = unionFind->root(from);
-                    thresholds[root] = diff + get_threshold(k, unionFind->size(root));
-                }
-            }
-        }
-
-        /*
-        sort(edges.begin(), edges.end());
-        cout << "Sort edges time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;	
-
-        for (int i = 0; i < edges.size(); i++)	
-        {	      
-            double diff = get<0>(edges[i]);	         
-            int from = get<1>(edges[i]);	       
-            int to = get<2>(edges[i]);
-
-            from = unionFind->root(from);
-            to = unionFind->root(to);
-
-            if (from == to)
-            {
-                continue;
-            }
-
-            if (diff <= min(thresholds[from], thresholds[to]))
-            {
-                unionFind->unite(from, to);
-                int root = unionFind->root(from);
-                thresholds[root] = diff + get_threshold(k, unionFind->size(root));
-            }
-        }
-        */
-
-        cout << "Segmentate time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
-
-        for (int i = 0; i < edges.size(); i++)
-        {
-            int from = get<1>(edges[i]);
-            int to = get<2>(edges[i]);
-            from = unionFind->root(from);
-            to = unionFind->root(to);
-
-            if (from == to)
-            {
-                continue;
-            }
-
-            if (min(unionFind->size(from), unionFind->size(to)) <= min_size)
-            {
-                unionFind->unite(from, to);
-            }
-        }
-
-        cout << "Unite minimum time[ms] = " << (double)(chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start).count() / 1000) << endl;
-
-        return unionFind;
-    }
-};
-
-shared_ptr<geometry::PointCloud> calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams,
-                                           vector<vector<double>> &original_grid, vector<vector<double>> &filtered_grid,
-                                           vector<vector<double>> &original_interpolate_grid, vector<vector<double>> &filtered_interpolate_grid,
-                                           int layer_cnt = 16)
+void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams,
+               vector<vector<double>> &original_grid, vector<vector<double>> &filtered_grid,
+               vector<vector<double>> &original_interpolate_grid, vector<vector<double>> &filtered_interpolate_grid,
+               vector<vector<int>> &vs, int layer_cnt = 16)
 {
     vector<double> tans;
+    double PI = acos(-1);
+    double delta_rad = 0.52698 * PI / 180;
+    double max_rad = (16.6 + 0.26349) * PI / 180;
     double rad = (-16.6 + 0.26349) * PI / 180;
     while (rad < max_rad + 0.00001)
     {
@@ -326,8 +90,6 @@ shared_ptr<geometry::PointCloud> calc_grid(shared_ptr<geometry::PointCloud> raw_
         }
     }
 
-    int filtered_cnt = 0;
-    vector<vector<Eigen::Vector3d>> layers;
     for (int i = 0; i < 64; i++)
     {
         // no sort
@@ -340,18 +102,13 @@ shared_ptr<geometry::PointCloud> calc_grid(shared_ptr<geometry::PointCloud> raw_
             }
             removed.emplace_back(all_layers[i][j]);
         }
-
-        if (i % (64 / layer_cnt) == 0)
-        {
-            layers.push_back(removed);
-            filtered_cnt += removed.size();
-        }
     }
 
     original_grid = vector<vector<double>>(64, vector<double>(width, -1));
     filtered_grid = vector<vector<double>>(layer_cnt, vector<double>(width, -1));
     original_interpolate_grid = vector<vector<double>>(64, vector<double>(width, -1));
     filtered_interpolate_grid = vector<vector<double>>(layer_cnt, vector<double>(width, -1));
+    vs = vector<vector<int>>(64, vector<int>(width, -1));
     for (int i = 0; i < 64; i++)
     {
         if (all_layers[i].size() == 0)
@@ -361,30 +118,38 @@ shared_ptr<geometry::PointCloud> calc_grid(shared_ptr<geometry::PointCloud> raw_
 
         int now = 0;
         int u0 = (int)(width / 2 + f_x * all_layers[i][0][0] / all_layers[i][0][2]);
+        int v0 = (int)(height / 2 + f_x * all_layers[i][0][1] / all_layers[i][0][2]);
         while (now < u0)
         {
             original_interpolate_grid[i][now] = all_layers[i][0][2];
+            vs[i][now] = v0;
             now++;
         }
         int uPrev = u0;
+        int vPrev = v0;
         for (int j = 0; j + 1 < all_layers[i].size(); j++)
         {
             int u = (int)(width / 2 + f_x * all_layers[i][j + 1][0] / all_layers[i][j + 1][2]);
+            int v = (int)(height / 2 + f_x * all_layers[i][j + 1][1] / all_layers[i][j + 1][2]);
             original_grid[i][u] = all_layers[i][j][2];
 
             while (now < min(width, u))
             {
                 double z = all_layers[i][j][2] + (now - uPrev) * (all_layers[i][j + 1][2] - all_layers[i][j][2]) / (u - uPrev);
                 original_interpolate_grid[i][now] = z;
+                vs[i][now] = vPrev + (now - uPrev) * (v - vPrev) / (u - uPrev);
                 now++;
             }
             uPrev = u;
         }
 
-        original_grid[i][(int)(width / 2 + f_x * all_layers[i].back()[0] / all_layers[i].back()[2])] = all_layers[i].back()[2];
+        int uLast = (int)(width / 2 + f_x * all_layers[i].back()[0] / all_layers[i].back()[2]);
+        int vLast = (int)(height / 2 + f_x * all_layers[i].back()[1] / all_layers[i].back()[2]);
+        original_grid[i][uLast] = all_layers[i].back()[2];
         while (now < width)
         {
             original_interpolate_grid[i][now] = all_layers[i].back()[2];
+            vs[i][now] = vLast;
             now++;
         }
     }
@@ -410,7 +175,7 @@ shared_ptr<geometry::PointCloud> calc_grid(shared_ptr<geometry::PointCloud> raw_
                     continue;
                 }
                 double x = z * (j - width / 2) / f_x;
-                double y = -z * tan(max_rad - delta_rad * i);
+                double y = z * (vs[i][j] - height / 2) / f_x;
                 original_ptr->points_.emplace_back(x, y, z);
             }
 
@@ -424,29 +189,16 @@ shared_ptr<geometry::PointCloud> calc_grid(shared_ptr<geometry::PointCloud> raw_
                         continue;
                     }
                     double x = z * (j - width / 2) / f_x;
-                    double y = -z * tan(max_rad - delta_rad * i);
+                    double y = z * (vs[i][j] - height / 2) / f_x;
                     filtered_ptr->points_.emplace_back(x, y, z);
                 }
             }
         }
         //visualization::DrawGeometries({original_ptr}, "Points", 1200, 720);
     }
-
-    auto sorted_ptr = make_shared<geometry::PointCloud>();
-    {
-        for (int i = 0; i < layer_cnt; i++)
-        {
-            for (int j = 0; j < layers[i].size(); j++)
-            {
-                sorted_ptr->points_.emplace_back(layers[i][j]);
-            }
-        }
-    }
-
-    return sorted_ptr;
 }
 
-double segmentate(int data_no, EnvParams envParams, double sigma_c = 1, double sigma_s = 15, double sigma_r = 20, int r = 10, bool see_res = false)
+double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, double sigma_c = 1, double sigma_s = 15, double sigma_r = 20, int r = 10, bool see_res = false)
 {
     const string img_name = envParams.folder_path + to_string(data_no) + ".png";
     const string file_name = envParams.folder_path + to_string(data_no) + ".pcd";
@@ -470,20 +222,10 @@ double segmentate(int data_no, EnvParams envParams, double sigma_c = 1, double s
     auto start = chrono::system_clock::now();
 
     vector<vector<double>> original_grid, filtered_grid, original_interpolate_grid, filtered_interpolate_grid;
+    vector<vector<int>> vs;
     *pcd_ptr = pointcloud;
     int layer_cnt = 16;
-    shared_ptr<geometry::PointCloud> filtered_ptr = calc_grid(pcd_ptr, envParams, original_grid, filtered_grid, original_interpolate_grid, filtered_interpolate_grid, layer_cnt);
-
-    { // Coloring
-        for (int i = 0; i < filtered_ptr->points_.size(); i++)
-        {
-            int u = (int)(width / 2 + f_x * filtered_ptr->points_[i][0] / filtered_ptr->points_[i][2]);
-            int v = (int)(height / 2 + f_x * filtered_ptr->points_[i][1] / filtered_ptr->points_[i][2]);
-
-            cv::Vec3b color = blured.at<cv::Vec3b>(v, u);
-            filtered_ptr->colors_.emplace_back(color[0] / 255.0, color[1] / 255.0, color[2] / 255.0);
-        }
-    }
+    calc_grid(pcd_ptr, envParams, original_grid, filtered_grid, original_interpolate_grid, filtered_interpolate_grid, vs, layer_cnt);
 
     /*
     shared_ptr<UnionFind> color_segments;
@@ -526,7 +268,7 @@ double segmentate(int data_no, EnvParams envParams, double sigma_c = 1, double s
                 {
                     int x = j + dx[k];
                     int y = i + dy[k];
-                    if (x < 0 || x >= width || y < 0 || y >= height)
+                    if (x < 0 || x >= width || y < 0 || y >= 64)
                     {
                         continue;
                     }
@@ -543,7 +285,6 @@ double segmentate(int data_no, EnvParams envParams, double sigma_c = 1, double s
         int quantize_cnt = 8;
         vector<vector<vector<double>>> line_numerator(64, vector<vector<double>>(width, vector<double>(quantize_cnt + 1, 0)));
         vector<vector<vector<double>>> line_denominator(64, vector<vector<double>>(width, vector<double>(quantize_cnt + 1, 0)));
-        cout << "A" << endl;
         for (int i = 0; i < 64; i++)
         {
             for (int j = 0; j < width; j++)
@@ -561,9 +302,10 @@ double segmentate(int data_no, EnvParams envParams, double sigma_c = 1, double s
                             continue;
                         }
 
-                        uchar d1 = img.at<cv::Vec3b>(i, j + dx)[0];
-                        double val = exp(-dx * dx / 2 / sigma_s / sigma_s) * exp(-(d0 - d1) * (d0 - d1) / 2 / sigma_r / sigma_r) * credibility_img.at<ushort>(i, j + dx);
-                        numerator += val * range_img.at<ushort>(i, j + dx);
+                        int v = vs[i][j + dx];
+                        uchar d1 = blured.at<cv::Vec3b>(v, j + dx)[0];
+                        double val = exp(-dx * dx / 2 / sigma_s / sigma_s) * exp(-(d0 - d1) * (d0 - d1) / 2 / sigma_r / sigma_r) * credibilities[i][j + dx];
+                        numerator += val * interpolated_z[i][j + dx];
                         denominator += val;
                     }
                     line_numerator[i][j][k] = numerator;
@@ -571,20 +313,21 @@ double segmentate(int data_no, EnvParams envParams, double sigma_c = 1, double s
                 }
             }
         }
-        cout << "B" << endl;
+
         for (int i = 0; i < 64; i++)
         {
             for (int j = 0; j < width; j++)
             {
                 double coef = 0;
                 double val = 0;
-                int d0 = img.at<cv::Vec3b>(i, j)[0];
+                int v = vs[i][j];
+                int d0 = blured.at<cv::Vec3b>(v, j)[0];
                 int k = d0 / (256 / quantize_cnt);
                 int remain = d0 - k * (256 / quantize_cnt);
                 for (int ii = 0; ii < r; ii++)
                 {
                     int dy = ii - r / 2;
-                    if (i + dy < 0 || i + dy >= height)
+                    if (i + dy < 0 || i + dy >= 64)
                     {
                         continue;
                     }
@@ -611,9 +354,9 @@ double segmentate(int data_no, EnvParams envParams, double sigma_c = 1, double s
                 }
 
                 double x = z * (j - width / 2) / f_x;
-                double y = -z * tan(max_rad - delta_rad * i);
+                double y = z * (vs[i][j] - height / 2) / f_x;
 
-                double color = blured.at<cv::Vec3b>(i, j)[0] / 255.0;
+                double color = blured.at<cv::Vec3b>(vs[i][j], j)[0] / 255.0;
                 interpolated_ptr->points_.emplace_back(x, y, z);
                 interpolated_ptr->colors_.emplace_back(color, color, color);
             }
@@ -654,7 +397,6 @@ double segmentate(int data_no, EnvParams envParams, double sigma_c = 1, double s
             0, -1, 0, 0,
             0, 0, -1, 0,
             0, 0, 0, 1;
-        filtered_ptr->Transform(front);
         interpolated_ptr->Transform(front);
         visualization::DrawGeometries({interpolated_ptr}, "a", 1600, 900);
     }
@@ -685,63 +427,53 @@ int phi = 527;
 */
 
     EnvParams params_13jo = {498, 485, 509, 481, 517, 500, "../../../data/2020_02_04_13jo/", {10, 20, 30, 40, 50}, "res_linear_13jo.csv"};
-    EnvParams params_miyanosawa = {495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_linear_miyanosawa_1100-1300.csv"};
+    EnvParams params_miyanosawa = {495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", {700, 1290, 1460, 2350, 3850}, "res_linear_miyanosawa.csv"};
+    EnvParams params_miyanosawa2 = {495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_linear_miyanosawa_1100-1300.csv"};
 
-    EnvParams params_use = params_13jo;
+    EnvParams params_use = params_miyanosawa;
     ofs = ofstream(params_use.of_name);
 
     for (int i = 0; i < params_use.data_ids.size(); i++)
     {
-        segmentate(params_use.data_ids[i], params_use, 1, 46, 1, 19, false);
+        segmentate(params_use.data_ids[i], params_use, 0.5, 1, 46, 1, 19, false);
     }
-    return 0;
+    double best_error = 1000;
+    double best_sigma_c = 1;
+    double best_sigma_s = 1;
+    double best_sigma_r = 1;
+    int best_r = 1;
+    // best params 2020/07/06 sigma_c:91 sigma_s:46 sigma_R:1 r:19
 
-    double best_error = 100;
-    double best_color_segment_k = 1;
-    int best_color_size_min = 1;
-    double best_point_segment_k = 1;
-    double best_color_rate = 0.1;
-    // 2020/6/26 : 1 1 1 0.1
-    // 2020/6/29 : 4 2 0 4
-    // 2020/6/29_2 : 0 0 3 9
-    // 2020/6/29_2 : 0 0 15 5
-    // 2020/6/29_2 : 0 0 3 0
-
-    for (double color_segment_k = 0; color_segment_k < 10; color_segment_k += 1)
+    for (double sigma_c = 1; sigma_c < 100; sigma_c += 10)
     {
-        for (int color_size_min = 0; color_size_min < 10; color_size_min += 1)
+        for (double sigma_s = 1; sigma_s < 50; sigma_s += 5)
         {
-            for (double point_segment_k = 0; point_segment_k < 30; point_segment_k += 1)
+            for (double sigma_r = 1; sigma_r < 5; sigma_r += 5)
             {
-                for (double color_rate = 0; color_rate < 10; color_rate += 1)
+                for (int r = 1; r < 20; r++)
                 {
                     double error = 0;
-                    for (int i = 0; i < data_nos.size(); i++)
+                    for (int i = 0; i < params_use.data_ids.size(); i++)
                     {
-                        auto start = chrono::system_clock::now();
-                        error += segmentate(data_nos[i], params_miyanosawa, color_segment_k, color_size_min, 0.5, point_segment_k, 3, color_rate);
-                        cout << "Time[ms] = " << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << endl;
+                        error += segmentate(params_use.data_ids[i], params_use, 0.5, sigma_c, sigma_s, sigma_r, r, false);
                     }
-                    error /= data_nos.size();
 
                     if (best_error > error)
                     {
-                        best_error = error;
-                        best_color_segment_k = color_segment_k;
-                        best_color_size_min = color_size_min;
-                        best_point_segment_k = point_segment_k;
-                        best_color_rate = color_rate;
-                        cout << color_segment_k << color_size_min << point_segment_k << color_rate << endl;
-                        cout << "Error = " << error << endl;
+                        best_sigma_c = sigma_c;
+                        best_sigma_s = sigma_s;
+                        best_sigma_r = sigma_r;
+                        best_r = r;
                     }
                 }
             }
         }
     }
 
-    cout << "Color segment k = " << best_color_segment_k << endl;
-    cout << "Color size min = " << best_color_size_min << endl;
-    cout << "Point segment k = " << best_point_segment_k << endl;
-    cout << "Color rate = " << best_color_rate << endl;
+    cout << "Sigma C = " << best_sigma_c << endl;
+    cout << "Sigma S = " << best_sigma_s << endl;
+    cout << "Sigma R = " << best_sigma_r << endl;
+    cout << "R = " << best_r << endl;
+    cout << "Mean error = " << best_error / data_nos.size() << endl;
     return 0;
 }
