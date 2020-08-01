@@ -149,11 +149,17 @@ if (Open3D_FOUND)
 
     target_include_directories(Segmentator2 PUBLIC ${Open3D_INCLUDE_DIRS})
 
-    add_executable(LinearSparse LinearSparse.cpp)
+    add_executable(Linear_Sparse Linear_Sparse.cpp)
 
-    target_link_libraries(LinearSparse ${Open3D_LIBRARIES} ${OpenCV_LIBS})
+    target_link_libraries(Linear_Sparse ${Open3D_LIBRARIES} ${OpenCV_LIBS})
 
-    target_include_directories(LinearSparse PUBLIC ${Open3D_INCLUDE_DIRS})
+    target_include_directories(Linear_Sparse PUBLIC ${Open3D_INCLUDE_DIRS})
+
+    #add_executable(PWAS_Sparse PWAS_Sparse.cpp)
+
+    #target_link_libraries(PWAS_Sparse ${Open3D_LIBRARIES} ${OpenCV_LIBS})
+
+    #target_include_directories(PWAS_Sparse PUBLIC ${Open3D_INCLUDE_DIRS})
 
     # Hot fix windows dll not found issue, assumming we're using the Release build
     option(BUILD_SHARED_LIBS "Whether Open3D was build as shared library" OFF)

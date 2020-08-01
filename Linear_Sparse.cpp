@@ -24,10 +24,6 @@ const double f_x = width / 2 * 1.01;
 
 ofstream ofs;
 
-double PI = acos(-1);
-double delta_rad = 0.52698 * PI / 180;
-double max_rad = (16.6 + 0.26349) * PI / 180;
-
 struct EnvParams
 {
     int X;
@@ -43,12 +39,15 @@ struct EnvParams
     string of_name;
 };
 
-shared_ptr<geometry::PointCloud> calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams,
-                                           vector<vector<double>> &original_grid, vector<vector<double>> &filtered_grid,
-                                           vector<vector<double>> &original_interpolate_grid, vector<vector<double>> &filtered_interpolate_grid,
-                                           int layer_cnt = 16)
+void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams,
+               vector<vector<double>> &original_grid, vector<vector<double>> &filtered_grid,
+               vector<vector<double>> &original_interpolate_grid, vector<vector<double>> &filtered_interpolate_grid,
+               vector<vector<int>> &vs, int layer_cnt = 16)
 {
     vector<double> tans;
+    double PI = acos(-1);
+    double delta_rad = 0.52698 * PI / 180;
+    double max_rad = (16.6 + 0.26349) * PI / 180;
     double rad = (-16.6 + 0.26349) * PI / 180;
     while (rad < max_rad + 0.00001)
     {
@@ -87,8 +86,6 @@ shared_ptr<geometry::PointCloud> calc_grid(shared_ptr<geometry::PointCloud> raw_
         }
     }
 
-    int filtered_cnt = 0;
-    vector<vector<Eigen::Vector3d>> layers;
     for (int i = 0; i < 64; i++)
     {
         // no sort
@@ -101,18 +98,13 @@ shared_ptr<geometry::PointCloud> calc_grid(shared_ptr<geometry::PointCloud> raw_
             }
             removed.emplace_back(all_layers[i][j]);
         }
-
-        if (i % (64 / layer_cnt) == 0)
-        {
-            layers.push_back(removed);
-            filtered_cnt += removed.size();
-        }
     }
 
     original_grid = vector<vector<double>>(64, vector<double>(width, -1));
     filtered_grid = vector<vector<double>>(layer_cnt, vector<double>(width, -1));
     original_interpolate_grid = vector<vector<double>>(64, vector<double>(width, -1));
     filtered_interpolate_grid = vector<vector<double>>(layer_cnt, vector<double>(width, -1));
+    vs = vector<vector<int>>(64, vector<int>(width, -1));
     for (int i = 0; i < 64; i++)
     {
         if (all_layers[i].size() == 0)
@@ -122,30 +114,38 @@ shared_ptr<geometry::PointCloud> calc_grid(shared_ptr<geometry::PointCloud> raw_
 
         int now = 0;
         int u0 = (int)(width / 2 + f_x * all_layers[i][0][0] / all_layers[i][0][2]);
+        int v0 = (int)(height / 2 + f_x * all_layers[i][0][1] / all_layers[i][0][2]);
         while (now < u0)
         {
             original_interpolate_grid[i][now] = all_layers[i][0][2];
+            vs[i][now] = v0;
             now++;
         }
         int uPrev = u0;
+        int vPrev = v0;
         for (int j = 0; j + 1 < all_layers[i].size(); j++)
         {
             int u = (int)(width / 2 + f_x * all_layers[i][j + 1][0] / all_layers[i][j + 1][2]);
+            int v = (int)(height / 2 + f_x * all_layers[i][j + 1][1] / all_layers[i][j + 1][2]);
             original_grid[i][u] = all_layers[i][j][2];
 
             while (now < min(width, u))
             {
                 double z = all_layers[i][j][2] + (now - uPrev) * (all_layers[i][j + 1][2] - all_layers[i][j][2]) / (u - uPrev);
                 original_interpolate_grid[i][now] = z;
+                vs[i][now] = vPrev + (now - uPrev) * (v - vPrev) / (u - uPrev);
                 now++;
             }
             uPrev = u;
         }
 
-        original_grid[i][(int)(width / 2 + f_x * all_layers[i].back()[0] / all_layers[i].back()[2])] = all_layers[i].back()[2];
+        int uLast = (int)(width / 2 + f_x * all_layers[i].back()[0] / all_layers[i].back()[2]);
+        int vLast = (int)(height / 2 + f_x * all_layers[i].back()[1] / all_layers[i].back()[2]);
+        original_grid[i][uLast] = all_layers[i].back()[2];
         while (now < width)
         {
             original_interpolate_grid[i][now] = all_layers[i].back()[2];
+            vs[i][now] = vLast;
             now++;
         }
     }
@@ -171,7 +171,7 @@ shared_ptr<geometry::PointCloud> calc_grid(shared_ptr<geometry::PointCloud> raw_
                     continue;
                 }
                 double x = z * (j - width / 2) / f_x;
-                double y = -z * tan(max_rad - delta_rad * i);
+                double y = z * (vs[i][j] - height / 2) / f_x;
                 original_ptr->points_.emplace_back(x, y, z);
             }
 
@@ -185,26 +185,13 @@ shared_ptr<geometry::PointCloud> calc_grid(shared_ptr<geometry::PointCloud> raw_
                         continue;
                     }
                     double x = z * (j - width / 2) / f_x;
-                    double y = -z * tan(max_rad - delta_rad * i);
+                    double y = z * (vs[i][j] - height / 2) / f_x;
                     filtered_ptr->points_.emplace_back(x, y, z);
                 }
             }
         }
         //visualization::DrawGeometries({original_ptr}, "Points", 1200, 720);
     }
-
-    auto sorted_ptr = make_shared<geometry::PointCloud>();
-    {
-        for (int i = 0; i < layer_cnt; i++)
-        {
-            for (int j = 0; j < layers[i].size(); j++)
-            {
-                sorted_ptr->points_.emplace_back(layers[i][j]);
-            }
-        }
-    }
-
-    return sorted_ptr;
 }
 
 double segmentate(int data_no, EnvParams envParams, bool see_res = false)
@@ -221,9 +208,10 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
     auto start = chrono::system_clock::now();
 
     vector<vector<double>> original_grid, filtered_grid, original_interpolate_grid, filtered_interpolate_grid;
+    vector<vector<int>> vs;
     *pcd_ptr = pointcloud;
     int layer_cnt = 16;
-    shared_ptr<geometry::PointCloud> filtered_ptr = calc_grid(pcd_ptr, envParams, original_grid, filtered_grid, original_interpolate_grid, filtered_interpolate_grid, layer_cnt);
+    calc_grid(pcd_ptr, envParams, original_grid, filtered_grid, original_interpolate_grid, filtered_interpolate_grid, vs, layer_cnt);
 
     auto interpolated_ptr = make_shared<geometry::PointCloud>();
     vector<vector<double>> interpolated_z(64, vector<double>(width, 0));
@@ -250,15 +238,13 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
             for (int j = 0; j < width; j++)
             {
                 double z = interpolated_z[i][j];
-                double tanVal = (i - height / 2) / f_x;
                 if (original_grid[i][j] <= 0 || z <= 0 /*z < 0 || original_grid[i][j] == 0*/)
                 {
                     continue;
                 }
 
                 double x = z * (j - width / 2) / f_x;
-                double y = -z * tan(max_rad - delta_rad * i);
-
+                double y = z * (vs[i][j] - height / 2) / f_x;
                 interpolated_ptr->points_.emplace_back(x, y, z);
             }
         }
@@ -297,7 +283,6 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
             0, -1, 0, 0,
             0, 0, -1, 0,
             0, 0, 0, 1;
-        filtered_ptr->Transform(front);
         interpolated_ptr->Transform(front);
         visualization::DrawGeometries({interpolated_ptr}, "a", 1600, 900);
     }
@@ -335,6 +320,6 @@ int phi = 527;
 
     for (int i = 0; i < params_use.data_ids.size(); i++)
     {
-        segmentate(params_use.data_ids[i], params_use, false);
+        segmentate(params_use.data_ids[i], params_use, true);
     }
 }

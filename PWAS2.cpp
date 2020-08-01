@@ -272,7 +272,7 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
                     uchar d0 = (uchar)(256 * k / quantize_cnt);
                     for (int l = 0; l < r; l++)
                     {
-                        int dx = k - r / 2;
+                        int dx = l - r / 2;
                         if (j + dx < 0 || j + dx >= width)
                         {
                             continue;
