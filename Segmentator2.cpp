@@ -672,6 +672,7 @@ int phi = 527;
 
                                 if (best_error > error)
                                 {
+                                    error = best_error;
                                     best_sigma_c = sigma_c;
                                     best_sigma_s = sigma_s;
                                     best_sigma_r = sigma_r;

@@ -448,9 +448,9 @@ int phi = 527;
     {
         for (double sigma_s = 1; sigma_s < 50; sigma_s += 5)
         {
-            for (double sigma_r = 1; sigma_r < 5; sigma_r += 5)
+            for (double sigma_r = 1; sigma_r < 10; sigma_r += 1)
             {
-                for (int r = 1; r < 10; r++)
+                for (int r = 1; r < 10; r += 2)
                 {
                     double error = 0;
                     for (int i = 0; i < params_use.data_ids.size(); i++)
@@ -460,6 +460,7 @@ int phi = 527;
 
                     if (best_error > error)
                     {
+                        best_error = error;
                         best_sigma_c = sigma_c;
                         best_sigma_s = sigma_s;
                         best_sigma_r = sigma_r;

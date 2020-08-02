@@ -16,13 +16,11 @@
 using namespace std;
 using namespace open3d;
 
-ofstream ofs("res_pwas.csv");
+ofstream ofs("res_pwas_rgb.csv");
 
-const int width = 938;
-const int height = 606;
-//const int width = 882;
-//const int height = 560;
-const double f_x = width / 2 * 1.01;
+const int width = 640;
+const int height = 480;
+const double f_x = width;
 
 // Calibration
 // 02_19_13jo
@@ -36,12 +34,13 @@ int yaw = 500;
 */
 // 02_04_miyanosawa
 
-int X = 495;
-int Y = 475;
-int Z = 458;
-int roll = 488;
-int pitch = 568;
-int yaw = 500;
+string folder_path = "../../../data/2020_02_04_miyanosawa/";
+int X = 506;
+int Y = 483;
+int Z = 495;
+int roll = 568;
+int pitch = 551;
+int yaw = 510;
 
 // 03_03_miyanosawa
 /*
@@ -151,11 +150,10 @@ shared_ptr<geometry::PointCloud> calc_filtered(shared_ptr<geometry::PointCloud> 
 
 double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double sigma_r = 20, int r = 10, bool see_res = false)
 {
-    const string folder_path = "../../../data/2020_02_04_miyanosawa/";
     const string pcd_path = folder_path + to_string(data_no) + ".pcd";
-    const string img_path = folder_path + to_string(data_no) + ".png";
+    const string img_path = folder_path + to_string(data_no) + "_rgb.png";
 
-    cv::Mat img = cv::imread(img_path);
+    cv::Mat img = cv::imread(img_path, 0);
 
     geometry::PointCloud pointcloud;
     auto pcd_ptr = make_shared<geometry::PointCloud>();
@@ -277,7 +275,7 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
                             continue;
                         }
 
-                        uchar d1 = img.at<cv::Vec3b>(i, j)[0];
+                        uchar d1 = img.at<uchar>(i, j);
                         double val = exp(-dx * dx / 2 / sigma_s / sigma_s) * exp(-(d0 - d1) * (d0 - d1) / 2 / sigma_r / sigma_r) * credibility_img.at<ushort>(i, j + dx);
                         numerator += val * range_img.at<ushort>(i, j + dx);
                         denominator += val;
@@ -287,13 +285,14 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
                 }
             }
         }
+        cout << "B" << endl;
         for (int i = 0; i < height; i++)
         {
             for (int j = 0; j < width; j++)
             {
                 double coef = 0;
                 double val = 0;
-                int d0 = img.at<cv::Vec3b>(i, j)[0];
+                uchar d0 = img.at<uchar>(i, j);
                 int k = d0 / (256 / quantize_cnt);
                 int remain = d0 - k * (256 / quantize_cnt);
                 for (int ii = 0; ii < r; ii++)
@@ -328,7 +327,9 @@ double segmentate(int data_no, double sigma_c = 1, double sigma_s = 15, double s
             double z = (max_depth - min_depth) * jbu_img.at<unsigned short>(i, j) / 65535 + min_depth;
             double x = z * (j - width / 2) / f_x;
             double y = z * (i - height / 2) / f_x;
+            double color = img.at<uchar>(i, j) / 255.0;
             interpolated_ptr->points_.emplace_back(x, y, z);
+            interpolated_ptr->colors_.emplace_back(color, color, color);
             interpolated_z[i][j] = z;
         }
     }
@@ -396,7 +397,7 @@ int main(int argc, char *argv[])
 {
     //vector<int> data_nos = {550, 1000, 1125, 1260, 1550};
     //vector<int> data_nos = {10, 20, 30, 40, 50}; // 02_19_13jo
-    vector<int> data_nos = {700, 1287, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
+    vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
     /*
     vector<int> data_nos;
     for (int i = 1100; i < 1300; i++)
@@ -407,7 +408,7 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < data_nos.size(); i++)
     {
-        cout << segmentate(data_nos[i], 91, 6, 1, 19, false) << endl;
+        cout << segmentate(data_nos[i], 91, 6, 1, 19, true) << endl;
     }
     //return 0;
 
