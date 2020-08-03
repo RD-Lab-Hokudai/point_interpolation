@@ -435,7 +435,7 @@ int phi = 527;
 
     for (int i = 0; i < params_use.data_ids.size(); i++)
     {
-        segmentate(params_use.data_ids[i], params_use, 0.5, 1, 46, 1, 19, false);
+        segmentate(params_use.data_ids[i], params_use, 0.5, 550, 1, 1, 3, false);
     }
     double best_error = 1000;
     double best_sigma_c = 1;
@@ -443,12 +443,13 @@ int phi = 527;
     double best_sigma_r = 1;
     int best_r = 1;
     // best params 2020/07/06 sigma_c:91 sigma_s:46 sigma_R:1 r:19
+    // best params 2020/08/03 sigma_c:550 sigma_s:1 sigma_r:1 r:1
 
-    for (double sigma_c = 10; sigma_c < 1000; sigma_c += 10)
+    for (double sigma_c = 500; sigma_c < 600; sigma_c += 10)
     {
-        for (double sigma_s = 1; sigma_s < 50; sigma_s += 5)
+        for (double sigma_s = 1; sigma_s < 10; sigma_s += 1)
         {
-            for (double sigma_r = 1; sigma_r < 10; sigma_r += 1)
+            for (double sigma_r = 0.5; sigma_r < 5; sigma_r += 0.5)
             {
                 for (int r = 1; r < 10; r += 2)
                 {

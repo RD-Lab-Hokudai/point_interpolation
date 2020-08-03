@@ -13,6 +13,8 @@
 #include <eigen3/unsupported/Eigen/NonLinearOptimization>
 #include <time.h>
 
+#include "quality_metrics_OpenCV.cpp"
+
 using namespace std;
 using namespace open3d;
 
@@ -223,7 +225,7 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
             {
                 double delta = (filtered_interpolate_grid[i + 1][j] - filtered_interpolate_grid[i][j]) / (64 / layer_cnt);
                 double z = filtered_interpolate_grid[i][j];
-                for (int k = 0; k < 64 / layer_cnt; k++)
+                for (int k = 0; k <= 64 / layer_cnt; k++)
                 {
                     interpolated_z[i * (64 / layer_cnt) + k][j] = z;
                     z += delta;
@@ -273,6 +275,23 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
         error /= cnt;
         cout << "Error = " << error << endl;
     }
+
+    { // SSIM
+        cv::Mat original_Mat = cv::Mat::zeros(64 - 64 / layer_cnt + 1, width, CV_64FC1);
+        cv::Mat interpolated_Mat = cv::Mat::zeros(64 - 64 / layer_cnt + 1, width, CV_64FC1);
+        for (int i = 0; i < 64 - 64 / layer_cnt + 1; i++)
+        {
+            for (int j = 0; j < 64; j++)
+            {
+                original_Mat.at<double>(i, j) = original_grid[i][j];
+                interpolated_Mat.at<double>(i, j) = interpolated_z[i][j];
+            }
+        }
+        double mse = qm::eqm(original_Mat, interpolated_Mat);
+        double ssim = qm::ssim(original_Mat, interpolated_Mat, 2, true);
+        cout << "MSE=" << mse << endl;
+        cout << "SSIM=" << ssim << endl;
+    }
     cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "ms" << endl;
     ofs << data_no << "," << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "," << error << "," << endl;
 
@@ -313,9 +332,10 @@ int phi = 527;
 */
 
     EnvParams params_13jo = {498, 485, 509, 481, 517, 500, "../../../data/2020_02_04_13jo/", {10, 20, 30, 40, 50}, "res_linear_13jo.csv"};
-    EnvParams params_miyanosawa = {495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_linear_miyanosawa_1100-1300.csv"};
+    EnvParams params_miyanosawa = {495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", {700, 1290, 1460, 2350, 3850}, "res_linear_miyanosawa.csv"};
+    EnvParams params_miyanosawa2 = {495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_linear_miyanosawa_1100-1300.csv"};
 
-    EnvParams params_use = params_13jo;
+    EnvParams params_use = params_miyanosawa;
     ofs = ofstream(params_use.of_name);
 
     for (int i = 0; i < params_use.data_ids.size(); i++)
