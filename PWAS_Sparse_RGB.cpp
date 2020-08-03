@@ -435,6 +435,52 @@ int phi = 527;
 
     for (int i = 0; i < params_use.data_ids.size(); i++)
     {
-        segmentate(params_use.data_ids[i], params_use, 0.5, 1000, 20, 10, 3, true);
+        segmentate(params_use.data_ids[i], params_use, 0.5, 1000, 20, 10, 3, false);
     }
+
+    double best_ssim = 0;
+    double best_sigma_c = 1;
+    double best_sigma_s = 1;
+    double best_sigma_r = 1;
+    int best_r = 1;
+    // best params 2020/07/06 sigma_c:91 sigma_s:46 sigma_R:1 r:19
+    // best params 2020/08/03 sigma_c:550 sigma_s:1 sigma_r:1 r:1
+    // best params 2020/08/03 sigma_c:1000 sigma_s:49 sigma_r:16 r:9
+    // best params 2020/08/03 sigma_c:1000 sigma_s:99 sigma_r:17 r:7
+    // best params 2020/08/03 sigma_c:1000 sigma_s:290 sigma_r:17 r:7
+    // best params 2020/08/03 sigma_c:1000 sigma_s:590 sigma_r:17 r:7
+
+    for (double sigma_c = 1000; sigma_c <= 1000; sigma_c += 1000)
+    {
+        for (double sigma_s = 0.01; sigma_s < 2; sigma_s += 0.01)
+        {
+            for (double sigma_r = 1; sigma_r < 20; sigma_r += 1)
+            {
+                for (int r = 3; r < 9; r += 2)
+                {
+                    double error = 0;
+                    for (int i = 0; i < params_use.data_ids.size(); i++)
+                    {
+                        error += segmentate(params_use.data_ids[i], params_use, 0.5, sigma_c, sigma_s, sigma_r, r, false);
+                    }
+
+                    if (best_ssim < error)
+                    {
+                        best_ssim = error;
+                        best_sigma_c = sigma_c;
+                        best_sigma_s = sigma_s;
+                        best_sigma_r = sigma_r;
+                        best_r = r;
+                    }
+                }
+            }
+        }
+    }
+
+    cout << "Sigma C = " << best_sigma_c << endl;
+    cout << "Sigma S = " << best_sigma_s << endl;
+    cout << "Sigma R = " << best_sigma_r << endl;
+    cout << "R = " << best_r << endl;
+    cout << "Mean error = " << best_ssim / params_use.data_ids.size() << endl;
+    return 0;
 }
