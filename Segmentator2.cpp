@@ -431,9 +431,10 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
     const string file_name = envParams.folder_path + to_string(data_no) + ".pcd";
     const bool vertical = true;
 
-    auto img = cv::imread(img_name);
+    auto img = cv::imread(img_name, 0);
     cv::Mat blured;
     cv::GaussianBlur(img, blured, cv::Size(3, 3), gaussian_sigma);
+    cout << (blured.type() == CV_8UC1) << endl;
 
     int length = width * height;
     vector<cv::Vec3b> params_x(length);
