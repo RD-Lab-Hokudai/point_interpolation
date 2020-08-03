@@ -18,16 +18,13 @@
 using namespace std;
 using namespace open3d;
 
-const int width = 938;
-const int height = 606;
-//const int width = 882;
-//const int height = 560;
-const double f_x = width / 2 * 1.01;
-
 ofstream ofs;
 
 struct EnvParams
 {
+    int width;
+    int height;
+    double f_xy;
     int X;
     int Y;
     int Z;
@@ -77,9 +74,9 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
 
         if (z > 0)
         {
-            int u = (int)(width / 2 + f_x * x / z);
-            int v = (int)(height / 2 + f_x * y / z);
-            if (0 <= u && u < width && 0 <= v && v < height)
+            int u = (int)(envParams.width / 2 + envParams.f_xy * x / z);
+            int v = (int)(envParams.height / 2 + envParams.f_xy * y / z);
+            if (0 <= u && u < envParams.width && 0 <= v && v < envParams.height)
             {
                 auto it = lower_bound(tans.begin(), tans.end(), rawY / r);
                 int index = it - tans.begin();
@@ -102,11 +99,11 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
         }
     }
 
-    original_grid = vector<vector<double>>(64, vector<double>(width, -1));
-    filtered_grid = vector<vector<double>>(layer_cnt, vector<double>(width, -1));
-    original_interpolate_grid = vector<vector<double>>(64, vector<double>(width, -1));
-    filtered_interpolate_grid = vector<vector<double>>(layer_cnt, vector<double>(width, -1));
-    vs = vector<vector<int>>(64, vector<int>(width, -1));
+    original_grid = vector<vector<double>>(64, vector<double>(envParams.width, -1));
+    filtered_grid = vector<vector<double>>(layer_cnt, vector<double>(envParams.width, -1));
+    original_interpolate_grid = vector<vector<double>>(64, vector<double>(envParams.width, -1));
+    filtered_interpolate_grid = vector<vector<double>>(layer_cnt, vector<double>(envParams.width, -1));
+    vs = vector<vector<int>>(64, vector<int>(envParams.width, -1));
     for (int i = 0; i < 64; i++)
     {
         if (all_layers[i].size() == 0)
@@ -115,8 +112,8 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
         }
 
         int now = 0;
-        int u0 = (int)(width / 2 + f_x * all_layers[i][0][0] / all_layers[i][0][2]);
-        int v0 = (int)(height / 2 + f_x * all_layers[i][0][1] / all_layers[i][0][2]);
+        int u0 = (int)(envParams.width / 2 + envParams.f_xy * all_layers[i][0][0] / all_layers[i][0][2]);
+        int v0 = (int)(envParams.height / 2 + envParams.f_xy * all_layers[i][0][1] / all_layers[i][0][2]);
         while (now < u0)
         {
             original_interpolate_grid[i][now] = all_layers[i][0][2];
@@ -127,11 +124,11 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
         int vPrev = v0;
         for (int j = 0; j + 1 < all_layers[i].size(); j++)
         {
-            int u = (int)(width / 2 + f_x * all_layers[i][j + 1][0] / all_layers[i][j + 1][2]);
-            int v = (int)(height / 2 + f_x * all_layers[i][j + 1][1] / all_layers[i][j + 1][2]);
+            int u = (int)(envParams.width / 2 + envParams.f_xy * all_layers[i][j + 1][0] / all_layers[i][j + 1][2]);
+            int v = (int)(envParams.height / 2 + envParams.f_xy * all_layers[i][j + 1][1] / all_layers[i][j + 1][2]);
             original_grid[i][u] = all_layers[i][j][2];
 
-            while (now < min(width, u))
+            while (now < min(envParams.width, u))
             {
                 double z = all_layers[i][j][2] + (now - uPrev) * (all_layers[i][j + 1][2] - all_layers[i][j][2]) / (u - uPrev);
                 original_interpolate_grid[i][now] = z;
@@ -141,10 +138,10 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
             uPrev = u;
         }
 
-        int uLast = (int)(width / 2 + f_x * all_layers[i].back()[0] / all_layers[i].back()[2]);
-        int vLast = (int)(height / 2 + f_x * all_layers[i].back()[1] / all_layers[i].back()[2]);
+        int uLast = (int)(envParams.width / 2 + envParams.f_xy * all_layers[i].back()[0] / all_layers[i].back()[2]);
+        int vLast = (int)(envParams.height / 2 + envParams.f_xy * all_layers[i].back()[1] / all_layers[i].back()[2]);
         original_grid[i][uLast] = all_layers[i].back()[2];
-        while (now < width)
+        while (now < envParams.width)
         {
             original_interpolate_grid[i][now] = all_layers[i].back()[2];
             vs[i][now] = vLast;
@@ -153,7 +150,7 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
     }
     for (int i = 0; i < layer_cnt; i++)
     {
-        for (int j = 0; j < width; j++)
+        for (int j = 0; j < envParams.width; j++)
         {
             filtered_grid[i][j] = original_grid[i * (64 / layer_cnt)][j];
             filtered_interpolate_grid[i][j] = original_interpolate_grid[i * (64 / layer_cnt)][j];
@@ -165,29 +162,29 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
         auto filtered_ptr = make_shared<geometry::PointCloud>();
         for (int i = 0; i < 64; i++)
         {
-            for (int j = 0; j < width; j++)
+            for (int j = 0; j < envParams.width; j++)
             {
                 double z = original_grid[i][j];
                 if (z < 0)
                 {
                     continue;
                 }
-                double x = z * (j - width / 2) / f_x;
-                double y = z * (vs[i][j] - height / 2) / f_x;
+                double x = z * (j - envParams.width / 2) / envParams.f_xy;
+                double y = z * (vs[i][j] - envParams.height / 2) / envParams.f_xy;
                 original_ptr->points_.emplace_back(x, y, z);
             }
 
             if (i % (64 / layer_cnt) == 0)
             {
-                for (int j = 0; j < width; j++)
+                for (int j = 0; j < envParams.width; j++)
                 {
                     double z = filtered_interpolate_grid[i / (64 / layer_cnt)][j];
                     if (z < 0)
                     {
                         continue;
                     }
-                    double x = z * (j - width / 2) / f_x;
-                    double y = z * (vs[i][j] - height / 2) / f_x;
+                    double x = z * (j - envParams.width / 2) / envParams.f_xy;
+                    double y = z * (vs[i][j] - envParams.height / 2) / envParams.f_xy;
                     filtered_ptr->points_.emplace_back(x, y, z);
                 }
             }
@@ -216,12 +213,12 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
     calc_grid(pcd_ptr, envParams, original_grid, filtered_grid, original_interpolate_grid, filtered_interpolate_grid, vs, layer_cnt);
 
     auto interpolated_ptr = make_shared<geometry::PointCloud>();
-    vector<vector<double>> interpolated_z(64, vector<double>(width, 0));
+    vector<vector<double>> interpolated_z(64, vector<double>(envParams.width, 0));
     {
         // Linear interpolation
         for (int i = 0; i + 1 < layer_cnt; i++)
         {
-            for (int j = 0; j < width; j++)
+            for (int j = 0; j < envParams.width; j++)
             {
                 double delta = (filtered_interpolate_grid[i + 1][j] - filtered_interpolate_grid[i][j]) / (64 / layer_cnt);
                 double z = filtered_interpolate_grid[i][j];
@@ -237,7 +234,7 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
     {
         for (int i = 0; i < 64; i++)
         {
-            for (int j = 0; j < width; j++)
+            for (int j = 0; j < envParams.width; j++)
             {
                 double z = interpolated_z[i][j];
                 if (original_grid[i][j] <= 0 || z <= 0 /*z < 0 || original_grid[i][j] == 0*/)
@@ -245,8 +242,8 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
                     continue;
                 }
 
-                double x = z * (j - width / 2) / f_x;
-                double y = z * (vs[i][j] - height / 2) / f_x;
+                double x = z * (j - envParams.width / 2) / envParams.f_xy;
+                double y = z * (vs[i][j] - envParams.height / 2) / envParams.f_xy;
                 interpolated_ptr->points_.emplace_back(x, y, z);
             }
         }
@@ -263,7 +260,7 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
                 continue;
             }
 
-            for (int j = 0; j < width; j++)
+            for (int j = 0; j < envParams.width; j++)
             {
                 if (original_grid[i][j] > 0 && interpolated_z[i][j] > 0)
                 {
@@ -276,24 +273,26 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
         cout << "Error = " << error << endl;
     }
 
-    { // SSIM
-        cv::Mat original_Mat = cv::Mat::zeros(64 - 64 / layer_cnt + 1, width, CV_64FC1);
-        cv::Mat interpolated_Mat = cv::Mat::zeros(64 - 64 / layer_cnt + 1, width, CV_64FC1);
+    { // SSIM evaluation
+        double tim = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count();
+        cv::Mat original_Mat = cv::Mat::zeros(64 - 64 / layer_cnt + 1, envParams.width, CV_64FC1);
+        cv::Mat interpolated_Mat = cv::Mat::zeros(64 - 64 / layer_cnt + 1, envParams.width, CV_64FC1);
         for (int i = 0; i < 64 - 64 / layer_cnt + 1; i++)
         {
-            for (int j = 0; j < 64; j++)
+            for (int j = 0; j < envParams.width; j++)
             {
-                original_Mat.at<double>(i, j) = original_grid[i][j];
-                interpolated_Mat.at<double>(i, j) = interpolated_z[i][j];
+                if (original_grid[i][j] > 0)
+                {
+                    original_Mat.at<double>(i, j) = original_grid[i][j];
+                    interpolated_Mat.at<double>(i, j) = interpolated_z[i][j];
+                }
             }
         }
-        double mse = qm::eqm(original_Mat, interpolated_Mat);
-        double ssim = qm::ssim(original_Mat, interpolated_Mat, 2, true);
-        cout << "MSE=" << mse << endl;
+        double ssim = qm::ssim(original_Mat, interpolated_Mat, layer_cnt);
+        cout << tim << "ms" << endl;
         cout << "SSIM=" << ssim << endl;
+        ofs << data_no << "," << tim << "," << ssim << "," << endl;
     }
-    cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "ms" << endl;
-    ofs << data_no << "," << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "," << error << "," << endl;
 
     if (see_res)
     {
@@ -331,15 +330,16 @@ int theta = 506;
 int phi = 527;
 */
 
-    EnvParams params_13jo = {498, 485, 509, 481, 517, 500, "../../../data/2020_02_04_13jo/", {10, 20, 30, 40, 50}, "res_linear_13jo.csv"};
-    EnvParams params_miyanosawa = {495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", {700, 1290, 1460, 2350, 3850}, "res_linear_miyanosawa.csv"};
-    EnvParams params_miyanosawa2 = {495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_linear_miyanosawa_1100-1300.csv"};
+    EnvParams params_13jo = {938, 606, 938 / 2 * 1.01, 498, 485, 509, 481, 517, 500, "../../../data/2020_02_04_13jo/", {10, 20, 30, 40, 50}, "res_linear_13jo.csv"};
+    EnvParams params_miyanosawa = {938, 606, 938 / 2 * 1.01, 495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", {700, 1290, 1460, 2350, 3850}, "res_linear_miyanosawa.csv"};
+    EnvParams params_miyanosawa_champ = {938, 606, 938 / 2 * 1.01, 495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", {1107, 1117, 1118, 1258}, "res_linear_miyanosawa.csv"};
+    EnvParams params_miyanosawa2 = {938, 606, 938 / 2 * 1.01, 495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_linear_miyanosawa_1100-1300.csv"};
 
-    EnvParams params_use = params_miyanosawa;
+    EnvParams params_use = params_miyanosawa_champ;
     ofs = ofstream(params_use.of_name);
 
     for (int i = 0; i < params_use.data_ids.size(); i++)
     {
-        segmentate(params_use.data_ids[i], params_use, true);
+        segmentate(params_use.data_ids[i], params_use, false);
     }
 }

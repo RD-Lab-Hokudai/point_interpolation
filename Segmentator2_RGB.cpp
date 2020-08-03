@@ -13,16 +13,12 @@
 #include <eigen3/unsupported/Eigen/NonLinearOptimization>
 #include <time.h>
 
-#include "quality_metrics_OpenCV.cpp"
-
 using namespace std;
 using namespace open3d;
 
-const int width = 938;
-const int height = 606;
-//const int width = 882;
-//const int height = 560;
-const double f_x = width / 2 * 1.01;
+const int width = 640;
+const int height = 480;
+const double f_x = width;
 
 ofstream ofs;
 
@@ -43,6 +39,231 @@ struct EnvParams
     vector<int> data_ids;
 
     string of_name;
+};
+
+class UnionFind
+{
+    vector<int> par;
+    vector<int> elements;
+
+public:
+    UnionFind(int length)
+    {
+        for (int i = 0; i < length; i++)
+        {
+            par.emplace_back(i);
+            elements.emplace_back(1);
+        }
+    }
+
+    int root(int x)
+    {
+        int y = x;
+        while (par[y] != y)
+        {
+            y = par[y];
+        }
+        par[x] = y;
+        return y;
+    }
+
+    void unite(int x, int y)
+    {
+        int rx = root(x);
+        int ry = root(y);
+        if (rx == ry)
+        {
+            return;
+        }
+
+        if (rx > ry)
+        {
+            swap(rx, ry);
+        }
+        par[ry] = rx;
+        elements[rx] += elements[ry];
+    }
+
+    bool same(int x, int y)
+    {
+        int rx = root(x);
+        int ry = root(y);
+        return rx == ry;
+    }
+
+    int size(int x)
+    {
+        int rx = root(x);
+        return elements[rx];
+    }
+};
+
+class Graph
+{
+    vector<tuple<double, int, int>> edges;
+    int length;
+
+    double get_diff(cv::Vec3b &a, cv::Vec3b &b)
+    {
+        double diff = 0;
+        for (int i = 0; i < 3; i++)
+        {
+            diff += (a[i] - b[i]) * (a[i] - b[i]);
+        }
+        diff = sqrt(diff);
+        return diff;
+    }
+
+    double get_point_diff(Eigen::Vector3d a, Eigen::Vector3d b, Eigen::Vector3d a_color, Eigen::Vector3d b_color, double k)
+    {
+        double diff_normal = 1;
+        for (int i = 0; i < 3; i++)
+        {
+            diff_normal -= abs(a[i] * b[i]);
+        }
+        double diff_color = (a_color - b_color).norm();
+        return diff_normal + k * diff_color;
+    }
+
+    double get_threshold(double k, int size)
+    {
+        return 1.0 * k / size;
+    }
+
+public:
+    Graph(cv::Mat *img)
+    {
+        length = img->rows * img->cols;
+        int dx[] = {1, 0, 0, -1};
+        int dy[] = {0, 1, -1, 0};
+        for (int i = 0; i < img->rows; i++)
+        {
+            cv::Vec3b *row = img->ptr<cv::Vec3b>(i);
+            for (int j = 0; j < img->cols; j++)
+            {
+                for (int k = 0; k < 2; k++)
+                {
+                    int to_x = j + dx[k];
+                    int to_y = i + dy[k];
+                    if (0 <= to_x && to_x < img->cols && 0 <= to_y && to_y < img->rows)
+                    {
+                        double diff = get_diff(row[j], img->at<cv::Vec3b>(to_y, to_x));
+                        edges.emplace_back(diff, i * img->cols + j, to_y * img->cols + to_x);
+                    }
+                }
+            }
+        }
+    }
+
+    Graph(shared_ptr<geometry::PointCloud> pcd_ptr, int neighbors, double color_rate)
+    {
+        length = pcd_ptr->points_.size();
+        auto tree = make_shared<geometry::KDTreeFlann>(*pcd_ptr);
+        for (int i = 0; i < length; i++)
+        {
+            vector<int> indexes(neighbors);
+            vector<double> dists(neighbors);
+            tree->SearchKNN(pcd_ptr->points_[i], neighbors, indexes, dists);
+            for (int j = 0; j < indexes.size(); j++)
+            {
+                int to = indexes[j];
+                if (to <= i)
+                {
+                    continue;
+                }
+
+                double diff = get_point_diff(pcd_ptr->normals_[i], pcd_ptr->normals_[to],
+                                             pcd_ptr->colors_[i], pcd_ptr->colors_[to], color_rate);
+                edges.emplace_back(diff, i, to);
+            }
+        }
+    }
+
+    shared_ptr<UnionFind> segmentate(double k, int min_size)
+    {
+        auto unionFind = make_shared<UnionFind>(length);
+        vector<double> thresholds;
+        double diff_max = 0;
+        double diff_min = 1000000;
+        for (int i = 0; i < length; i++)
+        {
+            thresholds.emplace_back(get_threshold(k, 1));
+            double diff = get<0>(edges[i]);
+            diff_max = max(diff_max, diff);
+            diff_min = min(diff_min, diff);
+        }
+
+        /*
+        int bucket_len=1000000;
+        vector<vector<int>> bucket(bucket_len+1);
+        for(int i=0;i<length;i++){
+            int diff_level=(int)(bucket_len*(get<0>(edges[i])-diff_min)/(diff_max-diff_min));
+            bucket[diff_level].emplace_back(i);
+        }
+
+        for (int i = 0; i < bucket.size(); i++)
+        {
+            for(int j=0;j<bucket[i].size();j++){
+            double diff = get<0>(edges[bucket[i][j]]);
+            int from = get<1>(edges[bucket[i][j]]);
+            int to = get<2>(edges[bucket[i][j]]);
+
+            from = unionFind->root(from);
+            to = unionFind->root(to);
+
+            if (from == to)
+            {
+                continue;
+            }
+
+            if (diff <= min(thresholds[from], thresholds[to]))
+            {
+                unionFind->unite(from, to);
+                int root = unionFind->root(from);
+                thresholds[root] = diff + get_threshold(k, unionFind->size(root));
+            }
+            }
+        }
+        */
+
+        sort(edges.begin(), edges.end());
+        for (int i = 0; i < edges.size(); i++)
+        {
+            double diff = get<0>(edges[i]);
+            int from = get<1>(edges[i]);
+            int to = get<2>(edges[i]);
+
+            from = unionFind->root(from);
+            to = unionFind->root(to);
+
+            if (from == to)
+            {
+                continue;
+            }
+
+            if (diff <= min(thresholds[from], thresholds[to]))
+            {
+                unionFind->unite(from, to);
+                int root = unionFind->root(from);
+                thresholds[root] = diff + get_threshold(k, unionFind->size(root));
+            }
+        }
+
+        for (int i = 0; i < edges.size(); i++)
+        {
+            int from = get<1>(edges[i]);
+            int to = get<2>(edges[i]);
+            from = unionFind->root(from);
+            to = unionFind->root(to);
+
+            if (unionFind->size(from) <= min_size || unionFind->size(to) <= min_size)
+            {
+                unionFind->unite(from, to);
+            }
+        }
+
+        return unionFind;
+    }
 };
 
 void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams,
@@ -200,13 +421,13 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
     }
 }
 
-double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, double sigma_c = 1, double sigma_s = 15, double sigma_r = 20, int r = 10, bool see_res = false)
+double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, double color_segment_k, int color_size_min, double sigma_c = 1, double sigma_s = 15, double sigma_r = 20, int r = 10, double coef_s = 0.5, bool see_res = false)
 {
-    const string img_name = envParams.folder_path + to_string(data_no) + ".png";
+    const string img_name = envParams.folder_path + to_string(data_no) + "_rgb.png";
     const string file_name = envParams.folder_path + to_string(data_no) + ".pcd";
     const bool vertical = true;
 
-    auto img = cv::imread(img_name);
+    auto img = cv::imread(img_name, 0);
     cv::Mat blured;
     cv::GaussianBlur(img, blured, cv::Size(3, 3), gaussian_sigma);
 
@@ -229,13 +450,11 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
     int layer_cnt = 16;
     calc_grid(pcd_ptr, envParams, original_grid, filtered_grid, original_interpolate_grid, filtered_interpolate_grid, vs, layer_cnt);
 
-    /*
     shared_ptr<UnionFind> color_segments;
     {
         Graph graph(&blured);
         color_segments = graph.segmentate(color_segment_k, color_size_min);
     }
-    */
 
     auto interpolated_ptr = make_shared<geometry::PointCloud>();
     vector<vector<double>> interpolated_z(64, vector<double>(width, 0));
@@ -256,46 +475,35 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
         }
     }
 
-    // PWAS
-    vector<vector<double>> credibilities(64, vector<double>(width));
     {
-        double minDepth = 1000000;
-        double maxDepth = 0;
-        for (int i = 0; i < 64; i++)
+        // PWAS
+        vector<vector<double>> credibilities(64, vector<double>(width, 0));
         {
-            for (int j = 0; j < width; j++)
+            int dx[] = {1, -1, 0, 0};
+            int dy[] = {0, 0, 1, -1};
+            for (int i = 0; i < 64; i++)
             {
-                minDepth = min(minDepth, interpolated_z[i][j]);
-                maxDepth = max(maxDepth, interpolated_z[i][j]);
-            }
-        }
-
-        int dx[] = {1, -1, 0, 0};
-        int dy[] = {0, 0, 1, -1};
-        for (int i = 0; i < 64; i++)
-        {
-            for (int j = 0; j < width; j++)
-            {
-                double val = -4 * interpolated_z[i][j];
-                for (int k = 0; k < 4; k++)
+                for (int j = 0; j < width; j++)
                 {
-                    int x = j + dx[k];
-                    int y = i + dy[k];
-                    if (x < 0 || x >= width || y < 0 || y >= 64)
+                    double val = -4 * interpolated_z[i][j];
+                    for (int k = 0; k < 4; k++)
                     {
-                        continue;
-                    }
+                        int x = j + dx[k];
+                        int y = i + dy[k];
+                        if (x < 0 || x >= width || y < 0 || y >= 64)
+                        {
+                            continue;
+                        }
 
-                    val += interpolated_z[y][x];
+                        val += interpolated_z[y][x];
+                    }
+                    credibilities[i][j] = exp(-val * val / 2 / sigma_c / sigma_c);
                 }
-                val = 65535 * (val - minDepth) / (maxDepth - minDepth);
-                credibilities[i][j] = exp(-val * val / 2 / sigma_c / sigma_c);
             }
         }
-    }
 
-    // Still slow
-    {
+        // Still slow
+
         for (int i = 0; i < 64; i++)
         {
             for (int j = 0; j < width; j++)
@@ -303,7 +511,8 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
                 double coef = 0;
                 double val = 0;
                 int v = vs[i][j];
-                int d0 = blured.at<cv::Vec3b>(v, j)[0];
+                int d0 = blured.at<uchar>(v, j);
+                int r0 = color_segments->root(v * width + j);
                 for (int ii = 0; ii < r; ii++)
                 {
                     for (int jj = 0; jj < r; jj++)
@@ -316,8 +525,13 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
                         }
 
                         int v1 = vs[i + dy][j + dx];
-                        int d1 = blured.at<cv::Vec3b>(v1, j + dx)[0];
+                        int d1 = blured.at<uchar>(v1, j + dx);
                         double tmp = exp(-(dx * dx + dy * dy) / 2 / sigma_s / sigma_s) * exp(-(d0 - d1) * (d0 - d1) / sigma_r / sigma_r);
+                        int r1 = color_segments->root(v1 * width + j);
+                        if (r1 != r0)
+                        {
+                            tmp *= coef_s;
+                        }
                         val += tmp * interpolated_z[i + dy][j + dx];
                         coef += tmp;
                     }
@@ -325,29 +539,35 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
                 interpolated_z[i][j] = val / coef;
             }
         }
-    }
+        // cv::imshow("c", jbu_img);
 
-    {
         for (int i = 0; i < 64; i++)
         {
             for (int j = 0; j < width; j++)
             {
+                cout << i << " " << j << endl;
                 double z = interpolated_z[i][j];
                 double tanVal = (i - height / 2) / f_x;
                 if (original_grid[i][j] <= 0 || z <= 0 /*z < 0 || original_grid[i][j] == 0*/)
                 {
                     continue;
                 }
+                cout << i << " " << j << " " << vs[i][j] << endl;
 
                 double x = z * (j - width / 2) / f_x;
                 double y = z * (vs[i][j] - height / 2) / f_x;
 
-                double color = blured.at<cv::Vec3b>(vs[i][j], j)[0] / 255.0;
-                interpolated_ptr->points_.emplace_back(x, y, z);
-                interpolated_ptr->colors_.emplace_back(color, color, color);
+                double color = blured.at<uchar>(vs[i][j], j) / 255.0;
+                cout << x << " " << y << " " << z << endl;
+                cout << interpolated_ptr->points_.size() << endl;
+                //interpolated_ptr->points_.emplace_back(x, y, z);
+                cout << color << endl;
+                //interpolated_ptr->colors_.emplace_back(color, color, color);
+                cout << i << " " << j << endl;
             }
         }
     }
+    cout << "A" << endl;
 
     double error = 0;
     { // Evaluation
@@ -373,28 +593,8 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
         //cout << "cannot cnt = " << (64 - layer_cnt) * width - cnt << endl;
         cout << "Error = " << error << endl;
     }
-
-    { // SSIM evaluation
-        double tim = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count();
-        cv::Mat original_Mat = cv::Mat::zeros(64 - 64 / layer_cnt + 1, width, CV_64FC1);
-        cv::Mat interpolated_Mat = cv::Mat::zeros(64 - 64 / layer_cnt + 1, width, CV_64FC1);
-        for (int i = 0; i < 64 - 64 / layer_cnt + 1; i++)
-        {
-            for (int j = 0; j < width; j++)
-            {
-                if (original_grid[i][j] > 0)
-                {
-                    original_Mat.at<double>(i, j) = original_grid[i][j];
-                    interpolated_Mat.at<double>(i, j) = interpolated_z[i][j];
-                }
-            }
-        }
-        double ssim = qm::ssim(original_Mat, interpolated_Mat, layer_cnt);
-        cout << tim << "ms" << endl;
-        cout << "SSIM=" << ssim << endl;
-        ofs << data_no << "," << tim << "," << ssim << "," << endl;
-        error = ssim;
-    }
+    cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "ms" << endl;
+    ofs << data_no << "," << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "," << error << "," << endl;
 
     if (see_res)
     {
@@ -433,62 +633,71 @@ int phi = 527;
 */
 
     EnvParams params_13jo = {498, 485, 509, 481, 517, 500, "../../../data/2020_02_04_13jo/", {10, 20, 30, 40, 50}, "res_linear_13jo.csv"};
-    EnvParams params_miyanosawa = {495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", {700, 1290, 1460, 2350, 3850}, "res_linear_miyanosawa.csv"};
-    EnvParams params_miyanosawa_champ = {495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", {1107, 1117, 1118, 1258}, "res_linear_miyanosawa.csv"};
-    EnvParams params_miyanosawa2 = {495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_linear_miyanosawa_1100-1300.csv"};
+    EnvParams params_miyanosawa = {506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", {700, 1290, 1460, 2350, 3850}, "res_original_miyanosawa_RGB.csv"};
+    EnvParams params_miyanosawa_champ = {506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", {1207, 1262, 1264, 1265, 1277}, "res_original_miyanosawa_RGB.csv"};
+    EnvParams params_miyanosawa2 = {506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_original_miyanosawa_1100-1300_RGB.csv"};
 
     EnvParams params_use = params_miyanosawa_champ;
     ofs = ofstream(params_use.of_name);
 
     for (int i = 0; i < params_use.data_ids.size(); i++)
     {
-        segmentate(params_use.data_ids[i], params_use, 0.5, 1000, 590, 17, 9, false);
+        segmentate(params_use.data_ids[i], params_use, 0.5, 5, 3, 1, 20, 10, 3, 0.5);
     }
-    //return 0;
+    return 0;
 
-    double best_ssim = 0;
+    double best_error = 1000;
+    double best_color_segment_k = 1;
+    int best_color_size_min = 1;
     double best_sigma_c = 1;
     double best_sigma_s = 1;
     double best_sigma_r = 1;
     int best_r = 1;
-    // best params 2020/07/06 sigma_c:91 sigma_s:46 sigma_R:1 r:19
-    // best params 2020/08/03 sigma_c:550 sigma_s:1 sigma_r:1 r:1
-    // best params 2020/08/03 sigma_c:1000 sigma_s:49 sigma_r:16 r:9
-    // best params 2020/08/03 sigma_c:1000 sigma_s:99 sigma_r:17 r:7
-    // best params 2020/08/03 sigma_c:1000 sigma_s:290 sigma_r:17 r:7
-    // best params 2020/08/03 sigma_c:1000 sigma_s:590 sigma_r:17 r:7
+    double best_coef_s = 0.5;
 
-    for (double sigma_c = 1000; sigma_c <= 1000; sigma_c += 1000)
+    for (double color_segment_k = 0; color_segment_k < 10; color_segment_k += 1)
     {
-        for (double sigma_s = 1; sigma_s < 10; sigma_s += 0.1)
+        for (int color_size_min = 0; color_size_min < 10; color_size_min += 1)
         {
-            for (double sigma_r = 17; sigma_r < 18; sigma_r += 1)
+            for (double sigma_c = 1; sigma_c < 100; sigma_c += 10)
             {
-                for (int r = 3; r < 9; r += 2)
+                for (double sigma_s = 1; sigma_s < 50; sigma_s += 5)
                 {
-                    double error = 0;
-                    for (int i = 0; i < params_use.data_ids.size(); i++)
+                    for (double sigma_r = 1; sigma_r < 5; sigma_r += 5)
                     {
-                        error += segmentate(params_use.data_ids[i], params_use, 0.5, sigma_c, sigma_s, sigma_r, r, false);
-                    }
+                        for (int r = 1; r < 20; r++)
+                        {
+                            for (double coef_s = 0; coef_s <= 1; coef_s += 0.1)
+                            {
+                                double error = 0;
+                                for (int i = 0; i < params_use.data_ids.size(); i++)
+                                {
+                                    error += segmentate(params_use.data_ids[i], params_use, 0.5, color_segment_k, color_size_min, sigma_c, sigma_s, sigma_r, r, coef_s, false);
+                                }
 
-                    if (best_ssim < error)
-                    {
-                        best_ssim = error;
-                        best_sigma_c = sigma_c;
-                        best_sigma_s = sigma_s;
-                        best_sigma_r = sigma_r;
-                        best_r = r;
+                                if (best_error > error)
+                                {
+                                    error = best_error;
+                                    best_sigma_c = sigma_c;
+                                    best_sigma_s = sigma_s;
+                                    best_sigma_r = sigma_r;
+                                    best_r = r;
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
     }
 
+    cout << "Color segment K = " << best_color_segment_k << endl;
+    cout << "Color size min = " << best_color_size_min << endl;
     cout << "Sigma C = " << best_sigma_c << endl;
     cout << "Sigma S = " << best_sigma_s << endl;
     cout << "Sigma R = " << best_sigma_r << endl;
     cout << "R = " << best_r << endl;
-    cout << "Mean error = " << best_ssim / params_use.data_ids.size() << endl;
+    cout << "Coef S = " << best_coef_s << endl;
+    cout << "Mean error = " << best_error / data_nos.size() << endl;
     return 0;
 }

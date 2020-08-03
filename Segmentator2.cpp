@@ -13,6 +13,8 @@
 #include <eigen3/unsupported/Eigen/NonLinearOptimization>
 #include <time.h>
 
+#include "quality_metrics_OpenCV.cpp"
+
 using namespace std;
 using namespace open3d;
 
@@ -477,35 +479,46 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
         }
     }
 
+    // PWAS
+    vector<vector<double>> credibilities(64, vector<double>(width));
     {
-        // PWAS
-        vector<vector<double>> credibilities(64, vector<double>(width, 0));
+        double minDepth = 1000000;
+        double maxDepth = 0;
+        for (int i = 0; i < 64; i++)
         {
-            int dx[] = {1, -1, 0, 0};
-            int dy[] = {0, 0, 1, -1};
-            for (int i = 0; i < 64; i++)
+            for (int j = 0; j < width; j++)
             {
-                for (int j = 0; j < width; j++)
-                {
-                    double val = -4 * interpolated_z[i][j];
-                    for (int k = 0; k < 4; k++)
-                    {
-                        int x = j + dx[k];
-                        int y = i + dy[k];
-                        if (x < 0 || x >= width || y < 0 || y >= 64)
-                        {
-                            continue;
-                        }
-
-                        val += interpolated_z[y][x];
-                    }
-                    credibilities[i][j] = exp(-val * val / 2 / sigma_c / sigma_c);
-                }
+                minDepth = min(minDepth, interpolated_z[i][j]);
+                maxDepth = max(maxDepth, interpolated_z[i][j]);
             }
         }
 
-        // Still slow
+        int dx[] = {1, -1, 0, 0};
+        int dy[] = {0, 0, 1, -1};
+        for (int i = 0; i < 64; i++)
+        {
+            for (int j = 0; j < width; j++)
+            {
+                double val = -4 * interpolated_z[i][j];
+                for (int k = 0; k < 4; k++)
+                {
+                    int x = j + dx[k];
+                    int y = i + dy[k];
+                    if (x < 0 || x >= width || y < 0 || y >= 64)
+                    {
+                        continue;
+                    }
 
+                    val += interpolated_z[y][x];
+                }
+                val = 65535 * (val - minDepth) / (maxDepth - minDepth);
+                credibilities[i][j] = exp(-val * val / 2 / sigma_c / sigma_c);
+            }
+        }
+    }
+
+    // Still slow
+    {
         for (int i = 0; i < 64; i++)
         {
             for (int j = 0; j < width; j++)
@@ -513,7 +526,7 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
                 double coef = 0;
                 double val = 0;
                 int v = vs[i][j];
-                int d0 = blured.at<cv::Vec3b>(v, j)[0];
+                int d0 = blured.at<uchar>(v, j);
                 int r0 = color_segments->root(v * width + j);
                 for (int ii = 0; ii < r; ii++)
                 {
@@ -527,9 +540,9 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
                         }
 
                         int v1 = vs[i + dy][j + dx];
-                        int d1 = blured.at<cv::Vec3b>(v1, j + dx)[0];
-                        double tmp = exp(-(dx * dx + dy * dy) / 2 / sigma_s / sigma_s) * exp(-(d0 - d1) * (d0 - d1) / sigma_r / sigma_r) * credibilities[i + dy][j + dx];
+                        int d1 = blured.at<uchar>(v1, j + dx);
                         int r1 = color_segments->root(v1 * width + j);
+                        double tmp = exp(-(dx * dx + dy * dy) / 2 / sigma_s / sigma_s) * exp(-(d0 - d1) * (d0 - d1) / sigma_r / sigma_r);
                         if (r1 != r0)
                         {
                             tmp *= coef_s;
@@ -541,7 +554,6 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
                 interpolated_z[i][j] = val / coef;
             }
         }
-        // cv::imshow("c", jbu_img);
     }
 
     {
@@ -559,7 +571,7 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
                 double x = z * (j - width / 2) / f_x;
                 double y = z * (vs[i][j] - height / 2) / f_x;
 
-                double color = blured.at<cv::Vec3b>(vs[i][j], j)[0] / 255.0;
+                double color = blured.at<uchar>(vs[i][j], j) / 255.0;
                 interpolated_ptr->points_.emplace_back(x, y, z);
                 interpolated_ptr->colors_.emplace_back(color, color, color);
             }
@@ -590,8 +602,28 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
         //cout << "cannot cnt = " << (64 - layer_cnt) * width - cnt << endl;
         cout << "Error = " << error << endl;
     }
-    cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "ms" << endl;
-    ofs << data_no << "," << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "," << error << "," << endl;
+
+    { // SSIM evaluation
+        double tim = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count();
+        cv::Mat original_Mat = cv::Mat::zeros(64 - 64 / layer_cnt + 1, width, CV_64FC1);
+        cv::Mat interpolated_Mat = cv::Mat::zeros(64 - 64 / layer_cnt + 1, width, CV_64FC1);
+        for (int i = 0; i < 64 - 64 / layer_cnt + 1; i++)
+        {
+            for (int j = 0; j < width; j++)
+            {
+                if (original_grid[i][j] > 0)
+                {
+                    original_Mat.at<double>(i, j) = original_grid[i][j];
+                    interpolated_Mat.at<double>(i, j) = interpolated_z[i][j];
+                }
+            }
+        }
+        double ssim = qm::ssim(original_Mat, interpolated_Mat, layer_cnt);
+        cout << tim << "ms" << endl;
+        cout << "SSIM=" << ssim << endl;
+        ofs << data_no << "," << tim << "," << ssim << "," << endl;
+        error = ssim;
+    }
 
     if (see_res)
     {
@@ -631,14 +663,15 @@ int phi = 527;
 
     EnvParams params_13jo = {498, 485, 509, 481, 517, 500, "../../../data/2020_02_04_13jo/", {10, 20, 30, 40, 50}, "res_linear_13jo.csv"};
     EnvParams params_miyanosawa = {495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", {700, 1290, 1460, 2350, 3850}, "res_linear_miyanosawa.csv"};
+    EnvParams params_miyanosawa_champ = {495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", {1107, 1117, 1118, 1258}, "res_linear_miyanosawa.csv"};
     EnvParams params_miyanosawa2 = {495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_linear_miyanosawa_1100-1300.csv"};
 
-    EnvParams params_use = params_miyanosawa;
+    EnvParams params_use = params_miyanosawa_champ;
     ofs = ofstream(params_use.of_name);
 
     for (int i = 0; i < params_use.data_ids.size(); i++)
     {
-        segmentate(params_use.data_ids[i], params_use, 1, 3.0, 3, 1, 46, 1, 19, 1, true);
+        segmentate(params_use.data_ids[i], params_use, 1, 3.0, 3, 1, 590, 17, 9, 0.5, true);
     }
 
     double best_error = 1000;
