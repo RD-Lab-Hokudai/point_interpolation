@@ -672,7 +672,7 @@ int phi = 527;
 
     for (int i = 0; i < params_use.data_ids.size(); i++)
     {
-        segmentate(params_use.data_ids[i], params_use, 1, 3.0, 3, 1, 590, 17, 9, 0.5, true);
+        segmentate(params_use.data_ids[i], params_use, 0.5, 1.0, 1, 1, 1, 17, 7, 0.5, false);
     }
 
     double best_error = 1000;
@@ -683,18 +683,19 @@ int phi = 527;
     double best_sigma_r = 1;
     int best_r = 1;
     double best_coef_s = 0.5;
+    // best params 2020/08/03 : 1 1 90 1 17 7 0.5
 
-    for (double color_segment_k = 0; color_segment_k < 10; color_segment_k += 1)
+    for (double color_segment_k = 1; color_segment_k < 2; color_segment_k += 0.1)
     {
-        for (int color_size_min = 0; color_size_min < 10; color_size_min += 1)
+        for (int color_size_min = 1; color_size_min < 2; color_size_min += 1)
         {
-            for (double sigma_c = 1; sigma_c < 100; sigma_c += 10)
+            for (double sigma_c = 90; sigma_c < 100; sigma_c += 10)
             {
-                for (double sigma_s = 1; sigma_s < 50; sigma_s += 5)
+                for (double sigma_s = 0.01; sigma_s < 2; sigma_s += 0.01)
                 {
-                    for (double sigma_r = 1; sigma_r < 5; sigma_r += 5)
+                    for (double sigma_r = 17; sigma_r < 18; sigma_r += 1)
                     {
-                        for (int r = 1; r < 20; r++)
+                        for (int r = 7; r < 9; r += 2)
                         {
                             for (double coef_s = 0; coef_s <= 1; coef_s += 0.1)
                             {

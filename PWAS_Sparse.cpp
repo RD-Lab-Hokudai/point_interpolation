@@ -442,7 +442,7 @@ int phi = 527;
 
     for (int i = 0; i < params_use.data_ids.size(); i++)
     {
-        segmentate(params_use.data_ids[i], params_use, 0.5, 1000, 590, 17, 9, false);
+        segmentate(params_use.data_ids[i], params_use, 0.5, 1000, 10, 17, 7, false);
     }
     //return 0;
 
