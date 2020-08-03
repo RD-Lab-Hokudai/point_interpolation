@@ -428,7 +428,7 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
     const string img_name = envParams.folder_path + to_string(data_no) + "_rgb.png";
     const string file_name = envParams.folder_path + to_string(data_no) + ".pcd";
 
-    auto img = cv::imread(img_name, 0);
+    auto img = cv::imread(img_name);
     cv::Mat blured;
     cv::GaussianBlur(img, blured, cv::Size(3, 3), gaussian_sigma);
 
@@ -523,8 +523,8 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
                 double coef = 0;
                 double val = 0;
                 int v = vs[i][j];
-                int d0 = blured.at<uchar>(v, j);
-                int r0 = color_segments->root(v * width + j);
+                cv::Vec3b d0 = blured.at<cv::Vec3b>(v, j);
+                //int r0 = color_segments->root(v * width + j);
                 for (int ii = 0; ii < r; ii++)
                 {
                     for (int jj = 0; jj < r; jj++)
@@ -537,13 +537,9 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
                         }
 
                         int v1 = vs[i + dy][j + dx];
-                        int d1 = blured.at<uchar>(v1, j + dx);
-                        int r1 = color_segments->root(v1 * width + j);
-                        double tmp = exp(-(dx * dx + dy * dy) / 2 / sigma_s / sigma_s) * exp(-(d0 - d1) * (d0 - d1) / sigma_r / sigma_r);
-                        if (r1 != r0)
-                        {
-                            tmp *= coef_s;
-                        }
+                        cv::Vec3b d1 = blured.at<cv::Vec3b>(v1, j + dx);
+                        //int r1 = color_segments->root(v1 * width + j + dx);
+                        double tmp = exp(-(dx * dx + dy * dy) / 2 / sigma_s / sigma_s) * exp(-cv::norm(d0 - d1) / sigma_r / sigma_r);
                         val += tmp * interpolated_z[i + dy][j + dx];
                         coef += tmp;
                     }
@@ -568,9 +564,9 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
                 double x = z * (j - width / 2) / f_x;
                 double y = z * (vs[i][j] - height / 2) / f_x;
 
-                double color = blured.at<uchar>(vs[i][j], j) / 255.0;
+                cv::Vec3b color = blured.at<cv::Vec3b>(vs[i][j], j);
                 interpolated_ptr->points_.emplace_back(x, y, z);
-                interpolated_ptr->colors_.emplace_back(color, color, color);
+                interpolated_ptr->colors_.emplace_back(color[0] / 255.0, color[1] / 255.0, color[2] / 255.0);
             }
         }
     }
