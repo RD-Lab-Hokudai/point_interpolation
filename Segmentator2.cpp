@@ -619,7 +619,7 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
                 }
             }
         }
-        double ssim = qm::ssim(original_Mat, interpolated_Mat, layer_cnt);
+        double ssim = qm::ssim(original_Mat, interpolated_Mat, 64 / layer_cnt);
         cout << tim << "ms" << endl;
         cout << "SSIM=" << ssim << endl;
         ofs << data_no << "," << tim << "," << ssim << "," << endl;
@@ -672,7 +672,7 @@ int phi = 527;
 
     for (int i = 0; i < params_use.data_ids.size(); i++)
     {
-        segmentate(params_use.data_ids[i], params_use, 0.5, 1.0, 1, 1, 1, 17, 7, 0.5, false);
+        segmentate(params_use.data_ids[i], params_use, 0.5, 1.0, 1, 1, 1, 17, 7, 0.5, true);
     }
 
     double best_error = 1000;

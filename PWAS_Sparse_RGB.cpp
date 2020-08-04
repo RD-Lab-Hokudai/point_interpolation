@@ -382,7 +382,7 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
                 }
             }
         }
-        double ssim = qm::ssim(original_Mat, interpolated_Mat, layer_cnt);
+        double ssim = qm::ssim(original_Mat, interpolated_Mat, 64 / layer_cnt);
         cout << tim << "ms" << endl;
         cout << "SSIM=" << ssim << endl;
         ofs << data_no << "," << tim << "," << ssim << "," << endl;
@@ -435,7 +435,7 @@ int phi = 527;
 
     for (int i = 0; i < params_use.data_ids.size(); i++)
     {
-        segmentate(params_use.data_ids[i], params_use, 0.5, 1000, 20, 10, 3, false);
+        segmentate(params_use.data_ids[i], params_use, 0.5, 1000, 1.99, 19, 7, false);
     }
 
     double best_ssim = 0;
@@ -443,18 +443,13 @@ int phi = 527;
     double best_sigma_s = 1;
     double best_sigma_r = 1;
     int best_r = 1;
-    // best params 2020/07/06 sigma_c:91 sigma_s:46 sigma_R:1 r:19
-    // best params 2020/08/03 sigma_c:550 sigma_s:1 sigma_r:1 r:1
-    // best params 2020/08/03 sigma_c:1000 sigma_s:49 sigma_r:16 r:9
-    // best params 2020/08/03 sigma_c:1000 sigma_s:99 sigma_r:17 r:7
-    // best params 2020/08/03 sigma_c:1000 sigma_s:290 sigma_r:17 r:7
-    // best params 2020/08/03 sigma_c:1000 sigma_s:590 sigma_r:17 r:7
+    // best params 2020/08/03 sigma_c:1000 sigma_s:1.99 sigma_r:19 r:7
 
     for (double sigma_c = 1000; sigma_c <= 1000; sigma_c += 1000)
     {
-        for (double sigma_s = 0.01; sigma_s < 2; sigma_s += 0.01)
+        for (double sigma_s = 0.001; sigma_s < 0.01; sigma_s += 0.001)
         {
-            for (double sigma_r = 1; sigma_r < 20; sigma_r += 1)
+            for (double sigma_r = 1; sigma_r < 50; sigma_r += 1)
             {
                 for (int r = 3; r < 9; r += 2)
                 {

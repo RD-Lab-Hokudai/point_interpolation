@@ -288,7 +288,7 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
                 }
             }
         }
-        double ssim = qm::ssim(original_Mat, interpolated_Mat, layer_cnt);
+        double ssim = qm::ssim(original_Mat, interpolated_Mat, 64 / layer_cnt);
         cout << tim << "ms" << endl;
         cout << "SSIM=" << ssim << endl;
         ofs << data_no << "," << tim << "," << ssim << "," << endl;
