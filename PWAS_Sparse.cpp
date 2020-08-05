@@ -457,14 +457,15 @@ int phi = 527;
     // best params 2020/08/03 sigma_c:1000 sigma_s:99 sigma_r:17 r:7
     // best params 2020/08/03 sigma_c:1000 sigma_s:290 sigma_r:17 r:7
     // best params 2020/08/03 sigma_c:1000 sigma_s:590 sigma_r:17 r:7
+    // best params 2020/08/05 sigma_c:1000 sigma_s:5 sigma_r:14 r:5
 
     for (double sigma_c = 1000; sigma_c <= 1000; sigma_c += 1000)
     {
-        for (double sigma_s = 1; sigma_s < 10; sigma_s += 0.1)
+        for (double sigma_s = 0.1; sigma_s < 5; sigma_s += 0.1)
         {
-            for (double sigma_r = 17; sigma_r < 18; sigma_r += 1)
+            for (double sigma_r = 10; sigma_r < 50; sigma_r += 1)
             {
-                for (int r = 3; r < 9; r += 2)
+                for (int r = 3; r < 7; r += 2)
                 {
                     double error = 0;
                     for (int i = 0; i < params_use.data_ids.size(); i++)
