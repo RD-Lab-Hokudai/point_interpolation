@@ -138,8 +138,8 @@ public:
     Graph(cv::Mat *img)
     {
         length = img->rows * img->cols;
-        int dx[] = {1, 0, 0, -1};
-        int dy[] = {0, 1, -1, 0};
+        int dx[] ={ 1, 0, 0, -1 };
+        int dy[] ={ 0, 1, -1, 0 };
         for (int i = 0; i < img->rows; i++)
         {
             cv::Vec3b *row = img->ptr<cv::Vec3b>(i);
@@ -177,7 +177,7 @@ public:
                 }
 
                 double diff = get_point_diff(pcd_ptr->normals_[i], pcd_ptr->normals_[to],
-                                             pcd_ptr->colors_[i], pcd_ptr->colors_[to], color_rate);
+                    pcd_ptr->colors_[i], pcd_ptr->colors_[to], color_rate);
                 edges.emplace_back(diff, i, to);
             }
         }
@@ -271,9 +271,9 @@ public:
 };
 
 void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams,
-               vector<vector<double>> &original_grid, vector<vector<double>> &filtered_grid,
-               vector<vector<double>> &original_interpolate_grid, vector<vector<double>> &filtered_interpolate_grid,
-               vector<vector<int>> &vs, int layer_cnt = 16)
+    vector<vector<double>> &original_grid, vector<vector<double>> &filtered_grid,
+    vector<vector<double>> &original_interpolate_grid, vector<vector<double>> &filtered_interpolate_grid,
+    vector<vector<int>> &vs, int layer_cnt = 16)
 {
     vector<double> tans;
     double PI = acos(-1);
@@ -494,8 +494,8 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
             }
         }
 
-        int dx[] = {1, -1, 0, 0};
-        int dy[] = {0, 0, 1, -1};
+        int dx[] ={ 1, -1, 0, 0 };
+        int dy[] ={ 0, 0, 1, -1 };
         for (int i = 0; i < 64; i++)
         {
             for (int j = 0; j < width; j++)
@@ -634,7 +634,7 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
             0, 0, -1, 0,
             0, 0, 0, 1;
         interpolated_ptr->Transform(front);
-        visualization::DrawGeometries({interpolated_ptr}, "a", 1600, 900);
+        visualization::DrawGeometries({ interpolated_ptr }, "a", 1600, 900);
     }
 
     return error;
@@ -662,10 +662,10 @@ int theta = 506;
 int phi = 527;
 */
 
-    EnvParams params_13jo = {498, 485, 509, 481, 517, 500, "../../../data/2020_02_04_13jo/", {10, 20, 30, 40, 50}, "res_linear_13jo.csv"};
-    EnvParams params_miyanosawa = {495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", {700, 1290, 1460, 2350, 3850}, "res_linear_miyanosawa.csv"};
-    EnvParams params_miyanosawa_champ = {495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", {1107, 1117, 1118, 1258}, "res_linear_miyanosawa.csv"};
-    EnvParams params_miyanosawa2 = {495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_linear_miyanosawa_1100-1300.csv"};
+    EnvParams params_13jo ={ 498, 485, 509, 481, 517, 500, "../../../data/2020_02_04_13jo/", { 10, 20, 30, 40, 50 }, "res_linear_13jo.csv" };
+    EnvParams params_miyanosawa ={ 495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", { 700, 1290, 1460, 2350, 3850 }, "res_linear_miyanosawa.csv" };
+    EnvParams params_miyanosawa_champ ={ 495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", { 1107, 1117, 1118, 1258 }, "res_linear_miyanosawa.csv" };
+    EnvParams params_miyanosawa2 ={ 495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_linear_miyanosawa_1100-1300.csv" };
 
     EnvParams params_use = params_miyanosawa_champ;
     ofs = ofstream(params_use.of_name);
@@ -675,7 +675,7 @@ int phi = 527;
         segmentate(params_use.data_ids[i], params_use, 0.5, 1.0, 1, 1, 1, 17, 7, 0.5, true);
     }
 
-    double best_error = 1000;
+    double best_error = 0;
     double best_color_segment_k = 1;
     int best_color_size_min = 1;
     double best_sigma_c = 1;

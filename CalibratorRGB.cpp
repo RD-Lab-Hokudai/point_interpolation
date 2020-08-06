@@ -30,7 +30,7 @@ vector<int> data_ids = {700, 1290, 1460, 2350, 3850}; //1100 // 2/4 miyanosawa
     */
 
 // 02_04_miyanosawa
-
+/*
 string folder_path = "../../../data/2020_02_04_miyanosawa/";
 int X = 506;
 int Y = 483;
@@ -38,15 +38,17 @@ int Z = 495;
 int roll = 568;
 int pitch = 551;
 int yaw = 510;
+*/
 
 // 03_03_miyanosawa
-/*
-int X = 500;
-int Y = 474;
-int Z = 458;
-int theta = 506;
-int phi = 527;
-*/
+
+string folder_path = "../../../data/2020_03_03_miyanosawa/";
+int X = 498;
+int Y = 489;
+int Z = 388;
+int roll = 554;
+int pitch = 560;
+int yaw = 506;
 
 int u0 = 0;
 int v0 = 0;

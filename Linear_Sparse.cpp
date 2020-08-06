@@ -291,7 +291,7 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
         double ssim = qm::ssim(original_Mat, interpolated_Mat, 64 / layer_cnt);
         cout << tim << "ms" << endl;
         cout << "SSIM=" << ssim << endl;
-        ofs << data_no << "," << tim << "," << ssim << "," << endl;
+        ofs << data_no << "," << tim << "," << ssim << "," << error << "," << endl;
     }
 
     if (see_res)
@@ -335,7 +335,7 @@ int phi = 527;
     EnvParams params_miyanosawa_champ = {938, 606, 938 / 2 * 1.01, 495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", {1107, 1117, 1118, 1258}, "res_linear_miyanosawa.csv"};
     EnvParams params_miyanosawa2 = {938, 606, 938 / 2 * 1.01, 495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_linear_miyanosawa_1100-1300.csv"};
 
-    EnvParams params_use = params_miyanosawa_champ;
+    EnvParams params_use = params_miyanosawa2;
     ofs = ofstream(params_use.of_name);
 
     for (int i = 0; i < params_use.data_ids.size(); i++)

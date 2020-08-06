@@ -39,9 +39,9 @@ struct EnvParams
 };
 
 void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams,
-               vector<vector<double>> &original_grid, vector<vector<double>> &filtered_grid,
-               vector<vector<double>> &original_interpolate_grid, vector<vector<double>> &filtered_interpolate_grid,
-               vector<vector<int>> &vs, int layer_cnt = 16)
+    vector<vector<double>> &original_grid, vector<vector<double>> &filtered_grid,
+    vector<vector<double>> &original_interpolate_grid, vector<vector<double>> &filtered_interpolate_grid,
+    vector<vector<int>> &vs, int layer_cnt = 16)
 {
     vector<double> tans;
     double PI = acos(-1);
@@ -291,7 +291,7 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
         double ssim = qm::ssim(original_Mat, interpolated_Mat, 64 / layer_cnt);
         cout << tim << "ms" << endl;
         cout << "SSIM=" << ssim << endl;
-        ofs << data_no << "," << tim << "," << ssim << "," << endl;
+        ofs << data_no << "," << tim << "," << ssim << "," << error << "," << endl;
     }
 
     if (see_res)
@@ -302,7 +302,7 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
             0, 0, -1, 0,
             0, 0, 0, 1;
         interpolated_ptr->Transform(front);
-        visualization::DrawGeometries({interpolated_ptr}, "a", 1600, 900);
+        visualization::DrawGeometries({ interpolated_ptr }, "a", 1600, 900);
     }
 
     return error;
@@ -330,16 +330,18 @@ int theta = 506;
 int phi = 527;
 */
 
-    EnvParams params_13jo = {938, 606, 938 / 2 * 1.01, 498, 485, 509, 481, 517, 500, "../../../data/2020_02_04_13jo/", {10, 20, 30, 40, 50}, "res_linear_13jo.csv"};
-    EnvParams params_miyanosawa = {640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", {700, 1290, 1460, 2350, 3850}, "res_linear_miyanosawa.csv"};
-    EnvParams params_miyanosawa_champ = {640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", {1207, 1262, 1264, 1265, 1277}, "res_linear_miyanosawa_RGB.csv"};
-    EnvParams params_miyanosawa2 = {640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_linear_miyanosawa_1100-1300_RGB.csv"};
+    EnvParams params_13jo ={ 938, 606, 938 / 2 * 1.01, 498, 485, 509, 481, 517, 500, "../../../data/2020_02_04_13jo/", { 10, 20, 30, 40, 50 }, "res_linear_13jo.csv" };
+    EnvParams params_miyanosawa ={ 640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", { 700, 1290, 1460, 2350, 3850 }, "res_linear_miyanosawa.csv" };
+    EnvParams params_miyanosawa_champ ={ 640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", { 1207, 1262, 1264, 1265, 1277 }, "res_linear_miyanosawa_RGB.csv" };
+    EnvParams params_miyanosawa2 ={ 640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_linear_miyanosawa_1100-1300_RGB.csv" };
 
-    EnvParams params_use = params_miyanosawa_champ;
+    EnvParams params_miyanosawa_3_3={ 640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_linear_miyanosawa_0303_1100-1300_RGB.csv" };
+
+    EnvParams params_use = params_miyanosawa_3_3;
     ofs = ofstream(params_use.of_name);
 
     for (int i = 0; i < params_use.data_ids.size(); i++)
     {
-        segmentate(params_use.data_ids[i], params_use, true);
+        segmentate(params_use.data_ids[i], params_use, false);
     }
 }
