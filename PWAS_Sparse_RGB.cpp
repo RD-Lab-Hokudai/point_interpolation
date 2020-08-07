@@ -199,7 +199,7 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
     const string file_name = envParams.folder_path + to_string(data_no) + ".pcd";
     const bool vertical = true;
 
-    auto img = cv::imread(img_name, 0);
+    auto img = cv::imread(img_name);
     cv::Mat blured;
     cv::GaussianBlur(img, blured, cv::Size(3, 3), gaussian_sigma);
 
@@ -296,7 +296,10 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
                 double coef = 0;
                 double val = 0;
                 int v = vs[i][j];
-                int d0 = blured.at<uchar>(v, j);
+                if (v==-1) {
+                    continue;
+                }
+                cv::Vec3b d0 = blured.at<cv::Vec3b>(v, j);
                 for (int ii = 0; ii < r; ii++)
                 {
                     for (int jj = 0; jj < r; jj++)
@@ -309,8 +312,11 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
                         }
 
                         int v1 = vs[i + dy][j + dx];
-                        int d1 = blured.at<uchar>(v1, j + dx);
-                        double tmp = exp(-(dx * dx + dy * dy) / 2 / sigma_s / sigma_s) * exp(-(d0 - d1) * (d0 - d1) / sigma_r / sigma_r);
+                        if (v1==-1) {
+                            continue;
+                        }
+                        cv::Vec3b d1 = blured.at<cv::Vec3b>(v1, j + dx);
+                        double tmp = exp(-(dx * dx + dy * dy) / 2 / sigma_s / sigma_s) * exp(-cv::norm(d0 - d1) / sigma_r / sigma_r);
                         val += tmp * interpolated_z[i + dy][j + dx];
                         coef += tmp;
                     }

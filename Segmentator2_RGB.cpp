@@ -455,6 +455,18 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
     {
         Graph graph(&blured);
         color_segments = graph.segmentate(color_segment_k, color_size_min);
+        /*
+        cv::Mat segment_img=cv::Mat::zeros(height, width, CV_8UC3);
+        for (int i=0;i<height;i++) {
+            for (int j=0;j<width;j++) {
+                int root=color_segments->root(i*width+j);
+                segment_img.at<cv::Vec3b>(i, j)=blured.at<cv::Vec3b>(root/width, root%width);
+            }
+        }
+        cv::imshow("original", blured);
+        cv::imshow("segments", segment_img);
+        cv::waitKey();
+        */
     }
 
     auto interpolated_ptr = make_shared<geometry::PointCloud>();
@@ -523,8 +535,12 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
                 double coef = 0;
                 double val = 0;
                 int v = vs[i][j];
+                if (v==-1) {
+                    continue;
+                }
                 cv::Vec3b d0 = blured.at<cv::Vec3b>(v, j);
-                //int r0 = color_segments->root(v * width + j);
+                //cout<<i<<" "<<v*width+j<<endl;
+                int r0 = color_segments->root(v * width + j);
                 for (int ii = 0; ii < r; ii++)
                 {
                     for (int jj = 0; jj < r; jj++)
@@ -537,9 +553,15 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
                         }
 
                         int v1 = vs[i + dy][j + dx];
+                        if (v1==-1) {
+                            continue;
+                        }
                         cv::Vec3b d1 = blured.at<cv::Vec3b>(v1, j + dx);
-                        //int r1 = color_segments->root(v1 * width + j + dx);
+                        int r1 = color_segments->root(v1 * width + j + dx);
                         double tmp = exp(-(dx * dx + dy * dy) / 2 / sigma_s / sigma_s) * exp(-cv::norm(d0 - d1) / sigma_r / sigma_r);
+                        if (r1!=r0) {
+                            tmp*=coef_s;
+                        }
                         val += tmp * interpolated_z[i + dy][j + dx];
                         coef += tmp;
                     }
@@ -662,14 +684,14 @@ int phi = 527;
     EnvParams params_miyanosawa_3_3={ 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_original_miyanosawa_0303_1100-1300_RGB.csv" };
     EnvParams params_miyanosawa_3_3_champ ={ 506, 483, 495, 568, 551, 510, "../../../data/2020_03_03_miyanosawa/", { 1207, 1262, 1264, 1265, 1277 }, "res_original_miyanosawa_0303_RGB.csv" };
 
-    EnvParams params_use = params_miyanosawa_3_3_champ;
+    EnvParams params_use = params_miyanosawa_3_3;
     ofs = ofstream(params_use.of_name);
 
     for (int i = 0; i < params_use.data_ids.size(); i++)
     {
-        segmentate(params_use.data_ids[i], params_use, 0.5, 3.0, 1, 1, 1.99, 19, 7, 0.5, false);
+        segmentate(params_use.data_ids[i], params_use, 0.5, 150.0, 1, 1, 1.99, 19, 7, 0.2, false);
     }
-    //return 0;
+    return 0;
 
     double best_error = 0;
     double best_color_segment_k = 1;
@@ -680,15 +702,15 @@ int phi = 527;
     int best_r = 1;
     double best_coef_s = 0.5;
 
-    for (double color_segment_k = 0; color_segment_k < 10; color_segment_k += 1)
+    for (double color_segment_k = 0; color_segment_k < 200; color_segment_k += 10)
     {
-        for (int color_size_min = 0; color_size_min < 10; color_size_min += 1)
+        for (int color_size_min = 1; color_size_min < 2; color_size_min += 1)
         {
             for (double sigma_c = 90; sigma_c < 100; sigma_c += 10)
             {
-                for (double sigma_s = 17; sigma_s < 25; sigma_s += 1)
+                for (double sigma_s = 15; sigma_s < 20; sigma_s += 1)
                 {
-                    for (double sigma_r = 0.1; sigma_r < 1.0; sigma_r += 0.1)
+                    for (double sigma_r = 0.9; sigma_r < 1.0; sigma_r += 0.1)
                     {
                         for (int r = 1; r < 9; r++)
                         {
@@ -700,13 +722,16 @@ int phi = 527;
                                     error += segmentate(params_use.data_ids[i], params_use, 0.5, color_segment_k, color_size_min, sigma_c, sigma_s, sigma_r, r, coef_s, false);
                                 }
 
-                                if (best_error > error)
+                                if (best_error < error)
                                 {
                                     error = best_error;
+                                    best_color_segment_k=color_segment_k;
+                                    best_color_size_min=color_size_min;
                                     best_sigma_c = sigma_c;
                                     best_sigma_s = sigma_s;
                                     best_sigma_r = sigma_r;
                                     best_r = r;
+                                    best_coef_s=coef_s;
                                 }
                             }
                         }

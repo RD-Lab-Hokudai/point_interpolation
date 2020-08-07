@@ -672,7 +672,7 @@ int phi = 527;
 
     for (int i = 0; i < params_use.data_ids.size(); i++)
     {
-        segmentate(params_use.data_ids[i], params_use, 0.5, 1.0, 1, 1, 1, 17, 7, 0.5, true);
+        segmentate(params_use.data_ids[i], params_use, 0.5, 1.0, 1, 1, 1, 17, 7, 0.5, false);
     }
 
     double best_error = 0;
@@ -684,18 +684,19 @@ int phi = 527;
     int best_r = 1;
     double best_coef_s = 0.5;
     // best params 2020/08/03 : 1 1 90 1 17 7 0.5
+    // best params 2020/08/03 : 45 1 90 1.99 17 7 1
 
-    for (double color_segment_k = 1; color_segment_k < 2; color_segment_k += 0.1)
+    for (double color_segment_k = 40; color_segment_k < 100; color_segment_k += 5)
     {
         for (int color_size_min = 1; color_size_min < 2; color_size_min += 1)
         {
             for (double sigma_c = 90; sigma_c < 100; sigma_c += 10)
             {
-                for (double sigma_s = 0.01; sigma_s < 2; sigma_s += 0.01)
+                for (double sigma_s = 1.99; sigma_s < 2; sigma_s += 0.01)
                 {
                     for (double sigma_r = 17; sigma_r < 18; sigma_r += 1)
                     {
-                        for (int r = 7; r < 9; r += 2)
+                        for (int r = 1; r < 9; r += 2)
                         {
                             for (double coef_s = 0; coef_s <= 1; coef_s += 0.1)
                             {
@@ -705,13 +706,16 @@ int phi = 527;
                                     error += segmentate(params_use.data_ids[i], params_use, 0.5, color_segment_k, color_size_min, sigma_c, sigma_s, sigma_r, r, coef_s, false);
                                 }
 
-                                if (best_error > error)
+                                if (best_error < error)
                                 {
                                     error = best_error;
+                                    best_color_segment_k=color_segment_k;
+                                    best_color_size_min=color_size_min;
                                     best_sigma_c = sigma_c;
                                     best_sigma_s = sigma_s;
                                     best_sigma_r = sigma_r;
                                     best_r = r;
+                                    best_coef_s=coef_s;
                                 }
                             }
                         }
