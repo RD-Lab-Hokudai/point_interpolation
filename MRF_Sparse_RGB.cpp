@@ -235,15 +235,71 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
     }
 
     {//MRF
-
-    }
-
-    {
+        double k = 0.1;
+        double c = 100;
+        int length=64*envParams.width;
+        Eigen::VectorXd z_line(length);
+        Eigen::SparseMatrix<double> W(length, length);
+        vector<Eigen::Triplet<double>> W_triplets;
         for (int i = 0; i < 64; i++)
         {
             for (int j = 0; j < envParams.width; j++)
             {
-                double z = interpolated_z[i][j];
+                if (original_grid[i][j] > 0&&i%(64/layer_cnt)==0)
+                {
+                    z_line[i*envParams.width+j]=original_grid[i][j];
+                    W_triplets.emplace_back(i * envParams.width + j, i * envParams.width + j, k);
+                }
+            }
+        }
+        W.setFromTriplets(W_triplets.begin(), W_triplets.end());
+
+        Eigen::SparseMatrix<double> S(length, length);
+        vector<Eigen::Triplet<double>> S_triplets;
+        int dires = 4;
+        int dx[4] ={ 1, -1, 0, 0 };
+        int dy[4] ={ 0, 0, 1, -1 };
+        for (int i = 0; i < 64; i++)
+        {
+            for (int j = 0; j < envParams.width; j++)
+            {
+                double wSum = 0;
+                int v0=vs[i][j];
+                if (v0==-1) {
+                    continue;
+                }
+                for (int k = 0; k < dires; k++)
+                {
+                    int u = j + dx[k];
+                    int v = i + dy[k];
+                    if (0 <= u && u < envParams.width && 0 <= v && v < 64)
+                    {
+                        int v1=vs[v][u];
+                        if (v1==-1) {
+                            continue;
+                        }
+                        double x_norm2=cv::norm(img.at<cv::Vec3b>(v0, j)-img.at<cv::Vec3b>(v1, u))/255/255;
+                        double w = -sqrt(exp(-c * x_norm2));
+                        S_triplets.emplace_back(i * envParams.width + j, v * envParams.width + u, w);
+                        wSum += w;
+                    }
+                }
+                S_triplets.emplace_back(i * envParams.width + j, i * envParams.width + j, -wSum);
+            }
+        }
+        S.setFromTriplets(S_triplets.begin(), S_triplets.end());
+        Eigen::SparseMatrix<double> A = S.transpose() * S + W.transpose() * W;
+        Eigen::VectorXd b = W.transpose() * W * z_line;
+        auto start = chrono::system_clock::now();
+        Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Lower | Eigen::Upper> cg;
+        cg.compute(A);
+        Eigen::VectorXd y_res = cg.solve(b);
+
+        for (int i = 0; i < 64; i++)
+        {
+            for (int j = 0; j < envParams.width; j++)
+            {
+                double z = y_res[i*envParams.width+j];
                 if (original_grid[i][j] <= 0 || z <= 0 /*z < 0 || original_grid[i][j] == 0*/)
                 {
                     continue;
@@ -302,6 +358,7 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
         cout << tim << "ms" << endl;
         cout << "SSIM=" << ssim << endl;
         ofs << data_no << "," << tim << "," << ssim << ","<<mse<<"," << error << "," << endl;
+        error=ssim;
     }
 
     if (see_res)
@@ -342,12 +399,12 @@ int theta = 506;
 int phi = 527;
 */
 
-    EnvParams params_13jo ={ 938, 606, 938 / 2 * 1.01, 498, 485, 509, 481, 517, 500, "../../../data/2020_02_04_13jo/", { 10, 20, 30, 40, 50 }, "res_linear_13jo.csv" };
-    EnvParams params_miyanosawa ={ 640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", { 700, 1290, 1460, 2350, 3850 }, "res_linear_miyanosawa.csv" };
-    EnvParams params_miyanosawa_champ ={ 640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", { 1207, 1262, 1264, 1265, 1277 }, "res_linear_miyanosawa_RGB.csv" };
-    EnvParams params_miyanosawa2 ={ 640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_linear_miyanosawa_1100-1300_RGB.csv" };
+    EnvParams params_13jo ={ 938, 606, 938 / 2 * 1.01, 498, 485, 509, 481, 517, 500, "../../../data/2020_02_04_13jo/", { 10, 20, 30, 40, 50 }, "res_mrf_13jo.csv" };
+    EnvParams params_miyanosawa ={ 640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", { 700, 1290, 1460, 2350, 3850 }, "res_mrf_miyanosawa.csv" };
+    EnvParams params_miyanosawa_champ ={ 640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", { 1207, 1262, 1264, 1265, 1277 }, "res_mrf_miyanosawa_RGB.csv" };
+    EnvParams params_miyanosawa2 ={ 640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_mrf_miyanosawa_1100-1300_RGB.csv" };
 
-    EnvParams params_miyanosawa_3_3={ 640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_linear_miyanosawa_0303_1100-1300_RGB.csv" };
+    EnvParams params_miyanosawa_3_3={ 640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_mrf_miyanosawa_0303_1100-1300_RGB.csv" };
 
     EnvParams params_use = params_miyanosawa_3_3;
     ofs = ofstream(params_use.of_name);

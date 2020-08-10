@@ -528,7 +528,9 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
                         coef += tmp;
                     }
                 }
-                interpolated_z[i][j] = val / coef;
+                if (coef>0) {
+                    interpolated_z[i][j] = val / coef;
+                }
             }
         }
     }
@@ -667,9 +669,9 @@ int phi = 527;
 
     for (int i = 0; i < params_use.data_ids.size(); i++)
     {
-        segmentate(params_use.data_ids[i], params_use, 0.5, 110, 1, 1.6, 17, 7, 0.7, false);
+        segmentate(params_use.data_ids[i], params_use, 0.5, 108, 1, 1.5, 9, 7, 0.7, false);
     }
-    return 0;
+    //return 0;
 
     double best_error = 0;
     double best_color_segment_k = 1;
@@ -682,18 +684,19 @@ int phi = 527;
     // best params 8/10 0 1 90 19 0.9 3 0.1
     // best params 8/10 110 1 90 1.6 17 7 0.7
     // best params 2020/8/10 110 1 90 1.6 19 7 0.7
+    // best params 2020/8/10 108 1 90 1.5 9 7 0.7
 
-    for (double color_segment_k = 100; color_segment_k < 120; color_segment_k += 5)
+    for (double color_segment_k = 108; color_segment_k < 109; color_segment_k += 1)
     {
         for (int color_size_min = 1; color_size_min < 2; color_size_min += 1)
         {
-            for (double sigma_s = 1.5; sigma_s < 1.7; sigma_s += 0.01)
+            for (double sigma_s = 1.5; sigma_s < 1.6; sigma_s += 0.1)
             {
-                for (double sigma_r = 15; sigma_r < 20; sigma_r += 1)
+                for (double sigma_r = 9; sigma_r < 10; sigma_r += 1)
                 {
-                    for (int r = 1; r < 9; r+=2)
+                    for (int r = 7; r < 9; r+=2)
                     {
-                        for (double coef_s = 0; coef_s <= 1; coef_s += 0.1)
+                        for (double coef_s = 0.1; coef_s <= 1.0; coef_s += 0.1)
                         {
                             cout<<color_segment_k<<" "<<coef_s<<endl;
                             double error = 0;
