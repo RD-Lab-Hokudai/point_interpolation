@@ -423,7 +423,7 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
     }
 }
 
-double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, double color_segment_k, int color_size_min, double sigma_c = 1, double sigma_s = 15, double sigma_r = 20, int r = 10, double coef_s = 0.5, bool see_res = false)
+double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, double color_segment_k, int color_size_min, double sigma_s = 15, double sigma_r = 20, int r = 10, double coef_s = 0.5, bool see_res = false)
 {
     const string img_name = envParams.folder_path + to_string(data_no) + "_rgb.png";
     const string file_name = envParams.folder_path + to_string(data_no) + ".pcd";
@@ -662,19 +662,18 @@ int phi = 527;
     EnvParams params_miyanosawa_3_3={ 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_original_miyanosawa_0303_1100-1300_RGB.csv" };
     EnvParams params_miyanosawa_3_3_champ ={ 506, 483, 495, 568, 551, 510, "../../../data/2020_03_03_miyanosawa/", { 1207, 1262, 1264, 1265, 1277 }, "res_original_miyanosawa_0303_RGB.csv" };
 
-    EnvParams params_use = params_miyanosawa_3_3_champ;
+    EnvParams params_use = params_miyanosawa_3_3;
     ofs = ofstream(params_use.of_name);
 
     for (int i = 0; i < params_use.data_ids.size(); i++)
     {
-        segmentate(params_use.data_ids[i], params_use, 0.5, 110, 1, 1, 1.6, 17, 7, 0.7, false);
+        segmentate(params_use.data_ids[i], params_use, 0.5, 110, 1, 1.6, 17, 7, 0.7, false);
     }
-    //return 0;
+    return 0;
 
     double best_error = 0;
     double best_color_segment_k = 1;
     int best_color_size_min = 1;
-    double best_sigma_c = 1;
     double best_sigma_s = 1;
     double best_sigma_r = 1;
     int best_r = 1;
@@ -682,39 +681,36 @@ int phi = 527;
     // best params 8/10 190 1 90 19 0.9 8 1
     // best params 8/10 0 1 90 19 0.9 3 0.1
     // best params 8/10 110 1 90 1.6 17 7 0.7
+    // best params 2020/8/10 110 1 90 1.6 19 7 0.7
 
     for (double color_segment_k = 100; color_segment_k < 120; color_segment_k += 5)
     {
         for (int color_size_min = 1; color_size_min < 2; color_size_min += 1)
         {
-            for (double sigma_c = 90; sigma_c < 100; sigma_c += 10)
+            for (double sigma_s = 1.5; sigma_s < 1.7; sigma_s += 0.01)
             {
-                for (double sigma_s = 1.5; sigma_s < 1.7; sigma_s += 0.01)
+                for (double sigma_r = 15; sigma_r < 20; sigma_r += 1)
                 {
-                    for (double sigma_r = 15; sigma_r < 20; sigma_r += 1)
+                    for (int r = 1; r < 9; r+=2)
                     {
-                        for (int r = 1; r < 9; r+=2)
+                        for (double coef_s = 0; coef_s <= 1; coef_s += 0.1)
                         {
-                            for (double coef_s = 0; coef_s <= 1; coef_s += 0.1)
+                            cout<<color_segment_k<<" "<<coef_s<<endl;
+                            double error = 0;
+                            for (int i = 0; i < params_use.data_ids.size(); i++)
                             {
-                                cout<<color_segment_k<<" "<<coef_s<<endl;
-                                double error = 0;
-                                for (int i = 0; i < params_use.data_ids.size(); i++)
-                                {
-                                    error += segmentate(params_use.data_ids[i], params_use, 0.5, color_segment_k, color_size_min, sigma_c, sigma_s, sigma_r, r, coef_s, false);
-                                }
+                                error += segmentate(params_use.data_ids[i], params_use, 0.5, color_segment_k, color_size_min, sigma_s, sigma_r, r, coef_s, false);
+                            }
 
-                                if (best_error < error)
-                                {
-                                    best_error=error;
-                                    best_color_segment_k=color_segment_k;
-                                    best_color_size_min=color_size_min;
-                                    best_sigma_c = sigma_c;
-                                    best_sigma_s = sigma_s;
-                                    best_sigma_r = sigma_r;
-                                    best_r = r;
-                                    best_coef_s=coef_s;
-                                }
+                            if (best_error < error)
+                            {
+                                best_error=error;
+                                best_color_segment_k=color_segment_k;
+                                best_color_size_min=color_size_min;
+                                best_sigma_s = sigma_s;
+                                best_sigma_r = sigma_r;
+                                best_r = r;
+                                best_coef_s=coef_s;
                             }
                         }
                     }
@@ -725,7 +721,6 @@ int phi = 527;
 
     cout << "Color segment K = " << best_color_segment_k << endl;
     cout << "Color size min = " << best_color_size_min << endl;
-    cout << "Sigma C = " << best_sigma_c << endl;
     cout << "Sigma S = " << best_sigma_s << endl;
     cout << "Sigma R = " << best_sigma_r << endl;
     cout << "R = " << best_r << endl;
