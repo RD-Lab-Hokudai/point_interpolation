@@ -250,6 +250,7 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
     }
 
     // PWAS
+    auto startPWAS= chrono::system_clock::now();
     vector<vector<double>> credibilities(64, vector<double>(envParams.width));
     {
         double minDepth = 1000000;
@@ -316,7 +317,7 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
                             continue;
                         }
                         cv::Vec3b d1 = blured.at<cv::Vec3b>(v1, j + dx);
-                        double tmp = exp(-(dx * dx + dy * dy) / 2 / sigma_s / sigma_s) * exp(-cv::norm(d0 - d1) / sigma_r / sigma_r);
+                        double tmp = exp(-(dx * dx + dy * dy) / 2 / sigma_s / sigma_s) * exp(-cv::norm(d0 - d1) /2/ sigma_r / sigma_r);
                         val += tmp * interpolated_z[i + dy][j + dx];
                         coef += tmp;
                     }
@@ -325,6 +326,7 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
             }
         }
     }
+    cout<<"PWAS time= "<<chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - startPWAS).count()<<endl;
 
     {
         for (int i = 0; i < 64; i++)
@@ -389,9 +391,10 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
             }
         }
         double ssim = qm::ssim(original_Mat, interpolated_Mat, 64 / layer_cnt);
+        double mse=qm::eqm(original_Mat, interpolated_Mat);
         cout << tim << "ms" << endl;
         cout << "SSIM=" << ssim << endl;
-        ofs << data_no << "," << tim << "," << ssim << "," << error << "," << endl;
+        ofs << data_no << "," << tim << "," << ssim << ","<<mse<<"," << error << "," << endl;
         error = ssim;
     }
 
@@ -416,7 +419,7 @@ int main(int argc, char *argv[])
     //vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
 
     vector<int> data_nos;
-    for (int i = 1100; i < 1300; i++)
+    for (int i = 1100; i <= 1300; i++)
     {
         data_nos.emplace_back(i);
     }
@@ -443,9 +446,9 @@ int phi = 527;
 
     for (int i = 0; i < params_use.data_ids.size(); i++)
     {
-        segmentate(params_use.data_ids[i], params_use, 0.5, 1000, 1.99, 19, 7, false);
+        segmentate(params_use.data_ids[i], params_use, 0.5, 1000, 1.6, 19, 7, false);
     }
-    return 0;
+    //return 0;
 
     double best_ssim = 0;
     double best_sigma_c = 1;
@@ -454,7 +457,7 @@ int phi = 527;
     int best_r = 1;
     // best params 2020/08/03 sigma_c:1000 sigma_s:1.99 sigma_r:19 r:7
 
-    for (double sigma_c = 1000; sigma_c <= 1000; sigma_c += 1000)
+    for (double sigma_c = 100; sigma_c <= 100; sigma_c += 100)
     {
         for (double sigma_s = 0.001; sigma_s < 0.01; sigma_s += 0.001)
         {

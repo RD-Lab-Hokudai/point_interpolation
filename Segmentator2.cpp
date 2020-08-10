@@ -543,7 +543,7 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
                         int v1 = vs[i + dy][j + dx];
                         cv::Vec3b d1 = blured.at<cv::Vec3b>(v1, j + dx);
                         int r1 = color_segments->root(v1 * width + j + dx);
-                        double tmp = exp(-(dx * dx + dy * dy) / 2 / sigma_s / sigma_s) * exp(-cv::norm(d0 - d1) / sigma_r / sigma_r);
+                        double tmp = exp(-(dx * dx + dy * dy) / 2 / sigma_s / sigma_s) * exp(-cv::norm(d0 - d1)/2/ sigma_r / sigma_r);
                         if (r1 != r0)
                         {
                             tmp *= coef_s;
@@ -684,21 +684,23 @@ int phi = 527;
     int best_r = 1;
     double best_coef_s = 0.5;
     // best params 2020/08/03 : 1 1 90 1 17 7 0.5
-    // best params 2020/08/03 : 45 1 90 1.99 17 7 1
+    // best params 2020/08/07 : 45 1 90 1.99 17 7 1
+    // best params 2020/08/07 : 95 1 90 1.99 17 7 1
+    // best params 2020/08/07 : 90 1 90 1.99 17 7 1
 
-    for (double color_segment_k = 40; color_segment_k < 100; color_segment_k += 5)
+    for (double color_segment_k = 0; color_segment_k < 250; color_segment_k += 10)
     {
         for (int color_size_min = 1; color_size_min < 2; color_size_min += 1)
         {
             for (double sigma_c = 90; sigma_c < 100; sigma_c += 10)
             {
-                for (double sigma_s = 1.99; sigma_s < 2; sigma_s += 0.01)
+                for (double sigma_s = 0.01; sigma_s < 2; sigma_s += 0.01)
                 {
-                    for (double sigma_r = 17; sigma_r < 18; sigma_r += 1)
+                    for (double sigma_r = 15; sigma_r < 20; sigma_r += 1)
                     {
                         for (int r = 1; r < 9; r += 2)
                         {
-                            for (double coef_s = 0; coef_s <= 1; coef_s += 0.1)
+                            for (double coef_s = 0; coef_s < 1; coef_s += 0.1)
                             {
                                 double error = 0;
                                 for (int i = 0; i < params_use.data_ids.size(); i++)
@@ -708,7 +710,7 @@ int phi = 527;
 
                                 if (best_error < error)
                                 {
-                                    error = best_error;
+                                    best_error=error;
                                     best_color_segment_k=color_segment_k;
                                     best_color_size_min=color_size_min;
                                     best_sigma_c = sigma_c;

@@ -455,6 +455,7 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
     {
         Graph graph(&blured);
         color_segments = graph.segmentate(color_segment_k, color_size_min);
+        cout<<"Segmentationtime = "<<chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count()<<endl;
         /*
         cv::Mat segment_img=cv::Mat::zeros(height, width, CV_8UC3);
         for (int i=0;i<height;i++) {
@@ -469,7 +470,6 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
         */
     }
 
-    auto interpolated_ptr = make_shared<geometry::PointCloud>();
     vector<vector<double>> interpolated_z(64, vector<double>(width, 0));
     {
         // Linear interpolation
@@ -484,44 +484,6 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
                     interpolated_z[i * (64 / layer_cnt) + k][j] = z;
                     z += delta;
                 }
-            }
-        }
-    }
-
-    // PWAS
-    vector<vector<double>> credibilities(64, vector<double>(width));
-    {
-        double minDepth = 1000000;
-        double maxDepth = 0;
-        for (int i = 0; i < 64; i++)
-        {
-            for (int j = 0; j < width; j++)
-            {
-                minDepth = min(minDepth, interpolated_z[i][j]);
-                maxDepth = max(maxDepth, interpolated_z[i][j]);
-            }
-        }
-
-        int dx[] ={ 1, -1, 0, 0 };
-        int dy[] ={ 0, 0, 1, -1 };
-        for (int i = 0; i < 64; i++)
-        {
-            for (int j = 0; j < width; j++)
-            {
-                double val = -4 * interpolated_z[i][j];
-                for (int k = 0; k < 4; k++)
-                {
-                    int x = j + dx[k];
-                    int y = i + dy[k];
-                    if (x < 0 || x >= width || y < 0 || y >= 64)
-                    {
-                        continue;
-                    }
-
-                    val += interpolated_z[y][x];
-                }
-                val = 65535 * (val - minDepth) / (maxDepth - minDepth);
-                credibilities[i][j] = exp(-val * val / 2 / sigma_c / sigma_c);
             }
         }
     }
@@ -558,7 +520,7 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
                         }
                         cv::Vec3b d1 = blured.at<cv::Vec3b>(v1, j + dx);
                         int r1 = color_segments->root(v1 * width + j + dx);
-                        double tmp = exp(-(dx * dx + dy * dy) / 2 / sigma_s / sigma_s) * exp(-cv::norm(d0 - d1) / sigma_r / sigma_r);
+                        double tmp = exp(-(dx * dx + dy * dy) / 2 / sigma_s / sigma_s) * exp(-cv::norm(d0 - d1) /2 / sigma_r / sigma_r);
                         if (r1!=r0) {
                             tmp*=coef_s;
                         }
@@ -571,6 +533,9 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
         }
     }
 
+    auto interpolated_ptr = make_shared<geometry::PointCloud>();
+    auto filtered_ptr = make_shared<geometry::PointCloud>();
+    auto original_ptr = make_shared<geometry::PointCloud>();
     {
         for (int i = 0; i < 64; i++)
         {
@@ -589,6 +554,14 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
                 cv::Vec3b color = blured.at<cv::Vec3b>(vs[i][j], j);
                 interpolated_ptr->points_.emplace_back(x, y, z);
                 interpolated_ptr->colors_.emplace_back(color[0] / 255.0, color[1] / 255.0, color[2] / 255.0);
+
+                original_ptr->points_.emplace_back(x, y, original_grid[i][j]);
+                original_ptr->colors_.emplace_back(color[0] / 255.0, color[1] / 255.0, color[2] / 255.0);
+
+                if (i%(64/layer_cnt)==0) {
+                    filtered_ptr->points_.emplace_back(x, y, original_grid[i][j]);
+                    filtered_ptr->colors_.emplace_back(color[0] / 255.0, color[1] / 255.0, color[2] / 255.0);
+                }
             }
         }
     }
@@ -634,9 +607,10 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
             }
         }
         double ssim = qm::ssim(original_Mat, interpolated_Mat, 64 / layer_cnt);
+        double mse=qm::eqm(original_Mat, interpolated_Mat);
         cout << tim << "ms" << endl;
         cout << "SSIM=" << ssim << endl;
-        ofs << data_no << "," << tim << "," << ssim << "," << error << "," << endl;
+        ofs << data_no << "," << tim << "," << ssim << ","<<mse<<"," << error << "," << endl;
         error = ssim;
     }
 
@@ -648,7 +622,11 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
             0, 0, -1, 0,
             0, 0, 0, 1;
         interpolated_ptr->Transform(front);
+        original_ptr->Transform(front);
+        filtered_ptr->Transform(front);
         visualization::DrawGeometries({ interpolated_ptr }, "a", 1600, 900);
+        //visualization::DrawGeometries({ original_ptr }, "a", 1600, 900);
+        //visualization::DrawGeometries({ filtered_ptr }, "a", 1600, 900);
     }
 
     return error;
@@ -661,7 +639,7 @@ int main(int argc, char *argv[])
     //vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
 
     vector<int> data_nos;
-    for (int i = 1100; i < 1300; i++)
+    for (int i = 1100; i <= 1300; i++)
     {
         data_nos.emplace_back(i);
     }
@@ -684,14 +662,14 @@ int phi = 527;
     EnvParams params_miyanosawa_3_3={ 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_original_miyanosawa_0303_1100-1300_RGB.csv" };
     EnvParams params_miyanosawa_3_3_champ ={ 506, 483, 495, 568, 551, 510, "../../../data/2020_03_03_miyanosawa/", { 1207, 1262, 1264, 1265, 1277 }, "res_original_miyanosawa_0303_RGB.csv" };
 
-    EnvParams params_use = params_miyanosawa_3_3;
+    EnvParams params_use = params_miyanosawa_3_3_champ;
     ofs = ofstream(params_use.of_name);
 
     for (int i = 0; i < params_use.data_ids.size(); i++)
     {
-        segmentate(params_use.data_ids[i], params_use, 0.5, 150.0, 1, 1, 1.99, 19, 7, 0.2, false);
+        segmentate(params_use.data_ids[i], params_use, 0.5, 110, 1, 1, 1.6, 17, 7, 0.7, false);
     }
-    return 0;
+    //return 0;
 
     double best_error = 0;
     double best_color_segment_k = 1;
@@ -701,21 +679,25 @@ int phi = 527;
     double best_sigma_r = 1;
     int best_r = 1;
     double best_coef_s = 0.5;
+    // best params 8/10 190 1 90 19 0.9 8 1
+    // best params 8/10 0 1 90 19 0.9 3 0.1
+    // best params 8/10 110 1 90 1.6 17 7 0.7
 
-    for (double color_segment_k = 0; color_segment_k < 200; color_segment_k += 10)
+    for (double color_segment_k = 100; color_segment_k < 120; color_segment_k += 5)
     {
         for (int color_size_min = 1; color_size_min < 2; color_size_min += 1)
         {
             for (double sigma_c = 90; sigma_c < 100; sigma_c += 10)
             {
-                for (double sigma_s = 15; sigma_s < 20; sigma_s += 1)
+                for (double sigma_s = 1.5; sigma_s < 1.7; sigma_s += 0.01)
                 {
-                    for (double sigma_r = 0.9; sigma_r < 1.0; sigma_r += 0.1)
+                    for (double sigma_r = 15; sigma_r < 20; sigma_r += 1)
                     {
-                        for (int r = 1; r < 9; r++)
+                        for (int r = 1; r < 9; r+=2)
                         {
                             for (double coef_s = 0; coef_s <= 1; coef_s += 0.1)
                             {
+                                cout<<color_segment_k<<" "<<coef_s<<endl;
                                 double error = 0;
                                 for (int i = 0; i < params_use.data_ids.size(); i++)
                                 {
@@ -724,7 +706,7 @@ int phi = 527;
 
                                 if (best_error < error)
                                 {
-                                    error = best_error;
+                                    best_error=error;
                                     best_color_segment_k=color_segment_k;
                                     best_color_size_min=color_size_min;
                                     best_sigma_c = sigma_c;

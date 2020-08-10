@@ -195,11 +195,14 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
 
 double segmentate(int data_no, EnvParams envParams, bool see_res = false)
 {
-    const string file_name = envParams.folder_path + to_string(data_no) + ".pcd";
+    const string img_path = envParams.folder_path + to_string(data_no) + "_rgb.png";
+    const string pcd_path = envParams.folder_path + to_string(data_no) + ".pcd";
+
+    auto img=cv::imread(img_path);
 
     geometry::PointCloud pointcloud;
     auto pcd_ptr = make_shared<geometry::PointCloud>();
-    if (!io::ReadPointCloud(file_name, pointcloud))
+    if (!io::ReadPointCloud(pcd_path, pointcloud))
     {
         cout << "Cannot read" << endl;
     }
@@ -245,6 +248,8 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
                 double x = z * (j - envParams.width / 2) / envParams.f_xy;
                 double y = z * (vs[i][j] - envParams.height / 2) / envParams.f_xy;
                 interpolated_ptr->points_.emplace_back(x, y, z);
+                cv::Vec3b color=img.at<cv::Vec3b>(vs[i][j], j);
+                interpolated_ptr->colors_.emplace_back(color[0]/255.0, color[1]/255.0, color[2]/255.0);
             }
         }
     }
@@ -289,9 +294,10 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
             }
         }
         double ssim = qm::ssim(original_Mat, interpolated_Mat, 64 / layer_cnt);
+        double mse=qm::eqm(original_Mat, interpolated_Mat);
         cout << tim << "ms" << endl;
         cout << "SSIM=" << ssim << endl;
-        ofs << data_no << "," << tim << "," << ssim << "," << error << "," << endl;
+        ofs << data_no << "," << tim << "," << ssim << ","<<mse<<"," << error << "," << endl;
     }
 
     if (see_res)
@@ -301,7 +307,9 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
             0, -1, 0, 0,
             0, 0, -1, 0,
             0, 0, 0, 1;
+        pcd_ptr->Transform(front);
         interpolated_ptr->Transform(front);
+        visualization::DrawGeometries({ pcd_ptr }, "b", 1600, 900);
         visualization::DrawGeometries({ interpolated_ptr }, "a", 1600, 900);
     }
 
@@ -315,7 +323,7 @@ int main(int argc, char *argv[])
     //vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
 
     vector<int> data_nos;
-    for (int i = 1100; i < 1300; i++)
+    for (int i = 1100; i <= 1300; i++)
     {
         data_nos.emplace_back(i);
     }
