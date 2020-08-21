@@ -39,9 +39,9 @@ struct EnvParams
 };
 
 void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams,
-    vector<vector<double>> &original_grid, vector<vector<double>> &filtered_grid,
-    vector<vector<double>> &original_interpolate_grid, vector<vector<double>> &filtered_interpolate_grid,
-    vector<vector<int>> &vs, int layer_cnt = 16)
+               vector<vector<double>> &original_grid, vector<vector<double>> &filtered_grid,
+               vector<vector<double>> &original_interpolate_grid, vector<vector<double>> &filtered_interpolate_grid,
+               vector<vector<int>> &vs, int layer_cnt = 16)
 {
     vector<double> tans;
     double PI = acos(-1);
@@ -198,7 +198,7 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
     const string img_path = envParams.folder_path + to_string(data_no) + "_rgb.png";
     const string pcd_path = envParams.folder_path + to_string(data_no) + ".pcd";
 
-    auto img=cv::imread(img_path);
+    auto img = cv::imread(img_path);
 
     geometry::PointCloud pointcloud;
     auto pcd_ptr = make_shared<geometry::PointCloud>();
@@ -248,8 +248,8 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
                 double x = z * (j - envParams.width / 2) / envParams.f_xy;
                 double y = z * (vs[i][j] - envParams.height / 2) / envParams.f_xy;
                 interpolated_ptr->points_.emplace_back(x, y, z);
-                cv::Vec3b color=img.at<cv::Vec3b>(vs[i][j], j);
-                interpolated_ptr->colors_.emplace_back(color[0]/255.0, color[1]/255.0, color[2]/255.0);
+                cv::Vec3b color = img.at<cv::Vec3b>(vs[i][j], j);
+                interpolated_ptr->colors_.emplace_back(color[0] / 255.0, color[1] / 255.0, color[2] / 255.0);
             }
         }
     }
@@ -282,6 +282,7 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
         double tim = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count();
         cv::Mat original_Mat = cv::Mat::zeros(64 - 64 / layer_cnt + 1, envParams.width, CV_64FC1);
         cv::Mat interpolated_Mat = cv::Mat::zeros(64 - 64 / layer_cnt + 1, envParams.width, CV_64FC1);
+        cv::Mat original_interpolated_Mat = cv::Mat::zeros(64 - 64 / layer_cnt + 1, envParams.width, CV_64FC1);
         for (int i = 0; i < 64 - 64 / layer_cnt + 1; i++)
         {
             for (int j = 0; j < envParams.width; j++)
@@ -291,13 +292,19 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
                     original_Mat.at<double>(i, j) = original_grid[i][j];
                     interpolated_Mat.at<double>(i, j) = interpolated_z[i][j];
                 }
+
+                if (original_interpolate_grid[i][j] > 0)
+                {
+                    original_interpolated_Mat.at<double>(i, j) = original_interpolate_grid[i][j];
+                    interpolated_Mat.at<double>(i, j) = interpolated_z[i][j];
+                }
             }
         }
-        double ssim = qm::ssim(original_Mat, interpolated_Mat, 64 / layer_cnt);
-        double mse=qm::eqm(original_Mat, interpolated_Mat);
+        double ssim = qm::ssim(original_interpolated_Mat, interpolated_Mat, 64 / layer_cnt);
+        double mse = qm::eqm(original_interpolated_Mat, interpolated_Mat);
         cout << tim << "ms" << endl;
         cout << "SSIM=" << ssim << endl;
-        ofs << data_no << "," << tim << "," << ssim << ","<<mse<<"," << error << "," << endl;
+        ofs << data_no << "," << tim << "," << ssim << "," << mse << "," << error << "," << endl;
     }
 
     if (see_res)
@@ -309,8 +316,8 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
             0, 0, 0, 1;
         pcd_ptr->Transform(front);
         interpolated_ptr->Transform(front);
-        visualization::DrawGeometries({ pcd_ptr }, "b", 1600, 900);
-        visualization::DrawGeometries({ interpolated_ptr }, "a", 1600, 900);
+        visualization::DrawGeometries({pcd_ptr}, "b", 1600, 900);
+        visualization::DrawGeometries({interpolated_ptr}, "a", 1600, 900);
     }
 
     return error;
@@ -338,12 +345,12 @@ int theta = 506;
 int phi = 527;
 */
 
-    EnvParams params_13jo ={ 938, 606, 938 / 2 * 1.01, 498, 485, 509, 481, 517, 500, "../../../data/2020_02_04_13jo/", { 10, 20, 30, 40, 50 }, "res_linear_13jo.csv" };
-    EnvParams params_miyanosawa ={ 640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", { 700, 1290, 1460, 2350, 3850 }, "res_linear_miyanosawa.csv" };
-    EnvParams params_miyanosawa_champ ={ 640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", { 1207, 1262, 1264, 1265, 1277 }, "res_linear_miyanosawa_RGB.csv" };
-    EnvParams params_miyanosawa2 ={ 640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_linear_miyanosawa_1100-1300_RGB.csv" };
+    EnvParams params_13jo = {938, 606, 938 / 2 * 1.01, 498, 485, 509, 481, 517, 500, "../../../data/2020_02_04_13jo/", {10, 20, 30, 40, 50}, "res_linear_13jo.csv"};
+    EnvParams params_miyanosawa = {640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", {700, 1290, 1460, 2350, 3850}, "res_linear_miyanosawa.csv"};
+    EnvParams params_miyanosawa_champ = {640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", {1207, 1262, 1264, 1265, 1277}, "res_linear_miyanosawa_RGB.csv"};
+    EnvParams params_miyanosawa2 = {640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_linear_miyanosawa_1100-1300_RGB.csv"};
 
-    EnvParams params_miyanosawa_3_3={ 640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_linear_miyanosawa_0303_1100-1300_RGB.csv" };
+    EnvParams params_miyanosawa_3_3 = {640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_linear_miyanosawa_0303_1100-1300_RGB.csv"};
 
     EnvParams params_use = params_miyanosawa_3_3;
     ofs = ofstream(params_use.of_name);

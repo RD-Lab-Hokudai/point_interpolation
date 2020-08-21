@@ -39,9 +39,9 @@ struct EnvParams
 };
 
 void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams,
-    vector<vector<double>> &original_grid, vector<vector<double>> &filtered_grid,
-    vector<vector<double>> &original_interpolate_grid, vector<vector<double>> &filtered_interpolate_grid,
-    vector<vector<int>> &vs, int layer_cnt = 16)
+               vector<vector<double>> &original_grid, vector<vector<double>> &filtered_grid,
+               vector<vector<double>> &original_interpolate_grid, vector<vector<double>> &filtered_interpolate_grid,
+               vector<vector<int>> &vs, int layer_cnt = 16)
 {
     vector<double> tans;
     double PI = acos(-1);
@@ -250,7 +250,7 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
     }
 
     // PWAS
-    auto startPWAS= chrono::system_clock::now();
+    auto startPWAS = chrono::system_clock::now();
     vector<vector<double>> credibilities(64, vector<double>(envParams.width));
     {
         double minDepth = 1000000;
@@ -264,8 +264,8 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
             }
         }
 
-        int dx[] ={ 1, -1, 0, 0 };
-        int dy[] ={ 0, 0, 1, -1 };
+        int dx[] = {1, -1, 0, 0};
+        int dy[] = {0, 0, 1, -1};
         for (int i = 0; i < 64; i++)
         {
             for (int j = 0; j < envParams.width; j++)
@@ -297,7 +297,8 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
                 double coef = 0;
                 double val = 0;
                 int v = vs[i][j];
-                if (v==-1) {
+                if (v == -1)
+                {
                     continue;
                 }
                 cv::Vec3b d0 = blured.at<cv::Vec3b>(v, j);
@@ -313,22 +314,24 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
                         }
 
                         int v1 = vs[i + dy][j + dx];
-                        if (v1==-1) {
+                        if (v1 == -1)
+                        {
                             continue;
                         }
                         cv::Vec3b d1 = blured.at<cv::Vec3b>(v1, j + dx);
-                        double tmp = exp(-(dx * dx + dy * dy) / 2 / sigma_s / sigma_s) * exp(-cv::norm(d0 - d1) /2/ sigma_r / sigma_r)*credibilities[i+dy][j+dx];
+                        double tmp = exp(-(dx * dx + dy * dy) / 2 / sigma_s / sigma_s) * exp(-cv::norm(d0 - d1) / 2 / sigma_r / sigma_r) * credibilities[i + dy][j + dx];
                         val += tmp * interpolated_z[i + dy][j + dx];
                         coef += tmp;
                     }
                 }
-                if (coef>0) {
+                if (coef > 0)
+                {
                     interpolated_z[i][j] = val / coef;
                 }
             }
         }
     }
-    cout<<"PWAS time= "<<chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - startPWAS).count()<<endl;
+    cout << "PWAS time= " << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - startPWAS).count() << endl;
 
     {
         for (int i = 0; i < 64; i++)
@@ -381,6 +384,7 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
         double tim = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count();
         cv::Mat original_Mat = cv::Mat::zeros(64 - 64 / layer_cnt + 1, envParams.width, CV_64FC1);
         cv::Mat interpolated_Mat = cv::Mat::zeros(64 - 64 / layer_cnt + 1, envParams.width, CV_64FC1);
+        cv::Mat original_interpolated_Mat = cv::Mat::zeros(64 - 64 / layer_cnt + 1, envParams.width, CV_64FC1);
         for (int i = 0; i < 64 - 64 / layer_cnt + 1; i++)
         {
             for (int j = 0; j < envParams.width; j++)
@@ -390,13 +394,19 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
                     original_Mat.at<double>(i, j) = original_grid[i][j];
                     interpolated_Mat.at<double>(i, j) = interpolated_z[i][j];
                 }
+
+                if (original_interpolate_grid[i][j] > 0)
+                {
+                    original_interpolated_Mat.at<double>(i, j) = original_interpolate_grid[i][j];
+                    interpolated_Mat.at<double>(i, j) = interpolated_z[i][j];
+                }
             }
         }
-        double ssim = qm::ssim(original_Mat, interpolated_Mat, 64 / layer_cnt);
-        double mse=qm::eqm(original_Mat, interpolated_Mat);
+        double ssim = qm::ssim(original_interpolated_Mat, interpolated_Mat, 64 / layer_cnt);
+        double mse = qm::eqm(original_interpolated_Mat, interpolated_Mat);
         cout << tim << "ms" << endl;
         cout << "SSIM=" << ssim << endl;
-        ofs << data_no << "," << tim << "," << ssim << ","<<mse<<"," << error << "," << endl;
+        ofs << data_no << "," << tim << "," << ssim << "," << mse << "," << error << "," << endl;
         error = ssim;
     }
 
@@ -408,7 +418,7 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
             0, 0, -1, 0,
             0, 0, 0, 1;
         interpolated_ptr->Transform(front);
-        visualization::DrawGeometries({ interpolated_ptr }, "a", 1600, 900);
+        visualization::DrawGeometries({interpolated_ptr}, "a", 1600, 900);
     }
 
     return error;
@@ -436,13 +446,13 @@ int theta = 506;
 int phi = 527;
 */
 
-    EnvParams params_13jo ={ 938, 606, 938 / 2 * 1.01, 498, 485, 509, 481, 517, 500, "../../../data/2020_02_04_13jo/", { 10, 20, 30, 40, 50 }, "res_pwas_13jo.csv" };
-    EnvParams params_miyanosawa ={ 640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", { 700, 1290, 1460, 2350, 3850 }, "res_pwas_miyanosawa.csv" };
-    EnvParams params_miyanosawa_champ ={ 640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", { 1207, 1262, 1264, 1265, 1277 }, "res_pwas_miyanosawa_RGB.csv" };
-    EnvParams params_miyanosawa2 ={ 640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_pwas_miyanosawa_1100-1300_RGB.csv" };
+    EnvParams params_13jo = {938, 606, 938 / 2 * 1.01, 498, 485, 509, 481, 517, 500, "../../../data/2020_02_04_13jo/", {10, 20, 30, 40, 50}, "res_pwas_13jo.csv"};
+    EnvParams params_miyanosawa = {640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", {700, 1290, 1460, 2350, 3850}, "res_pwas_miyanosawa.csv"};
+    EnvParams params_miyanosawa_champ = {640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", {1207, 1262, 1264, 1265, 1277}, "res_pwas_miyanosawa_RGB.csv"};
+    EnvParams params_miyanosawa2 = {640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_pwas_miyanosawa_1100-1300_RGB.csv"};
 
-    EnvParams params_miyanosawa_3_3={ 640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_pwas_miyanosawa_0303_1100-1300_RGB.csv" };
-    EnvParams params_miyanosawa_3_3_champ={ 640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", { 1207, 1262, 1264, 1265, 1277 }, "res_pwas_miyanosawa_0303_RGB.csv" };
+    EnvParams params_miyanosawa_3_3 = {640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_pwas_miyanosawa_0303_1100-1300_RGB.csv"};
+    EnvParams params_miyanosawa_3_3_champ = {640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", {1207, 1262, 1264, 1265, 1277}, "res_pwas_miyanosawa_0303_RGB.csv"};
 
     EnvParams params_use = params_miyanosawa_3_3;
     ofs = ofstream(params_use.of_name);

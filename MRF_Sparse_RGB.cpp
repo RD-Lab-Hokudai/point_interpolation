@@ -217,26 +217,9 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
 
     auto interpolated_ptr = make_shared<geometry::PointCloud>();
     vector<vector<double>> interpolated_z(64, vector<double>(envParams.width, 0));
-    {
-        // Linear interpolation
-        for (int i = 0; i + 1 < layer_cnt; i++)
-        {
-            for (int j = 0; j < envParams.width; j++)
-            {
-                double delta = (filtered_interpolate_grid[i + 1][j] - filtered_interpolate_grid[i][j]) / (64 / layer_cnt);
-                double z = filtered_interpolate_grid[i][j];
-                for (int k = 0; k <= 64 / layer_cnt; k++)
-                {
-                    interpolated_z[i * (64 / layer_cnt) + k][j] = z;
-                    z += delta;
-                }
-            }
-        }
-    }
-
     {//MRF
-        double k = 0.1;
-        double c = 100;
+        double k = 1.0;
+        double c = 1000;
         int length=64*envParams.width;
         Eigen::VectorXd z_line(length);
         Eigen::SparseMatrix<double> W(length, length);
@@ -300,6 +283,7 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
             for (int j = 0; j < envParams.width; j++)
             {
                 double z = y_res[i*envParams.width+j];
+                interpolated_z[i][j]=z;
                 if (original_grid[i][j] <= 0 || z <= 0 /*z < 0 || original_grid[i][j] == 0*/)
                 {
                     continue;
