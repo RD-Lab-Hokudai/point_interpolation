@@ -56,14 +56,28 @@ namespace qm
         double eqm = 0;
         int height = img1.rows;
         int width = img1.cols;
+        int cnt = 0;
 
         for (i = 0; i < height; i++)
+        {
             for (j = 0; j < width; j++)
-                eqm += (img1.at<double>(i, j) - img2.at<double>(i, j)) * (img1.at<double>(i, j) - img2.at<double>(i, j));
+            {
+                if (img1.at<double>(i, j) > 0 && img2.at<double>(i, j) > 0)
+                {
+                    eqm += (img1.at<double>(i, j) - img2.at<double>(i, j)) * (img1.at<double>(i, j) - img2.at<double>(i, j));
+                    cnt++;
+                }
+            }
+        }
 
-        eqm /= height * width;
-
-        return eqm;
+        if (cnt == 0)
+        {
+            return 1e9;
+        }
+        else
+        {
+            return eqm / cnt;
+        }
     }
 
     /**
@@ -78,12 +92,13 @@ namespace qm
     /**
 	 * Compute the SSIM between 2 images
 	 */
-    double ssim(Mat &img_src, Mat &img_compressed, int block_size, bool show_progress = false)
+    double ssim(Mat &img1, Mat &img2, int block_size, bool show_progress = false)
     {
         double ssim = 0;
 
-        int nbBlockPerHeight = img_src.rows / block_size;
-        int nbBlockPerWidth = img_src.cols / block_size;
+        int nbBlockPerHeight = img1.rows / block_size;
+        int nbBlockPerWidth = img1.cols / block_size;
+        int validBlocks = 0;
 
         for (int k = 0; k < nbBlockPerHeight; k++)
         {
@@ -92,27 +107,59 @@ namespace qm
                 int m = k * block_size;
                 int n = l * block_size;
 
-                double avg_o = mean(img_src(Range(m, m + block_size), Range(n, n + block_size)))[0];
-                double avg_r = mean(img_compressed(Range(m, m + block_size), Range(n, n + block_size)))[0];
-                double sigma_o = sigma(img_src, m, n, block_size);
-                double sigma_r = sigma(img_compressed, m, n, block_size);
-                double sigma_ro = cov(img_src, img_compressed, m, n, block_size);
+                int cnt = 0;
+                double avg_o;
+                double avg_r;
+                double avg2_o;
+                double avg2_r;
+                double avg_or;
+                for (int i = 0; i < block_size; i++)
+                {
+                    for (int j = 0; j < block_size; j++)
+                    {
+                        //if (img1.at<double>(m + i, n + j) > 0 && img2.at<double>(m + i, n + j) > 0)
+                        {
+                            double o = img1.at<double>(m + i, n + j);
+                            double r = img2.at<double>(m + i, n + j);
+                            avg_o += o;
+                            avg2_o += o * o;
+                            avg_r += r;
+                            avg2_r += r * r;
+                            avg_or += o * r;
+                            cnt++;
+                        }
+                    }
+                }
 
-                ssim += ((2 * avg_o * avg_r + C1) * (2 * sigma_ro + C2)) / ((avg_o * avg_o + avg_r * avg_r + C1) * (sigma_o * sigma_o + sigma_r * sigma_r + C2));
+                if (cnt == 0)
+                {
+                }
+                else
+                {
+                    avg_o /= cnt;
+                    avg2_o /= cnt;
+                    avg_r /= cnt;
+                    avg2_r /= cnt;
+                    avg_or /= cnt;
+
+                    double sigma2_o = avg2_o - avg_o * avg_o;
+                    double sigma2_r = avg2_r - avg_r * avg_r;
+                    double sigma_or = avg_or - avg_o * avg_r;
+
+                    ssim += ((2 * avg_o * avg_r + C1) * (2 * sigma_or + C2)) / ((avg_o * avg_o + avg_r * avg_r + C1) * (sigma2_o + sigma2_r + C2));
+                    validBlocks++;
+                }
             }
-            // Progress
-            if (show_progress)
-                cout << "\r>>SSIM [" << (int)((((double)k) / nbBlockPerHeight) * 100) << "%]";
         }
-        ssim /= nbBlockPerHeight * nbBlockPerWidth;
 
-        if (show_progress)
+        if (validBlocks == 0)
         {
-            cout << "\r>>SSIM [100%]" << endl;
-            cout << "SSIM : " << ssim << endl;
+            return 0;
         }
-
-        return ssim;
+        else
+        {
+            return ssim / validBlocks;
+        }
     }
 
     void compute_quality_metrics(char *file1, char *file2, int block_size)

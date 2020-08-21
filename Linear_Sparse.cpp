@@ -13,7 +13,7 @@
 #include <eigen3/unsupported/Eigen/NonLinearOptimization>
 #include <time.h>
 
-#include "quality_metrics_OpenCV.cpp"
+#include "quality_metrics_OpenCV_2.cpp"
 
 using namespace std;
 using namespace open3d;
@@ -289,8 +289,10 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
             }
         }
         double ssim = qm::ssim(original_Mat, interpolated_Mat, 64 / layer_cnt);
+        double mse = qm::eqm(original_Mat, interpolated_Mat);
         cout << tim << "ms" << endl;
-        cout << "SSIM=" << ssim << endl;
+        cout << "SSIM = " << ssim << endl;
+        cout << "MSE = " << mse << endl;
         ofs << data_no << "," << tim << "," << ssim << "," << error << "," << endl;
     }
 
@@ -335,7 +337,7 @@ int phi = 527;
     EnvParams params_miyanosawa_champ = {938, 606, 938 / 2 * 1.01, 495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", {1107, 1117, 1118, 1258}, "res_linear_miyanosawa.csv"};
     EnvParams params_miyanosawa2 = {938, 606, 938 / 2 * 1.01, 495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_linear_miyanosawa_1100-1300.csv"};
 
-    EnvParams params_use = params_miyanosawa2;
+    EnvParams params_use = params_13jo;
     ofs = ofstream(params_use.of_name);
 
     for (int i = 0; i < params_use.data_ids.size(); i++)

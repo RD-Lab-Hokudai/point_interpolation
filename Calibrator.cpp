@@ -23,7 +23,6 @@ cv::Mat id_img;
 int dataNo = 0;
 
 // 02_19_13jo
-
 int X = 495;
 int Y = 485;
 int Z = 509;
