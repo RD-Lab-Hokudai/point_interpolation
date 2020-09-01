@@ -94,7 +94,7 @@ namespace qm
 	 */
     double ssim(Mat &img1, Mat &img2, int block_size, bool show_progress = false)
     {
-        double ssim = 0;
+        double mssim = 0;
 
         int nbBlockPerHeight = img1.rows / block_size;
         int nbBlockPerWidth = img1.cols / block_size;
@@ -117,7 +117,7 @@ namespace qm
                 {
                     for (int j = 0; j < block_size; j++)
                     {
-                        //if (img1.at<double>(m + i, n + j) > 0 && img2.at<double>(m + i, n + j) > 0)
+                        if (img1.at<double>(m + i, n + j) > 0 && img2.at<double>(m + i, n + j) > 0)
                         {
                             double o = img1.at<double>(m + i, n + j);
                             double r = img2.at<double>(m + i, n + j);
@@ -146,7 +146,11 @@ namespace qm
                     double sigma2_r = avg2_r - avg_r * avg_r;
                     double sigma_or = avg_or - avg_o * avg_r;
 
-                    ssim += ((2 * avg_o * avg_r + C1) * (2 * sigma_or + C2)) / ((avg_o * avg_o + avg_r * avg_r + C1) * (sigma2_o + sigma2_r + C2));
+                    double ssim = ((2 * avg_o * avg_r + C1) * (2 * sigma_or + C2)) / ((avg_o * avg_o + avg_r * avg_r + C1) * (sigma2_o + sigma2_r + C2));
+                    ssim = min(1.0, ssim);
+                    ssim = max(0.0, ssim);
+                    mssim += ssim;
+
                     validBlocks++;
                 }
             }
@@ -158,7 +162,7 @@ namespace qm
         }
         else
         {
-            return ssim / validBlocks;
+            return mssim / validBlocks;
         }
     }
 

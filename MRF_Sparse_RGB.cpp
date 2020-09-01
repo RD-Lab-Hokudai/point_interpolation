@@ -13,7 +13,7 @@
 #include <eigen3/unsupported/Eigen/NonLinearOptimization>
 #include <time.h>
 
-#include "quality_metrics_OpenCV.cpp"
+#include "quality_metrics_OpenCV_2.cpp"
 
 using namespace std;
 using namespace open3d;
@@ -39,9 +39,9 @@ struct EnvParams
 };
 
 void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams,
-    vector<vector<double>> &original_grid, vector<vector<double>> &filtered_grid,
-    vector<vector<double>> &original_interpolate_grid, vector<vector<double>> &filtered_interpolate_grid,
-    vector<vector<int>> &vs, int layer_cnt = 16)
+               vector<vector<double>> &original_grid, vector<vector<double>> &filtered_grid,
+               vector<vector<double>> &original_interpolate_grid, vector<vector<double>> &filtered_interpolate_grid,
+               vector<vector<int>> &vs, int layer_cnt = 16)
 {
     vector<double> tans;
     double PI = acos(-1);
@@ -198,7 +198,7 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
     const string img_path = envParams.folder_path + to_string(data_no) + "_rgb.png";
     const string pcd_path = envParams.folder_path + to_string(data_no) + ".pcd";
 
-    auto img=cv::imread(img_path);
+    auto img = cv::imread(img_path);
 
     geometry::PointCloud pointcloud;
     auto pcd_ptr = make_shared<geometry::PointCloud>();
@@ -217,10 +217,10 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
 
     auto interpolated_ptr = make_shared<geometry::PointCloud>();
     vector<vector<double>> interpolated_z(64, vector<double>(envParams.width, 0));
-    {//MRF
+    { //MRF
         double k = 1.0;
         double c = 1000;
-        int length=64*envParams.width;
+        int length = 64 * envParams.width;
         Eigen::VectorXd z_line(length);
         Eigen::SparseMatrix<double> W(length, length);
         vector<Eigen::Triplet<double>> W_triplets;
@@ -228,9 +228,9 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
         {
             for (int j = 0; j < envParams.width; j++)
             {
-                if (original_grid[i][j] > 0&&i%(64/layer_cnt)==0)
+                if (original_grid[i][j] > 0 && i % (64 / layer_cnt) == 0)
                 {
-                    z_line[i*envParams.width+j]=original_grid[i][j];
+                    z_line[i * envParams.width + j] = original_grid[i][j];
                     W_triplets.emplace_back(i * envParams.width + j, i * envParams.width + j, k);
                 }
             }
@@ -240,15 +240,16 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
         Eigen::SparseMatrix<double> S(length, length);
         vector<Eigen::Triplet<double>> S_triplets;
         int dires = 4;
-        int dx[4] ={ 1, -1, 0, 0 };
-        int dy[4] ={ 0, 0, 1, -1 };
+        int dx[4] = {1, -1, 0, 0};
+        int dy[4] = {0, 0, 1, -1};
         for (int i = 0; i < 64; i++)
         {
             for (int j = 0; j < envParams.width; j++)
             {
                 double wSum = 0;
-                int v0=vs[i][j];
-                if (v0==-1) {
+                int v0 = vs[i][j];
+                if (v0 == -1)
+                {
                     continue;
                 }
                 for (int k = 0; k < dires; k++)
@@ -257,11 +258,12 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
                     int v = i + dy[k];
                     if (0 <= u && u < envParams.width && 0 <= v && v < 64)
                     {
-                        int v1=vs[v][u];
-                        if (v1==-1) {
+                        int v1 = vs[v][u];
+                        if (v1 == -1)
+                        {
                             continue;
                         }
-                        double x_norm2=cv::norm(img.at<cv::Vec3b>(v0, j)-img.at<cv::Vec3b>(v1, u))/255/255;
+                        double x_norm2 = cv::norm(img.at<cv::Vec3b>(v0, j) - img.at<cv::Vec3b>(v1, u)) / 255 / 255;
                         double w = -sqrt(exp(-c * x_norm2));
                         S_triplets.emplace_back(i * envParams.width + j, v * envParams.width + u, w);
                         wSum += w;
@@ -282,8 +284,8 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
         {
             for (int j = 0; j < envParams.width; j++)
             {
-                double z = y_res[i*envParams.width+j];
-                interpolated_z[i][j]=z;
+                double z = y_res[i * envParams.width + j];
+                interpolated_z[i][j] = z;
                 if (original_grid[i][j] <= 0 || z <= 0 /*z < 0 || original_grid[i][j] == 0*/)
                 {
                     continue;
@@ -292,8 +294,8 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
                 double x = z * (j - envParams.width / 2) / envParams.f_xy;
                 double y = z * (vs[i][j] - envParams.height / 2) / envParams.f_xy;
                 interpolated_ptr->points_.emplace_back(x, y, z);
-                cv::Vec3b color=img.at<cv::Vec3b>(vs[i][j], j);
-                interpolated_ptr->colors_.emplace_back(color[0]/255.0, color[1]/255.0, color[2]/255.0);
+                cv::Vec3b color = img.at<cv::Vec3b>(vs[i][j], j);
+                interpolated_ptr->colors_.emplace_back(color[0] / 255.0, color[1] / 255.0, color[2] / 255.0);
             }
         }
     }
@@ -338,11 +340,11 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
             }
         }
         double ssim = qm::ssim(original_Mat, interpolated_Mat, 64 / layer_cnt);
-        double mse=qm::eqm(original_Mat, interpolated_Mat);
+        double mse = qm::eqm(original_Mat, interpolated_Mat);
         cout << tim << "ms" << endl;
         cout << "SSIM=" << ssim << endl;
-        ofs << data_no << "," << tim << "," << ssim << ","<<mse<<"," << error << "," << endl;
-        error=ssim;
+        ofs << data_no << "," << tim << "," << ssim << "," << mse << "," << error << "," << endl;
+        error = ssim;
     }
 
     if (see_res)
@@ -354,8 +356,8 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
             0, 0, 0, 1;
         pcd_ptr->Transform(front);
         interpolated_ptr->Transform(front);
-        visualization::DrawGeometries({ pcd_ptr }, "b", 1600, 900);
-        visualization::DrawGeometries({ interpolated_ptr }, "a", 1600, 900);
+        visualization::DrawGeometries({pcd_ptr}, "b", 1600, 900);
+        visualization::DrawGeometries({interpolated_ptr}, "a", 1600, 900);
     }
 
     return error;
@@ -383,12 +385,12 @@ int theta = 506;
 int phi = 527;
 */
 
-    EnvParams params_13jo ={ 938, 606, 938 / 2 * 1.01, 498, 485, 509, 481, 517, 500, "../../../data/2020_02_04_13jo/", { 10, 20, 30, 40, 50 }, "res_mrf_13jo.csv" };
-    EnvParams params_miyanosawa ={ 640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", { 700, 1290, 1460, 2350, 3850 }, "res_mrf_miyanosawa.csv" };
-    EnvParams params_miyanosawa_champ ={ 640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", { 1207, 1262, 1264, 1265, 1277 }, "res_mrf_miyanosawa_RGB.csv" };
-    EnvParams params_miyanosawa2 ={ 640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_mrf_miyanosawa_1100-1300_RGB.csv" };
+    EnvParams params_13jo = {938, 606, 938 / 2 * 1.01, 498, 485, 509, 481, 517, 500, "../../../data/2020_02_04_13jo/", {10, 20, 30, 40, 50}, "res_mrf_13jo.csv"};
+    EnvParams params_miyanosawa = {640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", {700, 1290, 1460, 2350, 3850}, "res_mrf_miyanosawa.csv"};
+    EnvParams params_miyanosawa_champ = {640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", {1207, 1262, 1264, 1265, 1277}, "res_mrf_miyanosawa_RGB.csv"};
+    EnvParams params_miyanosawa2 = {640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_mrf_miyanosawa_1100-1300_RGB.csv"};
 
-    EnvParams params_miyanosawa_3_3={ 640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_mrf_miyanosawa_0303_1100-1300_RGB.csv" };
+    EnvParams params_miyanosawa_3_3 = {640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_mrf_miyanosawa_0303_1100-1300_RGB.csv"};
 
     EnvParams params_use = params_miyanosawa_3_3;
     ofs = ofstream(params_use.of_name);

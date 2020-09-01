@@ -13,7 +13,7 @@
 #include <eigen3/unsupported/Eigen/NonLinearOptimization>
 #include <time.h>
 
-#include "quality_metrics_OpenCV.cpp"
+#include "quality_metrics_OpenCV_2.cpp"
 
 using namespace std;
 using namespace open3d;
@@ -600,10 +600,10 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
 
     { // SSIM evaluation
         double tim = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count();
-        cv::Mat original_Mat = cv::Mat::zeros(64 - 64 / layer_cnt + 1, width, CV_64FC1);
-        cv::Mat interpolated_Mat = cv::Mat::zeros(64 - 64 / layer_cnt + 1, width, CV_64FC1);
-        cv::Mat original_interpolated_Mat = cv::Mat::zeros(64 - 64 / layer_cnt + 1, width, CV_64FC1);
-        for (int i = 0; i < 64 - 64 / layer_cnt + 1; i++)
+        cv::Mat original_Mat = cv::Mat::zeros(64, width, CV_64FC1);
+        cv::Mat interpolated_Mat = cv::Mat::zeros(64, width, CV_64FC1);
+        cv::Mat original_interpolated_Mat = cv::Mat::zeros(64, width, CV_64FC1);
+        for (int i = 0; i < 64; i++)
         {
             for (int j = 0; j < width; j++)
             {
@@ -621,12 +621,12 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
             }
         }
         cout << original_Mat.rows << endl;
-        double ssim = qm::ssim(original_interpolated_Mat, interpolated_Mat, 64 / layer_cnt);
-        double mse = qm::eqm(original_interpolated_Mat, interpolated_Mat);
+        double ssim = qm::ssim(original_Mat, interpolated_Mat, 64 / layer_cnt);
+        double mse = qm::eqm(original_Mat, interpolated_Mat);
         cout << tim << "ms" << endl;
         cout << "SSIM=" << ssim << endl;
         ofs << data_no << "," << tim << "," << ssim << "," << mse << "," << error << "," << endl;
-        error = ssim;
+        error = mse;
     }
 
     if (see_res)
@@ -679,16 +679,16 @@ int phi = 527;
     EnvParams params_miyanosawa_3_3 = {498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_original_miyanosawa_0303_1100-1300_RGB.csv"};
     EnvParams params_miyanosawa_3_3_champ = {506, 483, 495, 568, 551, 510, "../../../data/2020_03_03_miyanosawa/", {1101, 1220, 1232, 1268, 1277}, "res_original_miyanosawa_0303_RGB.csv"};
 
-    EnvParams params_use = params_miyanosawa_3_3_champ;
+    EnvParams params_use = params_miyanosawa_3_3;
     ofs = ofstream(params_use.of_name);
 
     for (int i = 0; i < params_use.data_ids.size(); i++)
     {
-        segmentate(params_use.data_ids[i], params_use, 0.5, 108, 1, 1.5, 9, 7, 0.7, false);
+        segmentate(params_use.data_ids[i], params_use, 0.5, 20, 1, 1.5, 19, 7, 1, false);
     }
-    //return 0;
+    return 0;
 
-    double best_error = 0;
+    double best_error = 10000;
     double best_color_segment_k = 1;
     int best_color_size_min = 1;
     double best_sigma_s = 1;
@@ -700,18 +700,20 @@ int phi = 527;
     // best params 8/10 110 1 90 1.6 17 7 0.7
     // best params 2020/8/10 110 1 90 1.6 19 7 0.7
     // best params 2020/8/10 108 1 90 1.5 9 7 0.7
+    // best params 2020/8/22 10 1 90 0.1 1 1 0.1 なぜかlinearと一致
+    // best params 2020/8/28 20 1 90 1.5 19 7 1
 
-    for (double color_segment_k = 0; color_segment_k < 150; color_segment_k += 10)
+    for (double color_segment_k = 10; color_segment_k < 250; color_segment_k += 10)
     {
         for (int color_size_min = 1; color_size_min < 2; color_size_min += 1)
         {
-            for (double sigma_s = 0.1; sigma_s < 1.6; sigma_s += 0.1)
+            for (double sigma_s = 1.5; sigma_s < 1.6; sigma_s += 0.1)
             {
-                for (double sigma_r = 1; sigma_r < 10; sigma_r += 1)
+                for (double sigma_r = 9; sigma_r < 20; sigma_r += 1)
                 {
                     for (int r = 1; r < 9; r += 2)
                     {
-                        for (double coef_s = 0.1; coef_s <= 1.0; coef_s += 0.1)
+                        for (double coef_s = 0.0; coef_s <= 1.0; coef_s += 0.1)
                         {
                             cout << color_segment_k << " " << coef_s << endl;
                             double error = 0;
@@ -720,7 +722,7 @@ int phi = 527;
                                 error += segmentate(params_use.data_ids[i], params_use, 0.5, color_segment_k, color_size_min, sigma_s, sigma_r, r, coef_s, false);
                             }
 
-                            if (best_error < error)
+                            if (best_error > error)
                             {
                                 best_error = error;
                                 best_color_segment_k = color_segment_k;

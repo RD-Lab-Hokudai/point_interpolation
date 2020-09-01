@@ -13,7 +13,7 @@
 #include <eigen3/unsupported/Eigen/NonLinearOptimization>
 #include <time.h>
 
-#include "quality_metrics_OpenCV.cpp"
+#include "quality_metrics_OpenCV_2.cpp"
 
 using namespace std;
 using namespace open3d;
@@ -382,10 +382,10 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
 
     { // SSIM evaluation
         double tim = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count();
-        cv::Mat original_Mat = cv::Mat::zeros(64 - 64 / layer_cnt + 1, envParams.width, CV_64FC1);
-        cv::Mat interpolated_Mat = cv::Mat::zeros(64 - 64 / layer_cnt + 1, envParams.width, CV_64FC1);
-        cv::Mat original_interpolated_Mat = cv::Mat::zeros(64 - 64 / layer_cnt + 1, envParams.width, CV_64FC1);
-        for (int i = 0; i < 64 - 64 / layer_cnt + 1; i++)
+        cv::Mat original_Mat = cv::Mat::zeros(64, envParams.width, CV_64FC1);
+        cv::Mat interpolated_Mat = cv::Mat::zeros(64, envParams.width, CV_64FC1);
+        cv::Mat original_interpolated_Mat = cv::Mat::zeros(64, envParams.width, CV_64FC1);
+        for (int i = 0; i < 64; i++)
         {
             for (int j = 0; j < envParams.width; j++)
             {
@@ -402,12 +402,12 @@ double segmentate(int data_no, EnvParams envParams, double gaussian_sigma, doubl
                 }
             }
         }
-        double ssim = qm::ssim(original_interpolated_Mat, interpolated_Mat, 64 / layer_cnt);
-        double mse = qm::eqm(original_interpolated_Mat, interpolated_Mat);
+        double ssim = qm::ssim(original_Mat, interpolated_Mat, 64 / layer_cnt);
+        double mse = qm::eqm(original_Mat, interpolated_Mat);
         cout << tim << "ms" << endl;
         cout << "SSIM=" << ssim << endl;
         ofs << data_no << "," << tim << "," << ssim << "," << mse << "," << error << "," << endl;
-        error = ssim;
+        error = mse;
     }
 
     if (see_res)
@@ -463,13 +463,14 @@ int phi = 527;
     }
     return 0;
 
-    double best_ssim = 0;
+    double best_error = 1000000;
     double best_sigma_c = 1;
     double best_sigma_s = 1;
     double best_sigma_r = 1;
     int best_r = 1;
     // best params 2020/08/03 sigma_c:1000 sigma_s:1.99 sigma_r:19 r:7
     // best params 2020/08/10 sigma_c:12000 sigma_s:1.6 sigma_r:19 r:7
+    // best params 2020/08/10 sigma_c:8000 sigma_s:1.6 sigma_r:19 r:7
 
     for (double sigma_c = 1000; sigma_c <= 100000; sigma_c += 1000)
     {
@@ -485,9 +486,9 @@ int phi = 527;
                         error += segmentate(params_use.data_ids[i], params_use, 0.5, sigma_c, sigma_s, sigma_r, r, false);
                     }
 
-                    if (best_ssim < error)
+                    if (best_error > error)
                     {
-                        best_ssim = error;
+                        best_error = error;
                         best_sigma_c = sigma_c;
                         best_sigma_s = sigma_s;
                         best_sigma_r = sigma_r;
@@ -502,6 +503,6 @@ int phi = 527;
     cout << "Sigma S = " << best_sigma_s << endl;
     cout << "Sigma R = " << best_sigma_r << endl;
     cout << "R = " << best_r << endl;
-    cout << "Mean error = " << best_ssim / params_use.data_ids.size() << endl;
+    cout << "Mean error = " << best_error / params_use.data_ids.size() << endl;
     return 0;
 }

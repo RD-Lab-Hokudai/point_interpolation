@@ -13,7 +13,7 @@
 #include <eigen3/unsupported/Eigen/NonLinearOptimization>
 #include <time.h>
 
-#include "quality_metrics_OpenCV.cpp"
+#include "quality_metrics_OpenCV_2.cpp"
 
 using namespace std;
 using namespace open3d;
@@ -280,10 +280,10 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
 
     { // SSIM evaluation
         double tim = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count();
-        cv::Mat original_Mat = cv::Mat::zeros(64 - 64 / layer_cnt + 1, envParams.width, CV_64FC1);
-        cv::Mat interpolated_Mat = cv::Mat::zeros(64 - 64 / layer_cnt + 1, envParams.width, CV_64FC1);
-        cv::Mat original_interpolated_Mat = cv::Mat::zeros(64 - 64 / layer_cnt + 1, envParams.width, CV_64FC1);
-        for (int i = 0; i < 64 - 64 / layer_cnt + 1; i++)
+        cv::Mat original_Mat = cv::Mat::zeros(64, envParams.width, CV_64FC1);
+        cv::Mat interpolated_Mat = cv::Mat::zeros(64, envParams.width, CV_64FC1);
+        cv::Mat original_interpolated_Mat = cv::Mat::zeros(64, envParams.width, CV_64FC1);
+        for (int i = 0; i < 64; i++)
         {
             for (int j = 0; j < envParams.width; j++)
             {
@@ -300,8 +300,8 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
                 }
             }
         }
-        double ssim = qm::ssim(original_interpolated_Mat, interpolated_Mat, 64 / layer_cnt);
-        double mse = qm::eqm(original_interpolated_Mat, interpolated_Mat);
+        double ssim = qm::ssim(original_Mat, interpolated_Mat, 64 / layer_cnt);
+        double mse = qm::eqm(original_Mat, interpolated_Mat);
         cout << tim << "ms" << endl;
         cout << "SSIM=" << ssim << endl;
         ofs << data_no << "," << tim << "," << ssim << "," << mse << "," << error << "," << endl;
