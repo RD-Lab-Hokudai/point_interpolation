@@ -254,6 +254,42 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
         }
     }
 
+    {
+        auto original_colored_ptr = make_shared<geometry::PointCloud>();
+        for (int i = 0; i < 64; i++)
+        {
+            for (int j = 0; j < envParams.width; j++)
+            {
+                double z = original_grid[i][j];
+                if (z <= 0)
+                {
+                    continue;
+                }
+
+                double x = z * (j - envParams.width / 2) / envParams.f_xy;
+                double y = z * (vs[i][j] - envParams.height / 2) / envParams.f_xy;
+                original_colored_ptr->points_.emplace_back(x, y, z);
+                cv::Vec3b color = img.at<cv::Vec3b>(vs[i][j], j);
+                original_colored_ptr->colors_.emplace_back(color[2] / 255.0, color[1] / 255.0, color[0] / 255.0);
+            }
+        }
+        //visualization::DrawGeometries({original_colored_ptr}, "Original", 1600, 900);
+        if (!io::WritePointCloudToPCD(envParams.folder_path + to_string(data_no) + "_color.pcd", *original_colored_ptr))
+        {
+            cout << "Cannot write" << endl;
+        }
+        /*
+        geometry::PointCloud hoge;
+        auto hoge_ptr = make_shared<geometry::PointCloud>();
+        if (!io::ReadPointCloud(envParams.folder_path + to_string(data_no) + "_color.pcd", hoge))
+        {
+            cout << "Cannot read" << endl;
+        }
+        *hoge_ptr = hoge;
+        visualization::DrawGeometries({hoge_ptr}, "Read", 1600, 900);
+        */
+    }
+
     double error = 0;
     { // Evaluation
         int cnt = 0;
