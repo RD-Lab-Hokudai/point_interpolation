@@ -130,17 +130,9 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
 
             while (now < min(envParams.width, u))
             {
-                double z;
-                if (all_layers[i][j][2] == all_layers[i][j + 1][2])
-                {
-                    z = all_layers[i][j][2];
-                }
-                else
-                {
-                    double angle = (all_layers[i][j + 1][2] - all_layers[i][j][2]) / (all_layers[i][j + 1][0] - all_layers[i][j][0]);
-                    double tan = (now - envParams.width / 2) / envParams.f_xy;
-                    z = (all_layers[i][j][2] - angle * all_layers[i][j][0]) / (1 - tan * angle);
-                }
+                double angle = (all_layers[i][j + 1][2] - all_layers[i][j][2]) / (all_layers[i][j + 1][0] - all_layers[i][j][0]);
+                double tan = (now - envParams.width / 2) / envParams.f_xy;
+                double z = (all_layers[i][j][2] - angle * all_layers[i][j][0]) / (1 - tan * angle);
                 original_interpolate_grid[i][now] = z;
                 vs[i][now] = vPrev + (now - uPrev) * (v - vPrev) / (u - uPrev);
                 now++;
@@ -229,7 +221,6 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
     vector<vector<double>> interpolated_z(64, vector<double>(envParams.width, 0));
     {
         // Linear interpolation
-        // Need fix
         for (int i = 0; i + 1 < layer_cnt; i++)
         {
             for (int j = 0; j < envParams.width; j++)
@@ -243,12 +234,9 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
                 for (int k = 0; k <= 64 / layer_cnt; k++)
                 {
                     int v = vs[i * (64 / layer_cnt)][j] + k * (vs[(i + 1) * (64 / layer_cnt)][j] - vs[i * (64 / layer_cnt)][j]) / (64 / layer_cnt);
+                    //v = vs[i * (64 / layer_cnt) + k][j];
                     double tan = (v - envParams.height / 2) / envParams.f_xy;
-                    double z;
-                    //z = zPrev;
-                    z = (zPrev - angle * yPrev) / (1 - angle * tan);
-                    //double t = (yPrev - tan * zPrev) / (tan * (zNext - zPrev) - (yNext - yPrev));
-                    //z = zPrev + t * (zNext - zPrev);
+                    double z = (zPrev - angle * yPrev) / (1 - angle * tan);
                     interpolated_z[i * (64 / layer_cnt) + k][j] = z;
                 }
             }
