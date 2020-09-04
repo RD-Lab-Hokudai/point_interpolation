@@ -130,7 +130,18 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
 
             while (now < min(envParams.width, u))
             {
-                double z = all_layers[i][j][2] + (now - uPrev) * (all_layers[i][j + 1][2] - all_layers[i][j][2]) / (u - uPrev);
+                double z;
+                if (all_layers[i][j][2] == all_layers[i][j + 1][2])
+                {
+                    z = all_layers[i][j][2];
+                }
+                else
+                {
+                    double angle = (all_layers[i][j + 1][2] - all_layers[i][j][2]) / (all_layers[i][j + 1][0] - all_layers[i][j][0]);
+                    double tan = (now - envParams.width / 2) / envParams.f_xy;
+                    z = (all_layers[i][j][2] - angle * all_layers[i][j][0]) / (1 - tan * angle);
+                }
+                //double z = all_layers[i][j][2] + (now - uPrev) * (all_layers[i][j + 1][2] - all_layers[i][j][2]) / (u - uPrev);
                 original_interpolate_grid[i][now] = z;
                 vs[i][now] = vPrev + (now - uPrev) * (v - vPrev) / (u - uPrev);
                 now++;
@@ -260,7 +271,7 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
         {
             for (int j = 0; j < envParams.width; j++)
             {
-                double z = original_interpolate_grid[i][j];
+                double z = interpolated_z[i][j];
                 if (z <= 0 || vs[i][j] < 0)
                 {
                     continue;
