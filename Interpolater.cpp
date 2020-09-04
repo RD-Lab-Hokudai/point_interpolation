@@ -141,7 +141,6 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
                     double tan = (now - envParams.width / 2) / envParams.f_xy;
                     z = (all_layers[i][j][2] - angle * all_layers[i][j][0]) / (1 - tan * angle);
                 }
-                //double z = all_layers[i][j][2] + (now - uPrev) * (all_layers[i][j + 1][2] - all_layers[i][j][2]) / (u - uPrev);
                 original_interpolate_grid[i][now] = z;
                 vs[i][now] = vPrev + (now - uPrev) * (v - vPrev) / (u - uPrev);
                 now++;
@@ -230,17 +229,36 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
     vector<vector<double>> interpolated_z(64, vector<double>(envParams.width, 0));
     {
         // Linear interpolation
+        // Need fix
         for (int i = 0; i + 1 < layer_cnt; i++)
         {
             for (int j = 0; j < envParams.width; j++)
             {
-                double delta = (filtered_interpolate_grid[i + 1][j] - filtered_interpolate_grid[i][j]) / (64 / layer_cnt);
-                double z = filtered_interpolate_grid[i][j];
+                double zPrev = filtered_interpolate_grid[i][j];
+                double zNext = filtered_interpolate_grid[i + 1][j];
+                double yPrev = filtered_interpolate_grid[i][j] * (vs[i * (64 / layer_cnt)][j] - envParams.height / 2) / envParams.f_xy;
+                double yNext = filtered_interpolate_grid[i + 1][j] * (vs[(i + 1) * (64 / layer_cnt)][j] - envParams.height / 2) / envParams.f_xy;
+                double angle = (zNext - zPrev) / (yNext - yPrev);
+
                 for (int k = 0; k <= 64 / layer_cnt; k++)
                 {
+                    int v = vs[i * (64 / layer_cnt)][j] + k * (vs[(i + 1) * (64 / layer_cnt)][j] - vs[i * (64 / layer_cnt)][j]) / (64 / layer_cnt);
+                    double tan = (v - envParams.height / 2) / envParams.f_xy;
+                    double z;
+                    //z = zPrev;
+                    z = (zPrev - angle * yPrev) / (1 - angle * tan);
+                    //double t = (yPrev - tan * zPrev) / (tan * (zNext - zPrev) - (yNext - yPrev));
+                    //z = zPrev + t * (zNext - zPrev);
                     interpolated_z[i * (64 / layer_cnt) + k][j] = z;
-                    z += delta;
                 }
+            }
+        }
+
+        for (int j = 0; j < envParams.width; j++)
+        {
+            for (int k = 0; k < 64 / layer_cnt; k++)
+            {
+                interpolated_z[(layer_cnt - 1) * (64 / layer_cnt) + k][j] = interpolated_z[(layer_cnt - 1) * (64 / layer_cnt)][j];
             }
         }
     }
@@ -251,7 +269,7 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
             for (int j = 0; j < envParams.width; j++)
             {
                 double z = interpolated_z[i][j];
-                if (original_grid[i][j] <= 0 || z <= 0 /*z < 0 || original_grid[i][j] == 0*/)
+                if (/*original_grid[i][j] <= 0 ||*/ z <= 0 || vs[i][j] < 0)
                 {
                     continue;
                 }
@@ -260,18 +278,18 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
                 double y = z * (vs[i][j] - envParams.height / 2) / envParams.f_xy;
                 interpolated_ptr->points_.emplace_back(x, y, z);
                 cv::Vec3b color = img.at<cv::Vec3b>(vs[i][j], j);
-                interpolated_ptr->colors_.emplace_back(color[0] / 255.0, color[1] / 255.0, color[2] / 255.0);
+                interpolated_ptr->colors_.emplace_back(color[2] / 255.0, color[1] / 255.0, color[0] / 255.0);
             }
         }
     }
 
     {
-        auto interpolated_colored_ptr = make_shared<geometry::PointCloud>();
+        auto original_colored_ptr = make_shared<geometry::PointCloud>();
         for (int i = 0; i < 64; i++)
         {
             for (int j = 0; j < envParams.width; j++)
             {
-                double z = interpolated_z[i][j];
+                double z = original_interpolate_grid[i][j];
                 if (z <= 0 || vs[i][j] < 0)
                 {
                     continue;
@@ -279,13 +297,14 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
 
                 double x = z * (j - envParams.width / 2) / envParams.f_xy;
                 double y = z * (vs[i][j] - envParams.height / 2) / envParams.f_xy;
-                interpolated_colored_ptr->points_.emplace_back(x, z, -y);
+                original_colored_ptr->points_.emplace_back(x, z, -y);
                 cv::Vec3b color = img.at<cv::Vec3b>(vs[i][j], j);
-                interpolated_colored_ptr->colors_.emplace_back(color[2] / 255.0, color[1] / 255.0, color[0] / 255.0);
+                original_colored_ptr->colors_.emplace_back(color[2] / 255.0, color[1] / 255.0, color[0] / 255.0);
             }
         }
-        visualization::DrawGeometries({interpolated_colored_ptr}, "Original", 1600, 900);
-        if (!io::WritePointCloudToPCD(envParams.folder_path + to_string(data_no) + "_linear.pcd", *interpolated_colored_ptr))
+        visualization::DrawGeometries({original_colored_ptr}, "Original", 1600, 900);
+        visualization::DrawGeometries({interpolated_ptr}, "Original", 1600, 900);
+        if (!io::WritePointCloudToPCD(envParams.folder_path + to_string(data_no) + "_linear.pcd", *original_colored_ptr))
         {
             cout << "Cannot write" << endl;
         }
