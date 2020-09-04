@@ -388,7 +388,7 @@ int phi = 527;
 
     EnvParams params_miyanosawa_3_3 = {640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_linear_miyanosawa_0303_1100-1300_RGB.csv"};
 
-    EnvParams params_use = params_miyanosawa_3_3;
+    EnvParams params_use = params_13jo;
     ofs = ofstream(params_use.of_name);
 
     for (int i = 0; i < params_use.data_ids.size(); i++)
