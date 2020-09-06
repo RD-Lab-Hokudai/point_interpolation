@@ -116,7 +116,6 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
     filtered_grid = vector<vector<double>>(layer_cnt, vector<double>(envParams.width, -1));
     original_interpolate_grid = vector<vector<double>>(64, vector<double>(envParams.width, -1));
     filtered_interpolate_grid = vector<vector<double>>(layer_cnt, vector<double>(envParams.width, -1));
-
     for (int i = 0; i < 64; i++)
     {
         if (all_layers[i].size() == 0)
@@ -125,15 +124,13 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
         }
 
         int now = 0;
-        int u0 = (int)(envParams.width / 2 + envParams.f_xy * all_layers[i][0][0] / all_layers[i][0][2]);
-        int v0 = (int)(envParams.height / 2 + envParams.f_xy * all_layers[i][0][1] / all_layers[i][0][2]);
-        while (now < u0)
+        int uPrev = (int)(envParams.width / 2 + envParams.f_xy * all_layers[i][0][0] / all_layers[i][0][2]);
+        int vPrev = (int)(envParams.height / 2 + envParams.f_xy * all_layers[i][0][1] / all_layers[i][0][2]);
+        while (now < uPrev)
         {
             original_interpolate_grid[i][now] = all_layers[i][0][2];
             now++;
         }
-        int uPrev = u0;
-        int vPrev = v0;
         for (int j = 0; j + 1 < all_layers[i].size(); j++)
         {
             int u = (int)(envParams.width / 2 + envParams.f_xy * all_layers[i][j + 1][0] / all_layers[i][j + 1][2]);
@@ -153,10 +150,8 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
             vPrev = v;
         }
 
-        int uLast = (int)(envParams.width / 2 + envParams.f_xy * all_layers[i].back()[0] / all_layers[i].back()[2]);
-        int vLast = (int)(envParams.height / 2 + envParams.f_xy * all_layers[i].back()[1] / all_layers[i].back()[2]);
-        original_grid[i][uLast] = all_layers[i].back()[2];
-        target_vs[i][uLast] = vLast;
+        original_grid[i][uPrev] = all_layers[i].back()[2];
+        target_vs[i][uPrev] = vPrev;
         while (now < envParams.width)
         {
             original_interpolate_grid[i][now] = all_layers[i].back()[2];
@@ -205,7 +200,7 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
                 }
             }
         }
-        visualization::DrawGeometries({original_ptr}, "Points", 1200, 720);
+        //visualization::DrawGeometries({original_ptr}, "Points", 1200, 720);
     }
 }
 
@@ -252,11 +247,11 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
             for (int j = 0; j < envParams.width; j++)
             {
                 double z = interpolated_z[i][j];
-                if (/*original_grid[i][j] <= 0 ||*/ z <= 0 || target_vs[i][j] < 0)
+                if (z <= 0)
                 {
                     continue;
                 }
-
+                z = max(min(z, 100.0), 0.0);
                 double x = z * (j - envParams.width / 2) / envParams.f_xy;
                 double y = z * (target_vs[i][j] - envParams.height / 2) / envParams.f_xy;
                 interpolated_ptr->points_.emplace_back(x, y, z);
@@ -272,8 +267,9 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
         {
             for (int j = 0; j < envParams.width; j++)
             {
-                double z = original_interpolate_grid[i][j];
-                if (z <= 0 || target_vs[i][j] < 0)
+                double z = filtered_interpolate_grid[i][j];
+                z = original_grid[i][j];
+                if (z <= 0)
                 {
                     continue;
                 }
@@ -286,7 +282,7 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
             }
         }
         visualization::DrawGeometries({original_colored_ptr}, "Original", 1600, 900);
-        visualization::DrawGeometries({interpolated_ptr}, "Original", 1600, 900);
+        visualization::DrawGeometries({interpolated_ptr}, "Interpolated", 1600, 900);
         if (!io::WritePointCloudToPCD(envParams.folder_path + to_string(data_no) + "_linear.pcd", *original_colored_ptr))
         {
             cout << "Cannot write" << endl;

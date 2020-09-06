@@ -20,7 +20,7 @@ void linear(vector<vector<double>> &target_grid, vector<vector<double>> &base_gr
     }
     cout << base_vs.size() << endl;
 
-    // Need fix when v is not defined
+    // Need fix for acculate interpolation
     for (int i = 0; i + 1 < base_grid.size(); i++)
     {
         for (int j = 0; j < envParams.width; j++)
@@ -30,9 +30,8 @@ void linear(vector<vector<double>> &target_grid, vector<vector<double>> &base_gr
             double yPrev = base_grid[i][j] * (base_vs[i][j] - envParams.height / 2) / envParams.f_xy;
             double yNext = base_grid[i + 1][j] * (base_vs[i + 1][j] - envParams.height / 2) / envParams.f_xy;
             double angle = (zNext - zPrev) / (yNext - yPrev);
-            cout << base_vs[i][j] << " " << base_vs[i + 1][j] << endl;
 
-            for (int k = 0; base_vs[i][j] + k < base_vs[i][j + 1]; k++)
+            for (int k = 0; base_vs[i][j] + k < base_vs[i + 1][j]; k++)
             {
                 int v = base_vs[i][j] + k;
                 double tan = (v - envParams.height / 2) / envParams.f_xy;
