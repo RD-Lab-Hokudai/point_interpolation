@@ -39,6 +39,14 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
     }
 
     vector<vector<Eigen::Vector3d>> all_layers(64, vector<Eigen::Vector3d>());
+    double rollVal = (envParams.roll - 500) / 1000.0;
+    double pitchVal = (envParams.pitch - 500) / 1000.0;
+    double yawVal = (envParams.yaw - 500) / 1000.0;
+    Eigen::MatrixXd calibration_mtx(3, 3);
+    calibration_mtx << cos(yawVal) * cos(pitchVal), cos(yawVal) * sin(pitchVal) * sin(rollVal) - sin(yawVal) * cos(rollVal), cos(yawVal) * sin(pitchVal) * cos(rollVal) + sin(yawVal) * sin(rollVal),
+        sin(yawVal) * cos(pitchVal), sin(yawVal) * sin(pitchVal) * sin(rollVal) + cos(yawVal) * cos(rollVal), sin(yawVal) * sin(pitchVal) * cos(rollVal) - cos(yawVal) * sin(rollVal),
+        -sin(pitchVal), cos(pitchVal) * sin(rollVal), cos(pitchVal) * cos(rollVal);
+
     for (int i = 0; i < raw_pcd_ptr->points_.size(); i++)
     {
         double rawX = raw_pcd_ptr->points_[i][1];
@@ -46,12 +54,12 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
         double rawZ = -raw_pcd_ptr->points_[i][0];
 
         double r = sqrt(rawX * rawX + rawZ * rawZ);
-        double rollVal = (envParams.roll - 500) / 1000.0;
-        double pitchVal = (envParams.pitch - 500) / 1000.0;
-        double yawVal = (envParams.yaw - 500) / 1000.0;
         double xp = cos(yawVal) * cos(pitchVal) * rawX + (cos(yawVal) * sin(pitchVal) * sin(rollVal) - sin(yawVal) * cos(rollVal)) * rawY + (cos(yawVal) * sin(pitchVal) * cos(rollVal) + sin(yawVal) * sin(rollVal)) * rawZ;
         double yp = sin(yawVal) * cos(pitchVal) * rawX + (sin(yawVal) * sin(pitchVal) * sin(rollVal) + cos(yawVal) * cos(rollVal)) * rawY + (sin(yawVal) * sin(pitchVal) * cos(rollVal) - cos(yawVal) * sin(rollVal)) * rawZ;
         double zp = -sin(pitchVal) * rawX + cos(pitchVal) * sin(rollVal) * rawY + cos(pitchVal) * cos(rollVal) * rawZ;
+        xp = calibration_mtx(0, 0) * rawX + calibration_mtx(0, 1) * rawY + calibration_mtx(0, 2) * rawZ;
+        yp = calibration_mtx(1, 0) * rawX + calibration_mtx(1, 1) * rawY + calibration_mtx(1, 2) * rawZ;
+        zp = calibration_mtx(2, 0) * rawX + calibration_mtx(2, 1) * rawY + calibration_mtx(2, 2) * rawZ;
         double x = xp + (envParams.X - 500) / 100.0;
         double y = yp + (envParams.Y - 500) / 100.0;
         double z = zp + (envParams.Z - 500) / 100.0;
@@ -71,6 +79,7 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
 
     for (int i = 0; i < 64; i++)
     {
+        // Remove occlusion
         // no sort
         vector<Eigen::Vector3d> removed;
         for (size_t j = 0; j < all_layers[i].size(); j++)
@@ -83,12 +92,30 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
         }
     }
 
+    target_vs = vector<vector<int>>(64, vector<int>(envParams.width, -1));
+    base_vs = vector<vector<int>>(layer_cnt, vector<int>(envParams.width, -1));
+    for (int i = 0; i < 64; i++)
+    {
+        for (int j = 0; j < envParams.width; j++)
+        {
+            double tan = tans[i];
+            double rawZ = 1;
+            double rawY = rawZ * tan;
+            double x_coef = envParams.f_xy * calibration_mtx(0, 0) - (j - envParams.width / 2) * calibration_mtx(2, 0);
+            double right_value = ((j - envParams.width / 2) * calibration_mtx(2, 1) - envParams.f_xy * calibration_mtx(0, 1)) * rawY + ((j - envParams.width / 2) * calibration_mtx(2, 2) - envParams.f_xy * calibration_mtx(0, 2)) * rawZ;
+            double rawX = right_value / x_coef;
+            double y = calibration_mtx(1, 0) * rawX + calibration_mtx(1, 1) * rawY + calibration_mtx(1, 2) * rawZ;
+            double z = calibration_mtx(2, 0) * rawX + calibration_mtx(2, 1) * rawY + calibration_mtx(2, 2) * rawZ;
+            int v = (int)(envParams.f_xy * y + envParams.height / 2 * z) / z;
+
+            target_vs[i][j] = v;
+        }
+    }
+
     original_grid = vector<vector<double>>(64, vector<double>(envParams.width, -1));
     filtered_grid = vector<vector<double>>(layer_cnt, vector<double>(envParams.width, -1));
     original_interpolate_grid = vector<vector<double>>(64, vector<double>(envParams.width, -1));
     filtered_interpolate_grid = vector<vector<double>>(layer_cnt, vector<double>(envParams.width, -1));
-    target_vs = vector<vector<int>>(64, vector<int>(envParams.width, -1));
-    base_vs = vector<vector<int>>(layer_cnt, vector<int>(envParams.width, -1));
 
     for (int i = 0; i < 64; i++)
     {
@@ -103,7 +130,6 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
         while (now < u0)
         {
             original_interpolate_grid[i][now] = all_layers[i][0][2];
-            target_vs[i][now] = v0;
             now++;
         }
         int uPrev = u0;
@@ -112,7 +138,8 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
         {
             int u = (int)(envParams.width / 2 + envParams.f_xy * all_layers[i][j + 1][0] / all_layers[i][j + 1][2]);
             int v = (int)(envParams.height / 2 + envParams.f_xy * all_layers[i][j + 1][1] / all_layers[i][j + 1][2]);
-            original_grid[i][u] = all_layers[i][j][2];
+            original_grid[i][uPrev] = all_layers[i][j][2];
+            target_vs[i][uPrev] = vPrev;
 
             while (now < min(envParams.width, u))
             {
@@ -120,19 +147,19 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
                 double tan = (now - envParams.width / 2) / envParams.f_xy;
                 double z = (all_layers[i][j][2] - angle * all_layers[i][j][0]) / (1 - tan * angle);
                 original_interpolate_grid[i][now] = z;
-                target_vs[i][now] = vPrev + (now - uPrev) * (v - vPrev) / (u - uPrev);
                 now++;
             }
             uPrev = u;
+            vPrev = v;
         }
 
         int uLast = (int)(envParams.width / 2 + envParams.f_xy * all_layers[i].back()[0] / all_layers[i].back()[2]);
         int vLast = (int)(envParams.height / 2 + envParams.f_xy * all_layers[i].back()[1] / all_layers[i].back()[2]);
         original_grid[i][uLast] = all_layers[i].back()[2];
+        target_vs[i][uLast] = vLast;
         while (now < envParams.width)
         {
             original_interpolate_grid[i][now] = all_layers[i].back()[2];
-            target_vs[i][now] = vLast;
             now++;
         }
     }
@@ -178,7 +205,7 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
                 }
             }
         }
-        //visualization::DrawGeometries({original_ptr}, "Points", 1200, 720);
+        visualization::DrawGeometries({original_ptr}, "Points", 1200, 720);
     }
 }
 
@@ -357,14 +384,14 @@ int main(int argc, char *argv[])
         data_nos.emplace_back(i);
     }
 
-    EnvParams params_13jo = {938, 606, 938 / 2 * 1.01, 498, 485, 509, 481, 517, 500, "../../../data/2020_02_04_13jo/", {10, 20, 30, 40, 50}, "res_linear_13jo.csv", "linear", false, true};
+    EnvParams params_13jo = {938, 606, 938 / 2 * 1.01, 498, 485, 509, 481, 517, 500, "../../../data/2020_02_04_13jo/", {10, 20, 30, 40, 50}, "res_linear_13jo.csv", "linear", false, false};
     EnvParams params_miyanosawa = {640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", {700, 1290, 1460, 2350, 3850}, "res_linear_miyanosawa.csv", "linear", false, true};
     EnvParams params_miyanosawa_champ = {640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", {1207, 1262, 1264, 1265, 1277}, "res_linear_miyanosawa_RGB.csv", "linear", false, true};
     EnvParams params_miyanosawa2 = {640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_linear_miyanosawa_1100-1300_RGB.csv", "linear", false, true};
 
     EnvParams params_miyanosawa_3_3 = {640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_linear_miyanosawa_0303_1100-1300_RGB.csv", "linear", false, true};
 
-    EnvParams params_use = params_miyanosawa_3_3;
+    EnvParams params_use = params_13jo;
     ofs = ofstream(params_use.of_name);
 
     for (int i = 0; i < params_use.data_ids.size(); i++)
