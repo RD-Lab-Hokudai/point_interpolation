@@ -18,7 +18,6 @@ void linear(vector<vector<double>> &target_grid, vector<vector<double>> &base_gr
             full_grid[k][j] = base_grid[0][j];
         }
     }
-    cout << base_vs.size() << endl;
 
     // Need fix for acculate interpolation
     for (int i = 0; i + 1 < base_grid.size(); i++)
@@ -40,7 +39,6 @@ void linear(vector<vector<double>> &target_grid, vector<vector<double>> &base_gr
             }
         }
     }
-    cout << "aueo" << endl;
 
     for (int j = 0; j < envParams.width; j++)
     {
@@ -51,6 +49,7 @@ void linear(vector<vector<double>> &target_grid, vector<vector<double>> &base_gr
         }
     }
 
+    target_grid = vector<vector<double>>(target_vs.size(), vector<double>(envParams.width, 0));
     for (int i = 0; i < target_grid.size(); i++)
     {
         for (int j = 0; j < envParams.width; j++)

@@ -54,12 +54,9 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
         double rawZ = -raw_pcd_ptr->points_[i][0];
 
         double r = sqrt(rawX * rawX + rawZ * rawZ);
-        double xp = cos(yawVal) * cos(pitchVal) * rawX + (cos(yawVal) * sin(pitchVal) * sin(rollVal) - sin(yawVal) * cos(rollVal)) * rawY + (cos(yawVal) * sin(pitchVal) * cos(rollVal) + sin(yawVal) * sin(rollVal)) * rawZ;
-        double yp = sin(yawVal) * cos(pitchVal) * rawX + (sin(yawVal) * sin(pitchVal) * sin(rollVal) + cos(yawVal) * cos(rollVal)) * rawY + (sin(yawVal) * sin(pitchVal) * cos(rollVal) - cos(yawVal) * sin(rollVal)) * rawZ;
-        double zp = -sin(pitchVal) * rawX + cos(pitchVal) * sin(rollVal) * rawY + cos(pitchVal) * cos(rollVal) * rawZ;
-        xp = calibration_mtx(0, 0) * rawX + calibration_mtx(0, 1) * rawY + calibration_mtx(0, 2) * rawZ;
-        yp = calibration_mtx(1, 0) * rawX + calibration_mtx(1, 1) * rawY + calibration_mtx(1, 2) * rawZ;
-        zp = calibration_mtx(2, 0) * rawX + calibration_mtx(2, 1) * rawY + calibration_mtx(2, 2) * rawZ;
+        double xp = calibration_mtx(0, 0) * rawX + calibration_mtx(0, 1) * rawY + calibration_mtx(0, 2) * rawZ;
+        double yp = calibration_mtx(1, 0) * rawX + calibration_mtx(1, 1) * rawY + calibration_mtx(1, 2) * rawZ;
+        double zp = calibration_mtx(2, 0) * rawX + calibration_mtx(2, 1) * rawY + calibration_mtx(2, 2) * rawZ;
         double x = xp + (envParams.X - 500) / 100.0;
         double y = yp + (envParams.Y - 500) / 100.0;
         double z = zp + (envParams.Z - 500) / 100.0;
@@ -232,17 +229,50 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
     vector<vector<int>> target_vs, base_vs;
     *pcd_ptr = pointcloud;
     int layer_cnt = 16;
-    cout << "before gridding" << endl;
     calc_grid(pcd_ptr, envParams, original_grid, filtered_grid, original_interpolate_grid, filtered_interpolate_grid, target_vs, base_vs, layer_cnt);
 
-    cout << "after gridding" << endl;
-    vector<vector<double>> interpolated_z(64, vector<double>(envParams.width, 0));
-    linear(interpolated_z, filtered_grid, target_vs, base_vs, envParams);
-    cout << "after interpolation" << endl;
+    vector<vector<int>> original_vs;
+    if (envParams.isFullHeight)
+    {
+        original_vs = vector<vector<int>>(envParams.height, vector<int>(envParams.width, 0));
+        for (int i = 0; i < envParams.height; i++)
+        {
+            for (int j = 0; j < envParams.width; j++)
+            {
+                original_vs[i][j] = i;
+            }
+        }
+        swap(original_vs, target_vs);
+        cout << original_vs.size() << endl;
+        cout << target_vs.size() << endl;
+    }
+    else
+    {
+        original_vs = target_vs;
+    }
+
+    vector<vector<double>> interpolated_z;
+    linear(interpolated_z, filtered_interpolate_grid, target_vs, base_vs, envParams);
+
+    {
+        cv::Mat interpolate_img = cv::Mat::zeros(target_vs.size(), envParams.width, CV_8UC1);
+        for (int i = 0; i < target_vs.size(); i++)
+        {
+            for (int j = 0; j < envParams.width; j++)
+            {
+                if (interpolated_z[i][j] > 0)
+                {
+                    interpolate_img.at<uchar>(i, j) = 255;
+                }
+            }
+        }
+        //cv::imshow("hoge", interpolate_img);
+        //cv::waitKey();
+    }
 
     auto interpolated_ptr = make_shared<geometry::PointCloud>();
     {
-        for (int i = 0; i < 64; i++)
+        for (int i = 0; i < interpolated_z.size(); i++)
         {
             for (int j = 0; j < envParams.width; j++)
             {
@@ -263,21 +293,21 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
 
     {
         auto original_colored_ptr = make_shared<geometry::PointCloud>();
-        for (int i = 0; i < 64; i++)
+        cout << filtered_interpolate_grid.size() << endl;
+        for (int i = 0; i < original_vs.size(); i++)
         {
             for (int j = 0; j < envParams.width; j++)
             {
-                double z = filtered_interpolate_grid[i][j];
-                z = original_grid[i][j];
+                double z = original_grid[i][j];
                 if (z <= 0)
                 {
                     continue;
                 }
 
                 double x = z * (j - envParams.width / 2) / envParams.f_xy;
-                double y = z * (target_vs[i][j] - envParams.height / 2) / envParams.f_xy;
+                double y = z * (original_vs[i][j] - envParams.height / 2) / envParams.f_xy;
                 original_colored_ptr->points_.emplace_back(x, z, -y);
-                cv::Vec3b color = img.at<cv::Vec3b>(target_vs[i][j], j);
+                cv::Vec3b color = img.at<cv::Vec3b>(original_vs[i][j], j);
                 original_colored_ptr->colors_.emplace_back(color[2] / 255.0, color[1] / 255.0, color[0] / 255.0);
             }
         }
@@ -287,23 +317,13 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
         {
             cout << "Cannot write" << endl;
         }
-        /*
-        geometry::PointCloud hoge;
-        auto hoge_ptr = make_shared<geometry::PointCloud>();
-        if (!io::ReadPointCloud(envParams.folder_path + to_string(data_no) + "_color.pcd", hoge))
-        {
-            cout << "Cannot read" << endl;
-        }
-        *hoge_ptr = hoge;
-        visualization::DrawGeometries({hoge_ptr}, "Read", 1600, 900);
-        */
     }
 
     double error = 0;
     { // Evaluation
         int cnt = 0;
         int cannot_cnt = 0;
-        for (int i = 0; i < 64; i++)
+        for (int i = 0; i < original_vs.size(); i++)
         {
             if (i % (64 / layer_cnt) == 0)
             {
@@ -380,7 +400,7 @@ int main(int argc, char *argv[])
         data_nos.emplace_back(i);
     }
 
-    EnvParams params_13jo = {938, 606, 938 / 2 * 1.01, 498, 485, 509, 481, 517, 500, "../../../data/2020_02_04_13jo/", {10, 20, 30, 40, 50}, "res_linear_13jo.csv", "linear", false, false};
+    EnvParams params_13jo = {938, 606, 938 / 2 * 1.01, 498, 485, 509, 481, 517, 500, "../../../data/2020_02_04_13jo/", {10, 20, 30, 40, 50}, "res_linear_13jo.csv", "linear", true, false};
     EnvParams params_miyanosawa = {640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", {700, 1290, 1460, 2350, 3850}, "res_linear_miyanosawa.csv", "linear", false, true};
     EnvParams params_miyanosawa_champ = {640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", {1207, 1262, 1264, 1265, 1277}, "res_linear_miyanosawa_RGB.csv", "linear", false, true};
     EnvParams params_miyanosawa2 = {640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_linear_miyanosawa_1100-1300_RGB.csv", "linear", false, true};
