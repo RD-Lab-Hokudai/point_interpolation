@@ -270,44 +270,89 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
         //cv::waitKey();
     }
 
-    auto interpolated_ptr = make_shared<geometry::PointCloud>();
-    {
-        for (int i = 0; i < interpolated_z.size(); i++)
-        {
-            for (int j = 0; j < envParams.width; j++)
-            {
-                double z = interpolated_z[i][j];
-                if (z <= 0)
-                {
-                    continue;
-                }
-                z = max(min(z, 100.0), 0.0);
-                double x = z * (j - envParams.width / 2) / envParams.f_xy;
-                double y = z * (target_vs[i][j] - envParams.height / 2) / envParams.f_xy;
-                interpolated_ptr->points_.emplace_back(x, y, z);
-                cv::Vec3b color = img.at<cv::Vec3b>(target_vs[i][j], j);
-                interpolated_ptr->colors_.emplace_back(color[2] / 255.0, color[1] / 255.0, color[0] / 255.0);
-            }
-        }
-    }
-
-    {
-        auto original_colored_ptr = make_shared<geometry::PointCloud>();
-        cout << filtered_interpolate_grid.size() << endl;
+    double error = 0;
+    cv::Mat original_Mat = cv::Mat::zeros(envParams.height, envParams.width, CV_64FC1);
+    cv::Mat interpolated_Mat = cv::Mat::zeros(envParams.height, envParams.width, CV_64FC1);
+    { // SSIM evaluation
+        double tim = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count();
         for (int i = 0; i < original_vs.size(); i++)
         {
             for (int j = 0; j < envParams.width; j++)
             {
-                double z = original_grid[i][j];
-                if (z <= 0)
+                original_Mat.at<double>(original_vs[i][j], j) = original_grid[i][j];
+            }
+        }
+        for (int i = 0; i < target_vs.size(); i++)
+        {
+            for (int j = 0; j < envParams.width; j++)
+            {
+                interpolated_Mat.at<double>(target_vs[i][j], j) = interpolated_z[i][j];
+            }
+        }
+        {
+            int cnt = 0;
+            for (int i = 0; i < envParams.height; i++)
+            {
+                for (int j = 0; j < envParams.width; j++)
+                {
+                    double original = original_Mat.at<double>(i, j);
+                    double interpolated = interpolated_Mat.at<double>(i, j);
+                    if (original > 0 && interpolated > 0)
+                    {
+                        error += abs((original - interpolated) / original);
+                        cnt++;
+                    }
+                }
+            }
+            error /= cnt;
+        }
+        double ssim = qm::ssim(original_Mat, interpolated_Mat, 64 / layer_cnt);
+        double mse = qm::eqm(original_Mat, interpolated_Mat);
+        cout << tim << "ms" << endl;
+        cout << "SSIM = " << ssim << endl;
+        cout << "MSE = " << mse << endl;
+        cout << "MRE = " << error << endl;
+        ofs << data_no << "," << tim << "," << ssim << "," << mse << "," << error << "," << endl;
+    }
+
+    auto interpolated_ptr = make_shared<geometry::PointCloud>();
+    auto original_colored_ptr = make_shared<geometry::PointCloud>();
+    {
+        for (int i = 0; i < envParams.height; i++)
+        {
+            for (int j = 0; j < envParams.width; j++)
+            {
+                double z = interpolated_Mat.at<double>(i, j);
+                double original_z = original_Mat.at<double>(i, j);
+                if (z <= 0) // || original_z <= 0)
                 {
                     continue;
                 }
 
+                z = min(z, 100.0);
                 double x = z * (j - envParams.width / 2) / envParams.f_xy;
-                double y = z * (original_vs[i][j] - envParams.height / 2) / envParams.f_xy;
-                original_colored_ptr->points_.emplace_back(x, z, -y);
-                cv::Vec3b color = img.at<cv::Vec3b>(original_vs[i][j], j);
+                double y = z * (i - envParams.height / 2) / envParams.f_xy;
+                interpolated_ptr->points_.emplace_back(x, y, z);
+
+                cv::Vec3b color = img.at<cv::Vec3b>(i, j);
+                interpolated_ptr->colors_.emplace_back(color[2] / 255.0, color[1] / 255.0, color[0] / 255.0);
+            }
+        }
+        for (int i = 0; i < envParams.height; i++)
+        {
+            for (int j = 0; j < envParams.width; j++)
+            {
+                double original_z = original_Mat.at<double>(i, j);
+                if (original_z <= 0)
+                {
+                    continue;
+                }
+
+                double original_x = original_z * (j - envParams.width / 2) / envParams.f_xy;
+                double original_y = original_z * (i - envParams.height / 2) / envParams.f_xy;
+                original_colored_ptr->points_.emplace_back(original_x, original_y, original_z);
+
+                cv::Vec3b color = img.at<cv::Vec3b>(i, j);
                 original_colored_ptr->colors_.emplace_back(color[2] / 255.0, color[1] / 255.0, color[0] / 255.0);
             }
         }
@@ -317,59 +362,6 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
         {
             cout << "Cannot write" << endl;
         }
-    }
-
-    double error = 0;
-    { // Evaluation
-        int cnt = 0;
-        int cannot_cnt = 0;
-        for (int i = 0; i < original_vs.size(); i++)
-        {
-            if (i % (64 / layer_cnt) == 0)
-            {
-                continue;
-            }
-
-            for (int j = 0; j < envParams.width; j++)
-            {
-                if (original_grid[i][j] > 0 && interpolated_z[i][j] > 0)
-                {
-                    error += abs((original_grid[i][j] - interpolated_z[i][j]) / original_grid[i][j]);
-                    cnt++;
-                }
-            }
-        }
-        error /= cnt;
-        cout << "Error = " << error << endl;
-    }
-
-    { // SSIM evaluation
-        double tim = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count();
-        cv::Mat original_Mat = cv::Mat::zeros(64, envParams.width, CV_64FC1);
-        cv::Mat interpolated_Mat = cv::Mat::zeros(64, envParams.width, CV_64FC1);
-        cv::Mat original_interpolated_Mat = cv::Mat::zeros(64, envParams.width, CV_64FC1);
-        for (int i = 0; i < 64; i++)
-        {
-            for (int j = 0; j < envParams.width; j++)
-            {
-                if (original_grid[i][j] > 0)
-                {
-                    original_Mat.at<double>(i, j) = original_grid[i][j];
-                    interpolated_Mat.at<double>(i, j) = interpolated_z[i][j];
-                }
-
-                if (original_interpolate_grid[i][j] > 0)
-                {
-                    original_interpolated_Mat.at<double>(i, j) = original_interpolate_grid[i][j];
-                    interpolated_Mat.at<double>(i, j) = interpolated_z[i][j];
-                }
-            }
-        }
-        double ssim = qm::ssim(original_Mat, interpolated_Mat, 64 / layer_cnt);
-        double mse = qm::eqm(original_Mat, interpolated_Mat);
-        cout << tim << "ms" << endl;
-        cout << "SSIM=" << ssim << endl;
-        ofs << data_no << "," << tim << "," << ssim << "," << mse << "," << error << "," << endl;
     }
 
     if (see_res)
