@@ -52,19 +52,20 @@ namespace qm
     // Mean squared error
     double eqm(Mat &img1, Mat &img2)
     {
-        int i, j;
         double eqm = 0;
         int height = img1.rows;
         int width = img1.cols;
         int cnt = 0;
 
-        for (i = 0; i < height; i++)
+        for (int i = 0; i < height; i++)
         {
-            for (j = 0; j < width; j++)
+            for (int j = 0; j < width; j++)
             {
-                if (img1.at<double>(i, j) > 0 && img2.at<double>(i, j) > 0)
+                double o = img1.at<double>(i, j);
+                double r = img2.at<double>(i, j);
+                if (o > 0 && r > 0)
                 {
-                    eqm += (img1.at<double>(i, j) - img2.at<double>(i, j)) * (img1.at<double>(i, j) - img2.at<double>(i, j));
+                    eqm += (o - r) * (o - r);
                     cnt++;
                 }
             }
@@ -108,11 +109,11 @@ namespace qm
                 int n = l * block_size;
 
                 int cnt = 0;
-                double avg_o;
-                double avg_r;
-                double avg2_o;
-                double avg2_r;
-                double avg_or;
+                double avg_o = 0;
+                double avg_r = 0;
+                double avg2_o = 0;
+                double avg2_r = 0;
+                double avg_or = 0;
                 for (int i = 0; i < block_size; i++)
                 {
                     for (int j = 0; j < block_size; j++)
@@ -121,7 +122,6 @@ namespace qm
                         double r = img2.at<double>(m + i, n + j);
                         if (o > 0 && r > 0)
                         {
-                            //cout << o << " " << r << endl;
                             avg_o += o;
                             avg2_o += o * o;
                             avg_r += r;
@@ -148,7 +148,6 @@ namespace qm
                     double sigma_or = avg_or - avg_o * avg_r;
 
                     double ssim = ((2 * avg_o * avg_r + C1) * (2 * sigma_or + C2)) / ((avg_o * avg_o + avg_r * avg_r + C1) * (sigma2_o + sigma2_r + C2));
-                    cout << avg_o << " " << avg_r << " " << ssim << endl;
                     ssim = min(1.0, ssim);
                     ssim = max(0.0, ssim);
                     mssim += ssim;
