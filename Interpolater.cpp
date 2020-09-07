@@ -324,7 +324,7 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
             error /= cnt;
         }
         cout << original_reproject_Mat.rows << endl;
-        double ssim = qm::ssim(original_reproject_Mat, interpolated_reproject_Mat, 64);
+        double ssim = qm::ssim(original_reproject_Mat, interpolated_reproject_Mat, 64 / layer_cnt);
         double mse = qm::eqm(original_reproject_Mat, interpolated_reproject_Mat);
         cout << tim << "ms" << endl;
         cout << "SSIM = " << fixed << setprecision(5) << ssim << endl;

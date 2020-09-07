@@ -92,7 +92,7 @@ namespace qm
     /**
 	 * Compute the SSIM between 2 images
 	 */
-    double ssim(Mat &img1, Mat &img2, int block_size, bool show_progress = false)
+    double ssim(Mat &img1, Mat &img2, int block_size)
     {
         double mssim = 0;
 
@@ -121,6 +121,7 @@ namespace qm
                         double r = img2.at<double>(m + i, n + j);
                         if (o > 0 && r > 0)
                         {
+                            //cout << o << " " << r << endl;
                             avg_o += o;
                             avg2_o += o * o;
                             avg_r += r;
@@ -147,6 +148,7 @@ namespace qm
                     double sigma_or = avg_or - avg_o * avg_r;
 
                     double ssim = ((2 * avg_o * avg_r + C1) * (2 * sigma_or + C2)) / ((avg_o * avg_o + avg_r * avg_r + C1) * (sigma2_o + sigma2_r + C2));
+                    cout << avg_o << " " << avg_r << " " << ssim << endl;
                     ssim = min(1.0, ssim);
                     ssim = max(0.0, ssim);
                     mssim += ssim;
