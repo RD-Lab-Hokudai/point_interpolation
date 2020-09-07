@@ -117,10 +117,10 @@ namespace qm
                 {
                     for (int j = 0; j < block_size; j++)
                     {
-                        if (img1.at<double>(m + i, n + j) > 0 && img2.at<double>(m + i, n + j) > 0)
+                        double o = img1.at<double>(m + i, n + j);
+                        double r = img2.at<double>(m + i, n + j);
+                        if (o > 0 && r > 0)
                         {
-                            double o = img1.at<double>(m + i, n + j);
-                            double r = img2.at<double>(m + i, n + j);
                             avg_o += o;
                             avg2_o += o * o;
                             avg_r += r;

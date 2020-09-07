@@ -42,10 +42,10 @@ void linear(vector<vector<double>> &target_grid, vector<vector<double>> &base_gr
 
     for (int j = 0; j < envParams.width; j++)
     {
-        for (int k = 0; base_vs[(int)base_grid.size() - 1][j] + k < envParams.height; k++)
+        for (int k = 0; base_vs.back()[j] + k < envParams.height; k++)
         {
-            int v = base_vs[(int)base_grid.size() - 1][j] + k;
-            full_grid[v][j] = base_grid[(int)base_grid.size() - 1][j];
+            int v = base_vs.back()[j] + k;
+            full_grid[v][j] = base_grid.back()[j];
         }
     }
 

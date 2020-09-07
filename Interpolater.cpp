@@ -16,6 +16,7 @@
 #include "quality_metrics_OpenCV_2.cpp"
 #include "models/envParams.cpp"
 #include "methods/linear.cpp"
+#include "methods/pwas.cpp"
 
 using namespace std;
 using namespace open3d;
@@ -215,6 +216,8 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
     const string pcd_path = envParams.folder_path + to_string(data_no) + ".pcd";
 
     auto img = cv::imread(img_path);
+    cv::Mat blured;
+    cv::GaussianBlur(img, blured, cv::Size(3, 3), 0.5);
 
     geometry::PointCloud pointcloud;
     auto pcd_ptr = make_shared<geometry::PointCloud>();
@@ -252,7 +255,15 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
     }
 
     vector<vector<double>> interpolated_z;
-    linear(interpolated_z, filtered_interpolate_grid, target_vs, base_vs, envParams);
+    if (envParams.method == "linear")
+    {
+        linear(interpolated_z, filtered_interpolate_grid, target_vs, base_vs, envParams);
+    }
+    if (envParams.method == "pwas")
+    {
+        pwas(interpolated_z, filtered_interpolate_grid, target_vs, base_vs, envParams, blured);
+        cout << "aaa" << endl;
+    }
 
     {
         cv::Mat interpolate_img = cv::Mat::zeros(target_vs.size(), envParams.width, CV_8UC1);
@@ -273,15 +284,11 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
     double error = 0;
     cv::Mat original_Mat = cv::Mat::zeros(envParams.height, envParams.width, CV_64FC1);
     cv::Mat interpolated_Mat = cv::Mat::zeros(envParams.height, envParams.width, CV_64FC1);
-    { // SSIM evaluation
+    { // Evaluation
         double tim = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count();
-        for (int i = 0; i < original_vs.size(); i++)
-        {
-            for (int j = 0; j < envParams.width; j++)
-            {
-                original_Mat.at<double>(original_vs[i][j], j) = original_grid[i][j];
-            }
-        }
+
+        cv::Mat original_reproject_Mat = cv::Mat::zeros(original_vs.size(), envParams.width, CV_64FC1);
+        cv::Mat interpolated_reproject_Mat = cv::Mat::zeros(original_vs.size(), envParams.width, CV_64FC1);
         for (int i = 0; i < target_vs.size(); i++)
         {
             for (int j = 0; j < envParams.width; j++)
@@ -289,14 +296,24 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
                 interpolated_Mat.at<double>(target_vs[i][j], j) = interpolated_z[i][j];
             }
         }
+        for (int i = 0; i < original_vs.size(); i++)
         {
+            for (int j = 0; j < envParams.width; j++)
+            {
+                original_Mat.at<double>(original_vs[i][j], j) = original_grid[i][j];
+                original_reproject_Mat.at<double>(i, j) = original_grid[i][j];
+                interpolated_reproject_Mat.at<double>(i, j) = interpolated_Mat.at<double>(original_vs[i][j], j);
+            }
+        }
+
+        { // MRE
             int cnt = 0;
-            for (int i = 0; i < envParams.height; i++)
+            for (int i = 0; i < original_vs.size(); i++)
             {
                 for (int j = 0; j < envParams.width; j++)
                 {
-                    double original = original_Mat.at<double>(i, j);
-                    double interpolated = interpolated_Mat.at<double>(i, j);
+                    double original = original_reproject_Mat.at<double>(i, j);
+                    double interpolated = interpolated_reproject_Mat.at<double>(i, j);
                     if (original > 0 && interpolated > 0)
                     {
                         error += abs((original - interpolated) / original);
@@ -306,10 +323,11 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
             }
             error /= cnt;
         }
-        double ssim = qm::ssim(original_Mat, interpolated_Mat, 64 / layer_cnt);
-        double mse = qm::eqm(original_Mat, interpolated_Mat);
+        cout << original_reproject_Mat.rows << endl;
+        double ssim = qm::ssim(original_reproject_Mat, interpolated_reproject_Mat, 64);
+        double mse = qm::eqm(original_reproject_Mat, interpolated_reproject_Mat);
         cout << tim << "ms" << endl;
-        cout << "SSIM = " << ssim << endl;
+        cout << "SSIM = " << fixed << setprecision(5) << ssim << endl;
         cout << "MSE = " << mse << endl;
         cout << "MRE = " << error << endl;
         ofs << data_no << "," << tim << "," << ssim << "," << mse << "," << error << "," << endl;
@@ -324,7 +342,7 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
             {
                 double z = interpolated_Mat.at<double>(i, j);
                 double original_z = original_Mat.at<double>(i, j);
-                if (z <= 0) // || original_z <= 0)
+                if (z <= 0 || original_z <= 0)
                 {
                     continue;
                 }
@@ -332,7 +350,7 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
                 z = min(z, 100.0);
                 double x = z * (j - envParams.width / 2) / envParams.f_xy;
                 double y = z * (i - envParams.height / 2) / envParams.f_xy;
-                interpolated_ptr->points_.emplace_back(x, y, z);
+                interpolated_ptr->points_.emplace_back(100 + x, z, -y);
 
                 cv::Vec3b color = img.at<cv::Vec3b>(i, j);
                 interpolated_ptr->colors_.emplace_back(color[2] / 255.0, color[1] / 255.0, color[0] / 255.0);
@@ -350,14 +368,13 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
 
                 double original_x = original_z * (j - envParams.width / 2) / envParams.f_xy;
                 double original_y = original_z * (i - envParams.height / 2) / envParams.f_xy;
-                original_colored_ptr->points_.emplace_back(original_x, original_y, original_z);
+                original_colored_ptr->points_.emplace_back(original_x, original_z, -original_y);
 
                 cv::Vec3b color = img.at<cv::Vec3b>(i, j);
                 original_colored_ptr->colors_.emplace_back(color[2] / 255.0, color[1] / 255.0, color[0] / 255.0);
             }
         }
-        visualization::DrawGeometries({original_colored_ptr}, "Original", 1600, 900);
-        visualization::DrawGeometries({interpolated_ptr}, "Interpolated", 1600, 900);
+        visualization::DrawGeometries({original_colored_ptr, interpolated_ptr}, "Original", 1600, 900);
         if (!io::WritePointCloudToPCD(envParams.folder_path + to_string(data_no) + "_linear.pcd", *original_colored_ptr))
         {
             cout << "Cannot write" << endl;
@@ -397,9 +414,10 @@ int main(int argc, char *argv[])
     EnvParams params_miyanosawa_champ = {640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", {1207, 1262, 1264, 1265, 1277}, "res_linear_miyanosawa_RGB.csv", "linear", false, true};
     EnvParams params_miyanosawa2 = {640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_linear_miyanosawa_1100-1300_RGB.csv", "linear", false, true};
 
-    EnvParams params_miyanosawa_3_3 = {640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_linear_miyanosawa_0303_1100-1300_RGB.csv", "linear", false, true};
+    EnvParams params_miyanosawa_3_3 = {640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_linear_miyanosawa_0303_1100-1300_RGB.csv", "linear", true, true};
+    EnvParams params_miyanosawa_3_3_pwas = {640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_linear_miyanosawa_0303_1100-1300_RGB.csv", "pwas", true, true};
 
-    EnvParams params_use = params_13jo;
+    EnvParams params_use = params_miyanosawa_3_3_pwas;
     ofs = ofstream(params_use.of_name);
 
     for (int i = 0; i < params_use.data_ids.size(); i++)
