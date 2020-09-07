@@ -49,6 +49,38 @@ namespace qm
         return sd_ro;
     }
 
+    // Mean reprojection error
+    double mre(Mat &img1, Mat &img2)
+    {
+        double error = 0;
+        int height = img1.rows;
+        int width = img1.cols;
+        int cnt = 0;
+
+        for (int i = 0; i < height; i++)
+        {
+            for (int j = 0; j < width; j++)
+            {
+                double o = img1.at<double>(i, j);
+                double r = img2.at<double>(i, j);
+                if (o > 0 && r > 0)
+                {
+                    error += abs((o - r) / o);
+                    cnt++;
+                }
+            }
+        }
+
+        if (cnt == 0)
+        {
+            return 1e9;
+        }
+        else
+        {
+            return error / cnt;
+        }
+    }
+
     // Mean squared error
     double eqm(Mat &img1, Mat &img2)
     {

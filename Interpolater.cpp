@@ -306,36 +306,22 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
             }
         }
 
-        { // MRE
-            int cnt = 0;
-            for (int i = 0; i < original_vs.size(); i++)
-            {
-                for (int j = 0; j < envParams.width; j++)
-                {
-                    double original = original_reproject_Mat.at<double>(i, j);
-                    double interpolated = interpolated_reproject_Mat.at<double>(i, j);
-                    if (original > 0 && interpolated > 0)
-                    {
-                        error += abs((original - interpolated) / original);
-                        cnt++;
-                    }
-                }
-            }
-            error /= cnt;
-        }
         cout << original_reproject_Mat.rows << endl;
         double ssim = qm::ssim(original_reproject_Mat, interpolated_reproject_Mat, 64 / layer_cnt);
         double mse = qm::eqm(original_reproject_Mat, interpolated_reproject_Mat);
+        double mre = qm::mre(original_reproject_Mat, interpolated_reproject_Mat);
         cout << tim << "ms" << endl;
         cout << "SSIM = " << fixed << setprecision(5) << ssim << endl;
         cout << "MSE = " << mse << endl;
-        cout << "MRE = " << error << endl;
+        cout << "MRE = " << mre << endl;
         ofs << data_no << "," << tim << "," << ssim << "," << mse << "," << error << "," << endl;
+        error = mre;
     }
 
-    auto interpolated_ptr = make_shared<geometry::PointCloud>();
-    auto original_colored_ptr = make_shared<geometry::PointCloud>();
+    if (see_res)
     {
+        auto interpolated_ptr = make_shared<geometry::PointCloud>();
+        auto original_colored_ptr = make_shared<geometry::PointCloud>();
         for (int i = 0; i < envParams.height; i++)
         {
             for (int j = 0; j < envParams.width; j++)
@@ -379,19 +365,12 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
         {
             cout << "Cannot write" << endl;
         }
-    }
-
-    if (see_res)
-    {
         Eigen::MatrixXd front(4, 4);
         front << 1, 0, 0, 0,
             0, -1, 0, 0,
             0, 0, -1, 0,
             0, 0, 0, 1;
         pcd_ptr->Transform(front);
-        interpolated_ptr->Transform(front);
-        visualization::DrawGeometries({pcd_ptr}, "b", 1600, 900);
-        visualization::DrawGeometries({interpolated_ptr}, "a", 1600, 900);
     }
 
     return error;
@@ -416,12 +395,56 @@ int main(int argc, char *argv[])
 
     EnvParams params_miyanosawa_3_3 = {640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_linear_miyanosawa_0303_1100-1300_RGB.csv", "linear", true, true};
     EnvParams params_miyanosawa_3_3_pwas = {640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_linear_miyanosawa_0303_1100-1300_RGB.csv", "pwas", true, true};
+    EnvParams params_miyanosawa_3_3_pwas_champ = {640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", {1207, 1262, 1264, 1265, 1277}, "res_pwas_miyanosawa_0303_RGB.csv", "pwas", false, true};
 
-    EnvParams params_use = params_miyanosawa_3_3_pwas;
+    EnvParams params_use = params_miyanosawa_3_3;
     ofs = ofstream(params_use.of_name);
 
     for (int i = 0; i < params_use.data_ids.size(); i++)
     {
         segmentate(params_use.data_ids[i], params_use, false);
     }
+
+    params_use = params_miyanosawa_3_3_pwas_champ;
+    double best_error = 1000000;
+    double best_sigma_c = 1;
+    double best_sigma_s = 1;
+    double best_sigma_r = 1;
+    int best_r = 1;
+    // best params 2020/08/03 sigma_c:1000 sigma_s:1.99 sigma_r:19 r:7
+    // best params 2020/08/10 sigma_c:12000 sigma_s:1.6 sigma_r:19 r:7
+    // best params 2020/08/10 sigma_c:8000 sigma_s:1.6 sigma_r:19 r:7
+
+    for (double sigma_c = 10; sigma_c <= 1000; sigma_c += 10)
+    {
+        for (double sigma_s = 0.1; sigma_s < 1.7; sigma_s += 0.1)
+        {
+            for (double sigma_r = 1; sigma_r < 100; sigma_r += 10)
+            {
+                for (int r = 1; r < 9; r += 2)
+                {
+                    double error = 0;
+                    for (int i = 0; i < params_use.data_ids.size(); i++)
+                    {
+                        error += segmentate(params_use.data_ids[i], params_use);
+                    }
+
+                    if (best_error > error)
+                    {
+                        best_error = error;
+                        best_sigma_c = sigma_c;
+                        best_sigma_s = sigma_s;
+                        best_sigma_r = sigma_r;
+                        best_r = r;
+                    }
+                }
+            }
+        }
+    }
+
+    cout << "Sigma C = " << best_sigma_c << endl;
+    cout << "Sigma S = " << best_sigma_s << endl;
+    cout << "Sigma R = " << best_sigma_r << endl;
+    cout << "R = " << best_r << endl;
+    cout << "Mean error = " << best_error / params_use.data_ids.size() << endl;
 }
