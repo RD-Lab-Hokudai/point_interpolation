@@ -17,6 +17,7 @@
 #include "models/envParams.cpp"
 #include "methods/linear.cpp"
 #include "methods/pwas.cpp"
+#include "methods/original.cpp"
 
 using namespace std;
 using namespace open3d;
@@ -264,6 +265,10 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
         pwas(interpolated_z, filtered_interpolate_grid, target_vs, base_vs, envParams, blured);
         cout << "aaa" << endl;
     }
+    if (envParams.method == "original")
+    {
+        original(interpolated_z, filtered_interpolate_grid, target_vs, base_vs, envParams, blured);
+    }
 
     {
         cv::Mat interpolate_img = cv::Mat::zeros(target_vs.size(), envParams.width, CV_8UC1);
@@ -396,13 +401,14 @@ int main(int argc, char *argv[])
     EnvParams params_miyanosawa_3_3 = {640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_linear_miyanosawa_0303_1100-1300_RGB.csv", "linear", true, true};
     EnvParams params_miyanosawa_3_3_pwas = {640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_linear_miyanosawa_0303_1100-1300_RGB.csv", "pwas", true, true};
     EnvParams params_miyanosawa_3_3_pwas_champ = {640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", {1207, 1262, 1264, 1265, 1277}, "res_pwas_miyanosawa_0303_RGB.csv", "pwas", false, true};
+    EnvParams params_miyanosawa_3_3_original = {640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_linear_miyanosawa_0303_1100-1300_RGB.csv", "original", false, true};
 
-    EnvParams params_use = params_miyanosawa_3_3;
+    EnvParams params_use = params_miyanosawa_3_3_original;
     ofs = ofstream(params_use.of_name);
 
     for (int i = 0; i < params_use.data_ids.size(); i++)
     {
-        segmentate(params_use.data_ids[i], params_use, false);
+        segmentate(params_use.data_ids[i], params_use, true);
     }
 
     params_use = params_miyanosawa_3_3_pwas_champ;
