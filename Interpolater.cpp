@@ -16,6 +16,7 @@
 #include "quality_metrics_OpenCV_2.cpp"
 #include "models/envParams.cpp"
 #include "methods/linear.cpp"
+#include "methods/mrf.cpp"
 #include "methods/pwas.cpp"
 #include "methods/original.cpp"
 
@@ -260,6 +261,10 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
     {
         linear(interpolated_z, filtered_interpolate_grid, target_vs, base_vs, envParams);
     }
+    if (envParams.method == "mrf")
+    {
+        mrf(interpolated_z, filtered_interpolate_grid, target_vs, base_vs, envParams, blured);
+    }
     if (envParams.method == "pwas")
     {
         pwas(interpolated_z, filtered_interpolate_grid, target_vs, base_vs, envParams, blured);
@@ -388,7 +393,7 @@ int main(int argc, char *argv[])
     //vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
 
     vector<int> data_nos;
-    for (int i = 1300; i <= 1300; i++)
+    for (int i = 1100; i <= 1300; i++)
     {
         data_nos.emplace_back(i);
     }
@@ -407,19 +412,21 @@ int main(int argc, char *argv[])
     EnvParams params_miyanosawa_3_3_thermal_original = {938, 606, 938 / 2 * 1.01, 495, 466, 450, 469, 503, 487, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_original_miyanosawa_0303_1100-1300_Thermal.csv", "original", false, false};
 
     EnvParams params_miyanosawa_0204_rgb_linear = {640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_linear_miyanosawa_0204_1100-1300_RGB.csv", "linear", false, true};
+    EnvParams params_miyanosawa_0204_rgb_mrf = {640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_mrf_miyanosawa_0204_1100-1300_RGB.csv", "mrf", false, true};
     EnvParams params_miyanosawa_0204_rgb_pwas = {640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_pwas_miyanosawa_0204_1100-1300_RGB.csv", "pwas", false, true};
     EnvParams params_miyanosawa_0204_rgb_original = {640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_original_miyanosawa_0204_1100-1300_RGB.csv", "original", false, true};
 
     EnvParams params_miyanosawa_0204_thermal_linear = {938, 606, 938 / 2 * 1.01, 495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_linear_miyanosawa_0204_1100-1300_Thermal.csv", "linear", false, false};
+    EnvParams params_miyanosawa_0204_thermal_mrf = {938, 606, 938 / 2 * 1.01, 495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_mrf_miyanosawa_0204_1100-1300_Thermal.csv", "mrf", false, false};
     EnvParams params_miyanosawa_0204_thermal_pwas = {938, 606, 938 / 2 * 1.01, 495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_pwas_miyanosawa_0204_1100-1300_Thermal.csv", "pwas", false, false};
     EnvParams params_miyanosawa_0204_thermal_original = {938, 606, 938 / 2 * 1.01, 495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_original_miyanosawa_0204_1100-1300_Thermal.csv", "original", false, false};
 
-    EnvParams params_use = params_miyanosawa_0204_thermal_pwas;
+    EnvParams params_use = params_miyanosawa_0204_rgb_mrf;
     ofs = ofstream(params_use.of_name);
 
     for (int i = 0; i < params_use.data_ids.size(); i++)
     {
-        segmentate(params_use.data_ids[i], params_use, true);
+        segmentate(params_use.data_ids[i], params_use, false);
     }
     return 0;
 
