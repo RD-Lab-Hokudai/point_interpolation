@@ -41,11 +41,12 @@ int yaw = 500;
 */
 // 03_03_miyanosawa
 /*
-int X = 500;
-int Y = 474;
-int Z = 458;
-int theta = 506;
-int phi = 527;
+int X = 495;
+int Y = 466;
+int Z = 450;
+int roll = 469;
+int pitch = 503;
+int yaw = 487;
 */
 int u0 = 0;
 int v0 = 0;
@@ -170,7 +171,7 @@ void on_trackbarV0(int val, void *object)
 int main(int argc, char *argv[])
 {
     //vector<int> data_ids = {700, 1290, 1460, 2350, 3850}; //1100 // 2/4 miyanosawa
-    vector<int> data_ids = {10, 20, 30, 40, 50}; // 2/19 13jo
+    vector<int> data_ids = {110, 150, 190, 230, 270}; // 2/19 13jo
 
     /*
     for (int i = 0; i < 10; i += 1)
@@ -193,7 +194,7 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < data_ids.size(); i++)
     {
-        string folder_path = "../../../data/2020_02_04_13jo/";
+        string folder_path = "../../../data/2020_03_03_miyanosawa/";
         string img_path = folder_path + to_string(data_ids[i]) + ".png";
         imgs.emplace_back(cv::imread(img_path));
 
@@ -213,7 +214,7 @@ int main(int argc, char *argv[])
             double r = sqrt(x * x + z * z);
             auto it = lower_bound(tans.begin(), tans.end(), y / r);
             int index = it - tans.begin();
-            if (index % (64 / layers) == 0)
+            if (true || index % (64 / layers) == 0)
             {
                 pcd_ptr->points_.emplace_back(x, y, z);
             }

@@ -319,7 +319,7 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
         cout << "SSIM = " << fixed << setprecision(5) << ssim << endl;
         cout << "MSE = " << mse << endl;
         cout << "MRE = " << mre << endl;
-        ofs << data_no << "," << tim << "," << ssim << "," << mse << "," << error << "," << endl;
+        ofs << data_no << "," << tim << "," << ssim << "," << mse << "," << mre << "," << endl;
         error = mre;
     }
 
@@ -388,7 +388,7 @@ int main(int argc, char *argv[])
     //vector<int> data_nos = {700, 1290, 1460, 2350, 3850}; // 02_04_miyanosawa
 
     vector<int> data_nos;
-    for (int i = 100; i <= 300; i++)
+    for (int i = 1300; i <= 1300; i++)
     {
         data_nos.emplace_back(i);
     }
@@ -396,20 +396,32 @@ int main(int argc, char *argv[])
     EnvParams params_13jo = {938, 606, 938 / 2 * 1.01, 498, 485, 509, 481, 517, 500, "../../../data/2020_02_04_13jo/", {10, 20, 30, 40, 50}, "res_linear_13jo.csv", "linear", true, false};
     EnvParams params_miyanosawa = {640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", {700, 1290, 1460, 2350, 3850}, "res_linear_miyanosawa.csv", "linear", false, true};
     EnvParams params_miyanosawa_champ = {640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", {1207, 1262, 1264, 1265, 1277}, "res_linear_miyanosawa_RGB.csv", "linear", false, true};
-    EnvParams params_miyanosawa2 = {640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_linear_miyanosawa_1100-1300_RGB.csv", "linear", false, true};
 
-    EnvParams params_miyanosawa_3_3 = {640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_linear_miyanosawa_0303_1100-1300_RGB.csv", "linear", true, true};
-    EnvParams params_miyanosawa_3_3_pwas = {640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_linear_miyanosawa_0303_1100-1300_RGB.csv", "pwas", true, true};
+    EnvParams params_miyanosawa_3_3 = {640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_linear_miyanosawa_0303_1100-1300_RGB.csv", "linear", false, true};
+    EnvParams params_miyanosawa_3_3_pwas = {640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_pwas_miyanosawa_0303_1100-1300_RGB.csv", "pwas", false, true};
     EnvParams params_miyanosawa_3_3_pwas_champ = {640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", {1207, 1262, 1264, 1265, 1277}, "res_pwas_miyanosawa_0303_RGB.csv", "pwas", false, true};
-    EnvParams params_miyanosawa_3_3_original = {640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_linear_miyanosawa_0303_1100-1300_RGB.csv", "original", false, true};
+    EnvParams params_miyanosawa_3_3_original = {640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_original_miyanosawa_0303_1100-1300_RGB.csv", "original", false, true};
 
-    EnvParams params_use = params_miyanosawa_3_3_original;
+    EnvParams params_miyanosawa_3_3_thermal = {938, 606, 938 / 2 * 1.01, 495, 466, 450, 469, 503, 487, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_linear_miyanosawa_0303_1100-1300_Thermal.csv", "linear", false, false};
+    EnvParams params_miyanosawa_3_3_thermal_pwas = {938, 606, 938 / 2 * 1.01, 495, 466, 450, 469, 503, 487, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_pwas_miyanosawa_0303_1100-1300_Thermal.csv", "pwas", false, false};
+    EnvParams params_miyanosawa_3_3_thermal_original = {938, 606, 938 / 2 * 1.01, 495, 466, 450, 469, 503, 487, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_original_miyanosawa_0303_1100-1300_Thermal.csv", "original", false, false};
+
+    EnvParams params_miyanosawa_0204_rgb_linear = {640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_linear_miyanosawa_0204_1100-1300_RGB.csv", "linear", false, true};
+    EnvParams params_miyanosawa_0204_rgb_pwas = {640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_pwas_miyanosawa_0204_1100-1300_RGB.csv", "pwas", false, true};
+    EnvParams params_miyanosawa_0204_rgb_original = {640, 480, 640, 506, 483, 495, 568, 551, 510, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_original_miyanosawa_0204_1100-1300_RGB.csv", "original", false, true};
+
+    EnvParams params_miyanosawa_0204_thermal_linear = {938, 606, 938 / 2 * 1.01, 495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_linear_miyanosawa_0204_1100-1300_Thermal.csv", "linear", false, false};
+    EnvParams params_miyanosawa_0204_thermal_pwas = {938, 606, 938 / 2 * 1.01, 495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_pwas_miyanosawa_0204_1100-1300_Thermal.csv", "pwas", false, false};
+    EnvParams params_miyanosawa_0204_thermal_original = {938, 606, 938 / 2 * 1.01, 495, 475, 458, 488, 568, 500, "../../../data/2020_02_04_miyanosawa/", data_nos, "res_original_miyanosawa_0204_1100-1300_Thermal.csv", "original", false, false};
+
+    EnvParams params_use = params_miyanosawa_0204_thermal_pwas;
     ofs = ofstream(params_use.of_name);
 
     for (int i = 0; i < params_use.data_ids.size(); i++)
     {
         segmentate(params_use.data_ids[i], params_use, true);
     }
+    return 0;
 
     params_use = params_miyanosawa_3_3_pwas_champ;
     double best_error = 1000000;
