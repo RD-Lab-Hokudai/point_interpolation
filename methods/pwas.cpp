@@ -2,7 +2,6 @@
 #include <iostream>
 #include <vector>
 
-#include <Open3D/Open3D.h>
 #include <opencv2/opencv.hpp>
 
 #include "../models/envParams.cpp"

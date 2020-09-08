@@ -3,7 +3,6 @@
 #include <vector>
 #include <chrono>
 
-#include <Open3D/Open3D.h>
 #include <opencv2/opencv.hpp>
 
 #include "../models/envParams.cpp"
@@ -201,7 +200,7 @@ public:
     }
 };
 
-void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_grid, vector<vector<int>> &target_vs, vector<vector<int>> &base_vs, EnvParams envParams, cv::Mat img)
+void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_grid, vector<vector<int>> &target_vs, vector<vector<int>> &base_vs, EnvParams envParams, cv::Mat img, double color_segment_k = 110, double sigma_s = 1.6, double sigma_r = 19, int r = 7, double coef_s = 0.7)
 {
     // Linear interpolation
     vector<vector<double>> linear_grid(target_vs.size(), vector<double>(envParams.width, 0));
@@ -210,11 +209,6 @@ void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_
     // Original
     vector<vector<double>> credibilities(target_vs.size(), vector<double>(envParams.width));
     cv::Mat credibility_img(target_vs.size(), envParams.width, CV_16UC1);
-    double color_segment_k = 110;
-    double sigma_s = 1.6;
-    double sigma_r = 19;
-    double r = 7;
-    double coef_s = 0.7;
 
     auto start = chrono::system_clock::now();
     shared_ptr<UnionFind> color_segments;

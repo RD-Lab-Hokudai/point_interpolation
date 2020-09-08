@@ -2,13 +2,11 @@
 #include <iostream>
 #include <vector>
 
-#include <Open3D/Open3D.h>
 #include <opencv2/opencv.hpp>
 #include <Eigen/Core>
 #include <Eigen/Sparse>
 
 #include "../models/envParams.cpp"
-#include "linear.cpp"
 
 using namespace std;
 
