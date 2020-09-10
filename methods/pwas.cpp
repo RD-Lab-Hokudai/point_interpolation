@@ -9,7 +9,7 @@
 
 using namespace std;
 
-void pwas(vector<vector<double>> &target_grid, vector<vector<double>> &base_grid, vector<vector<int>> &target_vs, vector<vector<int>> &base_vs, EnvParams envParams, cv::Mat img)
+void pwas(vector<vector<double>> &target_grid, vector<vector<double>> &base_grid, vector<vector<int>> &target_vs, vector<vector<int>> &base_vs, EnvParams envParams, cv::Mat img, double sigma_c, double sigma_s, double sigma_r, double r)
 {
     // Linear interpolation
     vector<vector<double>> linear_grid(target_vs.size(), vector<double>(envParams.width, 0));
@@ -18,11 +18,6 @@ void pwas(vector<vector<double>> &target_grid, vector<vector<double>> &base_grid
     // PWAS
     vector<vector<double>> credibilities(target_vs.size(), vector<double>(envParams.width));
     cv::Mat credibility_img(target_vs.size(), envParams.width, CV_16UC1);
-    double sigma_c = 10;
-    double sigma_s = 1.6;
-    double sigma_r = 19;
-    //sigma_r = 0.1;
-    double r = 7;
 
     {
         double min_depth = 1000000;

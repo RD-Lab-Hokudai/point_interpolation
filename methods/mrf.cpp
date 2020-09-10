@@ -9,11 +9,8 @@
 
 using namespace std;
 
-void mrf(vector<vector<double>> &target_grid, vector<vector<double>> &base_grid, vector<vector<int>> &target_vs, vector<vector<int>> &base_vs, EnvParams envParams, cv::Mat img)
+void mrf(vector<vector<double>> &target_grid, vector<vector<double>> &base_grid, vector<vector<int>> &target_vs, vector<vector<int>> &base_vs, EnvParams envParams, cv::Mat img, double k, double c)
 {
-    double k = 1.0;
-    double c = 1000;
-
     vector<vector<double>> base_full_grid(envParams.height, vector<double>(envParams.width, 0));
     for (int i = 0; i < base_grid.size(); i++)
     {

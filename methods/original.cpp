@@ -200,7 +200,7 @@ public:
     }
 };
 
-void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_grid, vector<vector<int>> &target_vs, vector<vector<int>> &base_vs, EnvParams envParams, cv::Mat img, double color_segment_k = 110, double sigma_s = 1.6, double sigma_r = 19, int r = 7, double coef_s = 0.7)
+void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_grid, vector<vector<int>> &target_vs, vector<vector<int>> &base_vs, EnvParams envParams, cv::Mat img, double color_segment_k, double sigma_s, double sigma_r, int r, double coef_s)
 {
     // Linear interpolation
     vector<vector<double>> linear_grid(target_vs.size(), vector<double>(envParams.width, 0));

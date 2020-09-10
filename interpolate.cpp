@@ -7,6 +7,7 @@
 #include <time.h>
 
 #include "models/envParams.cpp"
+#include "models/hyperParams.cpp"
 #include "data/loadParams.cpp"
 #include "preprocess/grid_pcd.cpp"
 #include "methods/linear.cpp"
@@ -19,7 +20,7 @@
 using namespace std;
 using namespace open3d;
 
-void segmentate(int data_no, EnvParams envParams, double &time, double &ssim, double &mse, double &mre, bool see_res = false)
+void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams, double &time, double &ssim, double &mse, double &mre, bool see_res = false)
 {
     string img_path = envParams.folder_path + to_string(data_no);
     if (envParams.isRGB)
@@ -78,16 +79,21 @@ void segmentate(int data_no, EnvParams envParams, double &time, double &ssim, do
     }
     if (envParams.method == "mrf")
     {
-        mrf(interpolated_z, filtered_interpolate_grid, target_vs, base_vs, envParams, blured);
+        mrf(interpolated_z, filtered_interpolate_grid, target_vs, base_vs, envParams, blured,
+            hyperParams.mrf_k, hyperParams.mrf_c);
     }
     if (envParams.method == "pwas")
     {
-        pwas(interpolated_z, filtered_interpolate_grid, target_vs, base_vs, envParams, blured);
+        pwas(interpolated_z, filtered_interpolate_grid, target_vs, base_vs, envParams, blured,
+             hyperParams.pwas_sigma_c, hyperParams.pwas_sigma_s,
+             hyperParams.pwas_sigma_r, hyperParams.pwas_r);
         cout << "aaa" << endl;
     }
     if (envParams.method == "original")
     {
-        original(interpolated_z, filtered_interpolate_grid, target_vs, base_vs, envParams, blured);
+        original(interpolated_z, filtered_interpolate_grid, target_vs, base_vs, envParams, blured,
+                 hyperParams.original_color_segment_k, hyperParams.original_sigma_s,
+                 hyperParams.original_sigma_r, hyperParams.original_r, hyperParams.original_coef_s);
     }
 
     {

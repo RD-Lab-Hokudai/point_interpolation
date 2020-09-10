@@ -1,8 +1,9 @@
 #include <iostream>
 
 #include "models/envParams.cpp"
+#include "models/hyperParams.cpp"
 #include "data/loadParams.cpp"
-#include "segmentate.cpp"
+#include "interpolate.cpp"
 
 using namespace std;
 using namespace open3d;
@@ -11,13 +12,14 @@ ofstream ofs;
 
 int main(int argc, char *argv[])
 {
-    EnvParams params_use = loadParams("miyanosawa_0204_rgb_original");
+    EnvParams params_use = loadParams("miyanosawa_0204_rgb_mrf");
+    HyperParams hyperParams = getDefaultHyperParams(params_use.isRGB);
     ofs = ofstream(params_use.of_name);
 
     for (int i = 0; i < params_use.data_ids.size(); i++)
     {
         double time, ssim, mse, mre;
-        segmentate(params_use.data_ids[i], params_use, time, ssim, mse, mre, true);
+        interpolate(params_use.data_ids[i], params_use, hyperParams, time, ssim, mse, mre, true);
         ofs << params_use.data_ids[i] << "," << time << "," << ssim << "," << mse << "," << mre << "," << endl;
     }
     return 0;
