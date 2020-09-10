@@ -20,7 +20,9 @@
 using namespace std;
 using namespace open3d;
 
-void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams, double &time, double &ssim, double &mse, double &mre, bool see_res = false)
+void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
+                 double &time, double &ssim, double &mse, double &mre,
+                 bool show_pcd = false, bool show_result = true)
 {
     string img_path = envParams.folder_path + to_string(data_no);
     if (envParams.isRGB)
@@ -87,7 +89,6 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams, doub
         pwas(interpolated_z, filtered_interpolate_grid, target_vs, base_vs, envParams, blured,
              hyperParams.pwas_sigma_c, hyperParams.pwas_sigma_s,
              hyperParams.pwas_sigma_r, hyperParams.pwas_r);
-        cout << "aaa" << endl;
     }
     if (envParams.method == "original")
     {
@@ -115,17 +116,20 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams, doub
     { // Evaluate
         time = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count();
         evaluate(interpolated_z, original_grid, target_vs, original_vs, envParams, layer_cnt, ssim, mse, mre);
-        cout << time << "ms" << endl;
-        cout << "SSIM = " << fixed << setprecision(5) << ssim << endl;
-        cout << "MSE = " << mse << endl;
-        cout << "MRE = " << mre << endl;
+        if (show_result)
+        {
+            cout << time << "ms" << endl;
+            cout << "SSIM = " << fixed << setprecision(5) << ssim << endl;
+            cout << "MSE = " << mse << endl;
+            cout << "MRE = " << mre << endl;
+        }
     }
 
     auto interpolated_ptr = make_shared<geometry::PointCloud>();
     auto original_ptr = make_shared<geometry::PointCloud>();
     restore_pcd(interpolated_z, original_grid, target_vs, original_vs, envParams, blured, interpolated_ptr, original_ptr);
 
-    if (see_res)
+    if (show_pcd)
     {
         visualization::DrawGeometries({original_ptr, interpolated_ptr}, "Original", 1600, 900);
     }

@@ -30,7 +30,6 @@ void pwas(vector<vector<double>> &target_grid, vector<vector<double>> &base_grid
                 max_depth = max(max_depth, linear_grid[i][j]);
             }
         }
-        cout << min_depth << " " << max_depth << endl;
 
         int dx[] = {1, -1, 0, 0};
         int dy[] = {0, 0, 1, -1};
@@ -90,7 +89,6 @@ void pwas(vector<vector<double>> &target_grid, vector<vector<double>> &base_grid
                         int v1 = target_vs[i + dy][j + dx];
                         cv::Vec3b d1 = img.at<cv::Vec3b>(v1, j + dx);
                         double tmp = exp(-(dx * dx + dy * dy) / 2 / sigma_s / sigma_s) * exp(-cv::norm(d0 - d1) / 2 / sigma_r / sigma_r) * credibilities[i + dy][j + dx];
-                        //cout << tmp << endl;
                         val += tmp * linear_grid[i + dy][j + dx];
                         coef += tmp;
                     }
