@@ -1,8 +1,5 @@
 #include <iostream>
 #include <vector>
-#include <stack>
-#include <map>
-#include <set>
 #include <chrono>
 
 #include <Open3D/Open3D.h>
@@ -22,7 +19,7 @@ using namespace open3d;
 
 ofstream ofs;
 
-double segmentate(int data_no, EnvParams envParams, bool see_res = false)
+double tune(int data_no, EnvParams envParams, bool see_res = false)
 {
     string img_path = envParams.folder_path + to_string(data_no);
     if (envParams.isRGB)
@@ -259,7 +256,7 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < params_use.data_ids.size(); i++)
     {
-        segmentate(params_use.data_ids[i], params_use, true);
+        tune(params_use.data_ids[i], params_use, true);
     }
     return 0;
 

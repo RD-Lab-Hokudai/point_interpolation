@@ -1,16 +1,9 @@
 #include <iostream>
 #include <vector>
-#include <stack>
-#include <map>
-#include <set>
 #include <chrono>
 
 #include <Open3D/Open3D.h>
 #include <opencv2/opencv.hpp>
-#include <Eigen/Core>
-#include <Eigen/Eigen>
-#include <Eigen/Sparse>
-#include <eigen3/unsupported/Eigen/NonLinearOptimization>
 #include <time.h>
 
 #include "models/envParams.cpp"
@@ -20,6 +13,8 @@
 #include "methods/pwas.cpp"
 #include "methods/original.cpp"
 #include "quality_metrics_OpenCV_2.cpp"
+#include "postprocess/evaluate.cpp"
+#include "postprocess/restore_pcd.cpp"
 
 using namespace std;
 using namespace open3d;
@@ -114,114 +109,31 @@ double segmentate(int data_no, EnvParams envParams, bool see_res = false)
     }
 
     double error = 0;
-    cv::Mat original_Mat = cv::Mat::zeros(envParams.height, envParams.width, CV_64FC1);
-    cv::Mat interpolated_Mat = cv::Mat::zeros(envParams.height, envParams.width, CV_64FC1);
-    { // Evaluation
+    { // Evaluate
         double tim = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count();
+        double ssim, mse, mre;
+        evaluate(interpolated_z, original_grid, target_vs, original_vs, envParams, layer_cnt, ssim, mse, mre);
 
-        cv::Mat original_reproject_Mat = cv::Mat::zeros(original_vs.size(), envParams.width, CV_64FC1);
-        cv::Mat interpolated_reproject_Mat = cv::Mat::zeros(original_vs.size(), envParams.width, CV_64FC1);
-        for (int i = 0; i < target_vs.size(); i++)
-        {
-            for (int j = 0; j < envParams.width; j++)
-            {
-                interpolated_Mat.at<double>(target_vs[i][j], j) = interpolated_z[i][j];
-            }
-        }
-        for (int i = 0; i < original_vs.size(); i++)
-        {
-            for (int j = 0; j < envParams.width; j++)
-            {
-                original_Mat.at<double>(original_vs[i][j], j) = original_grid[i][j];
-                original_reproject_Mat.at<double>(i, j) = original_grid[i][j];
-                interpolated_reproject_Mat.at<double>(i, j) = interpolated_Mat.at<double>(original_vs[i][j], j);
-            }
-        }
-
-        cout << original_reproject_Mat.rows << endl;
-        double ssim = qm::ssim(original_reproject_Mat, interpolated_reproject_Mat, 64 / layer_cnt);
-        double mse = qm::eqm(original_reproject_Mat, interpolated_reproject_Mat);
-        double mre = qm::mre(original_reproject_Mat, interpolated_reproject_Mat);
         cout << tim << "ms" << endl;
         cout << "SSIM = " << fixed << setprecision(5) << ssim << endl;
         cout << "MSE = " << mse << endl;
         cout << "MRE = " << mre << endl;
         ofs << data_no << "," << tim << "," << ssim << "," << mse << "," << mre << "," << endl;
+
         error = mre;
     }
 
+    auto interpolated_ptr = make_shared<geometry::PointCloud>();
+    auto original_ptr = make_shared<geometry::PointCloud>();
+    restore_pcd(interpolated_z, original_grid, target_vs, original_vs, envParams, blured, interpolated_ptr, original_ptr);
+
     if (see_res)
     {
-        auto interpolated_ptr = make_shared<geometry::PointCloud>();
-        auto original_colored_ptr = make_shared<geometry::PointCloud>();
-        for (int i = 0; i < envParams.height; i++)
-        {
-            for (int j = 0; j < envParams.width; j++)
-            {
-                double z = interpolated_Mat.at<double>(i, j);
-                double original_z = original_Mat.at<double>(i, j);
-                if (z <= 0) //|| original_z <= 0)
-                {
-                    continue;
-                }
-
-                z = min(z, 100.0);
-                double x = z * (j - envParams.width / 2) / envParams.f_xy;
-                double y = z * (i - envParams.height / 2) / envParams.f_xy;
-                interpolated_ptr->points_.emplace_back(100 + x, z, -y);
-
-                cv::Vec3b color = img.at<cv::Vec3b>(i, j);
-                interpolated_ptr->colors_.emplace_back(color[2] / 255.0, color[1] / 255.0, color[0] / 255.0);
-            }
-        }
-        for (int i = 0; i < envParams.height; i++)
-        {
-            for (int j = 0; j < envParams.width; j++)
-            {
-                double original_z = original_Mat.at<double>(i, j);
-                if (original_z <= 0)
-                {
-                    continue;
-                }
-
-                double original_x = original_z * (j - envParams.width / 2) / envParams.f_xy;
-                double original_y = original_z * (i - envParams.height / 2) / envParams.f_xy;
-                original_colored_ptr->points_.emplace_back(original_x, original_z, -original_y);
-
-                cv::Vec3b color = img.at<cv::Vec3b>(i, j);
-                original_colored_ptr->colors_.emplace_back(color[2] / 255.0, color[1] / 255.0, color[0] / 255.0);
-            }
-        }
-        auto original_interpolated_ptr = make_shared<geometry::PointCloud>();
-        for (int i = 0; i < original_vs.size(); i++)
-        {
-            for (int j = 0; j < envParams.width; j++)
-            {
-                double z = original_interpolate_grid[i][j];
-                if (z <= 0)
-                {
-                    continue;
-                }
-
-                double x = z * (j - envParams.width / 2) / envParams.f_xy;
-                double y = z * (original_vs[i][j] - envParams.height / 2) / envParams.f_xy;
-                original_interpolated_ptr->points_.emplace_back(200 + x, z, -y);
-
-                cv::Vec3b color = img.at<cv::Vec3b>(original_vs[i][j], j);
-                original_interpolated_ptr->colors_.emplace_back(color[2] / 255.0, color[1] / 255.0, color[0] / 255.0);
-            }
-        }
-        visualization::DrawGeometries({original_colored_ptr, interpolated_ptr, original_interpolated_ptr}, "Original", 1600, 900);
-        if (!io::WritePointCloudToPCD(envParams.folder_path + to_string(data_no) + "_linear.pcd", *original_colored_ptr))
-        {
-            cout << "Cannot write" << endl;
-        }
-        Eigen::MatrixXd front(4, 4);
-        front << 1, 0, 0, 0,
-            0, -1, 0, 0,
-            0, 0, -1, 0,
-            0, 0, 0, 1;
-        pcd_ptr->Transform(front);
+        visualization::DrawGeometries({original_ptr, interpolated_ptr}, "Original", 1600, 900);
+    }
+    if (!io::WritePointCloudToPCD(envParams.folder_path + to_string(data_no) + "_linear.pcd", *interpolated_ptr))
+    {
+        cout << "Cannot write" << endl;
     }
 
     return error;
