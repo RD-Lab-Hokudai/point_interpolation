@@ -1,4 +1,4 @@
-#include <iostream>
+#pragma once
 #include <vector>
 #include <chrono>
 
@@ -19,9 +19,7 @@
 using namespace std;
 using namespace open3d;
 
-ofstream ofs;
-
-double tune(EnvParams envParams)
+void segmentate(int data_no, EnvParams envParams, double &time, double &ssim, double &mse, double &mre, bool see_res = false)
 {
     string img_path = envParams.folder_path + to_string(data_no);
     if (envParams.isRGB)
@@ -108,19 +106,13 @@ double tune(EnvParams envParams)
         //cv::waitKey();
     }
 
-    double error = 0;
     { // Evaluate
-        double tim = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count();
-        double ssim, mse, mre;
+        time = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count();
         evaluate(interpolated_z, original_grid, target_vs, original_vs, envParams, layer_cnt, ssim, mse, mre);
-
-        cout << tim << "ms" << endl;
+        cout << time << "ms" << endl;
         cout << "SSIM = " << fixed << setprecision(5) << ssim << endl;
         cout << "MSE = " << mse << endl;
         cout << "MRE = " << mre << endl;
-        ofs << data_no << "," << tim << "," << ssim << "," << mse << "," << mre << "," << endl;
-
-        error = mre;
     }
 
     auto interpolated_ptr = make_shared<geometry::PointCloud>();
@@ -135,61 +127,4 @@ double tune(EnvParams envParams)
     {
         cout << "Cannot write" << endl;
     }
-
-    return error;
-}
-
-int main(int argc, char *argv[])
-{
-    EnvParams params_use = loadParams("miyanosawa_0204_rgb_original");
-    ofs = ofstream(params_use.of_name);
-
-    for (int i = 0; i < params_use.data_ids.size(); i++)
-    {
-        segmentate(params_use.data_ids[i], params_use, true);
-    }
-    return 0;
-
-    //params_use = params_miyanosawa_3_3_pwas_champ;
-    double best_error = 1000000;
-    double best_sigma_c = 1;
-    double best_sigma_s = 1;
-    double best_sigma_r = 1;
-    int best_r = 1;
-    // best params 2020/08/03 sigma_c:1000 sigma_s:1.99 sigma_r:19 r:7
-    // best params 2020/08/10 sigma_c:12000 sigma_s:1.6 sigma_r:19 r:7
-    // best params 2020/08/10 sigma_c:8000 sigma_s:1.6 sigma_r:19 r:7
-
-    for (double sigma_c = 10; sigma_c <= 1000; sigma_c += 10)
-    {
-        for (double sigma_s = 0.1; sigma_s < 1.7; sigma_s += 0.1)
-        {
-            for (double sigma_r = 1; sigma_r < 100; sigma_r += 10)
-            {
-                for (int r = 1; r < 9; r += 2)
-                {
-                    double error = 0;
-                    for (int i = 0; i < params_use.data_ids.size(); i++)
-                    {
-                        error += segmentate(params_use.data_ids[i], params_use);
-                    }
-
-                    if (best_error > error)
-                    {
-                        best_error = error;
-                        best_sigma_c = sigma_c;
-                        best_sigma_s = sigma_s;
-                        best_sigma_r = sigma_r;
-                        best_r = r;
-                    }
-                }
-            }
-        }
-    }
-
-    cout << "Sigma C = " << best_sigma_c << endl;
-    cout << "Sigma S = " << best_sigma_s << endl;
-    cout << "Sigma R = " << best_sigma_r << endl;
-    cout << "R = " << best_r << endl;
-    cout << "Mean error = " << best_error / params_use.data_ids.size() << endl;
 }
