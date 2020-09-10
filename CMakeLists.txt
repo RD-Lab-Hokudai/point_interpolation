@@ -47,18 +47,6 @@ if (Open3D_FOUND)
 
     target_include_directories(TestVisualizer PUBLIC ${Open3D_INCLUDE_DIRS})
 
-    add_executable(Segmentator Segmentator.cpp)
-
-    target_link_libraries(Segmentator ${Open3D_LIBRARIES} ${OpenCV_LIBS})
-
-    target_include_directories(Segmentator PUBLIC ${Open3D_INCLUDE_DIRS})
-
-    add_executable(ColorMRF ColorMRF.cpp)
-
-    target_link_libraries(ColorMRF ${Open3D_LIBRARIES} ${OpenCV_LIBS})
-
-    target_include_directories(ColorMRF PUBLIC ${Open3D_INCLUDE_DIRS})
-
     add_executable(CG CG.cpp)
 
     target_link_libraries(CG ${Open3D_LIBRARIES})
@@ -77,35 +65,11 @@ if (Open3D_FOUND)
 
     target_include_directories(LM PUBLIC ${Open3D_INCLUDE_DIRS})
 
-    add_executable(Linear Linear.cpp)
-
-    target_link_libraries(Linear ${Open3D_LIBRARIES} ${OpenCV_LIBS})
-
-    target_include_directories(Linear PUBLIC ${Open3D_INCLUDE_DIRS})
-
     add_executable(Calibrator Calibrator.cpp)
 
     target_link_libraries(Calibrator ${Open3D_LIBRARIES} ${OpenCV_LIBS})
 
     target_include_directories(Calibrator PUBLIC ${Open3D_INCLUDE_DIRS})
-
-    add_executable(NeighborTest NeighborTest.cpp)
-
-    target_link_libraries(NeighborTest ${Open3D_LIBRARIES} ${OpenCV_LIBS})
-
-    target_include_directories(NeighborTest PUBLIC ${Open3D_INCLUDE_DIRS})
-
-    add_executable(PWAS_ICP PWAS_ICP.cpp)
-
-    target_link_libraries(PWAS_ICP ${Open3D_LIBRARIES} ${OpenCV_LIBS})
-
-    target_include_directories(PWAS_ICP PUBLIC ${Open3D_INCLUDE_DIRS})
-
-    add_executable(PWAS_RAW PWAS_RAW.cpp)
-
-    target_link_libraries(PWAS_RAW ${Open3D_LIBRARIES} ${OpenCV_LIBS})
-
-    target_include_directories(PWAS_RAW PUBLIC ${Open3D_INCLUDE_DIRS})
 
     add_executable(CalibratorRGB CalibratorRGB.cpp)
 
@@ -130,66 +94,6 @@ if (Open3D_FOUND)
     target_link_libraries(CalibratorWithICP ${Open3D_LIBRARIES} ${OpenCV_LIBS})
 
     target_include_directories(CalibratorWithICP PUBLIC ${Open3D_INCLUDE_DIRS})
-
-    add_executable(PWAS PWAS.cpp)
-
-    target_link_libraries(PWAS ${Open3D_LIBRARIES} ${OpenCV_LIBS})
-
-    target_include_directories(PWAS PUBLIC ${Open3D_INCLUDE_DIRS})
-
-    add_executable(PWAS2 PWAS2.cpp)
-
-    target_link_libraries(PWAS2 ${Open3D_LIBRARIES} ${OpenCV_LIBS})
-
-    target_include_directories(PWAS2 PUBLIC ${Open3D_INCLUDE_DIRS})
-
-    add_executable(Segmentator2 Segmentator2.cpp)
-
-    target_link_libraries(Segmentator2 ${Open3D_LIBRARIES} ${OpenCV_LIBS})
-
-    target_include_directories(Segmentator2 PUBLIC ${Open3D_INCLUDE_DIRS})
-
-    add_executable(Linear_Sparse Linear_Sparse.cpp)
-
-    target_link_libraries(Linear_Sparse ${Open3D_LIBRARIES} ${OpenCV_LIBS})
-
-    target_include_directories(Linear_Sparse PUBLIC ${Open3D_INCLUDE_DIRS})
-
-    add_executable(PWAS_Sparse PWAS_Sparse.cpp)
-
-    target_link_libraries(PWAS_Sparse ${Open3D_LIBRARIES} ${OpenCV_LIBS})
-
-    target_include_directories(PWAS_Sparse PUBLIC ${Open3D_INCLUDE_DIRS})
-
-    add_executable(PWAS2_RGB PWAS2_RGB.cpp)
-
-    target_link_libraries(PWAS2_RGB ${Open3D_LIBRARIES} ${OpenCV_LIBS})
-
-    target_include_directories(PWAS2_RGB PUBLIC ${Open3D_INCLUDE_DIRS})
-
-    add_executable(Linear_Sparse_RGB Linear_Sparse_RGB.cpp)
-
-    target_link_libraries(Linear_Sparse_RGB ${Open3D_LIBRARIES} ${OpenCV_LIBS})
-
-    target_include_directories(Linear_Sparse_RGB PUBLIC ${Open3D_INCLUDE_DIRS})
-
-    add_executable(PWAS_Sparse_RGB PWAS_Sparse_RGB.cpp)
-
-    target_link_libraries(PWAS_Sparse_RGB ${Open3D_LIBRARIES} ${OpenCV_LIBS})
-
-    target_include_directories(PWAS_Sparse_RGB PUBLIC ${Open3D_INCLUDE_DIRS})
-
-    add_executable(Segmentator2_RGB Segmentator2_RGB.cpp)
-
-    target_link_libraries(Segmentator2_RGB ${Open3D_LIBRARIES} ${OpenCV_LIBS})
-
-    target_include_directories(Segmentator2_RGB PUBLIC ${Open3D_INCLUDE_DIRS})
-
-    add_executable(MRF_Sparse_RGB MRF_Sparse_RGB.cpp)
-
-    target_link_libraries(MRF_Sparse_RGB ${Open3D_LIBRARIES} ${OpenCV_LIBS})
-
-    target_include_directories(MRF_Sparse_RGB PUBLIC ${Open3D_INCLUDE_DIRS})
 
     add_executable(Interpolater Interpolater.cpp)
 

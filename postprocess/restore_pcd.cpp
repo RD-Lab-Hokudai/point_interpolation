@@ -5,7 +5,6 @@
 #include <opencv2/opencv.hpp>
 
 #include "../models/envParams.cpp"
-#include "../quality_metrics_OpenCV_2.cpp"
 
 using namespace std;
 using namespace open3d;

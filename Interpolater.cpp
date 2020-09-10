@@ -12,7 +12,6 @@
 #include "methods/mrf.cpp"
 #include "methods/pwas.cpp"
 #include "methods/original.cpp"
-#include "quality_metrics_OpenCV_2.cpp"
 #include "postprocess/evaluate.cpp"
 #include "postprocess/restore_pcd.cpp"
 
