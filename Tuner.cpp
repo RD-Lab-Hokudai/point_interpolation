@@ -12,12 +12,12 @@ ofstream ofs;
 
 int main(int argc, char *argv[])
 {
-    EnvParams params_use = loadParams("miyanosawa_3_3_rgb_pwas_champ");
+    EnvParams params_use = loadParams("miyanosawa_3_3_rgb_pwas_champ2");
     HyperParams hyperParams = getDefaultHyperParams(params_use.isRGB);
 
     if (params_use.method == "pwas")
     {
-        ofs = ofstream("pwas_tuning.csv");
+        ofs = ofstream("pwas_tuning.csv", ios::app);
         double best_mre_sum = 1000000;
         double best_sigma_c = 1;
         double best_sigma_s = 1;
