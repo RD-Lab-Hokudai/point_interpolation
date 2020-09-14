@@ -8,6 +8,8 @@
 using namespace std;
 using namespace open3d;
 
+ofstream ofs;
+
 int main(int argc, char *argv[])
 {
     EnvParams params_use = loadParams("miyanosawa_3_3_rgb_pwas_champ");
@@ -15,6 +17,7 @@ int main(int argc, char *argv[])
 
     if (params_use.method == "pwas")
     {
+        ofs = ofstream("pwas_tuning.csv");
         double best_mre_sum = 1000000;
         double best_sigma_c = 1;
         double best_sigma_s = 1;
@@ -36,6 +39,10 @@ int main(int argc, char *argv[])
                         for (int i = 0; i < params_use.data_ids.size(); i++)
                         {
                             double time, ssim, mse, mre;
+                            hyperParams.pwas_sigma_c = sigma_c;
+                            hyperParams.pwas_sigma_s = sigma_s;
+                            hyperParams.pwas_sigma_r = sigma_r;
+                            hyperParams.pwas_r = r;
                             interpolate(params_use.data_ids[i], params_use, hyperParams, time, ssim, mse, mre, false, false);
                             mre_sum += mre;
                         }
@@ -48,6 +55,7 @@ int main(int argc, char *argv[])
                             best_sigma_r = sigma_r;
                             best_r = r;
                             cout << "Updated : " << best_mre_sum / params_use.data_ids.size() << endl;
+                            ofs << best_mre_sum / params_use.data_ids.size() << "," << sigma_c << "," << sigma_s << "," << sigma_r << "," << r << endl;
                         }
                     }
                 }
