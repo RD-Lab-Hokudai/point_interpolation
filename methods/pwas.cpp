@@ -12,24 +12,21 @@ using namespace std;
 void pwas(vector<vector<double>> &target_grid, vector<vector<double>> &base_grid, vector<vector<int>> &target_vs, vector<vector<int>> &base_vs, EnvParams envParams, cv::Mat img, double sigma_c, double sigma_s, double sigma_r, double r)
 {
     // Linear interpolation
-    vector<vector<double>> linear_grid(target_vs.size(), vector<double>(envParams.width, 0));
-    linear(linear_grid, base_grid, target_vs, base_vs, envParams);
+    vector<vector<double>> full_grid(envParams.height, vector<double>(envParams.width, 0));
+    //linear(linear_grid, base_grid, target_vs, base_vs, envParams);
+    for (int i = 0; i < base_vs.size(); i++)
+    {
+        for (int j = 0; j < envParams.width; j++)
+        {
+            full_grid[base_vs[i][j]][j] = base_grid[i][j];
+        }
+    }
 
     // PWAS
     vector<vector<double>> credibilities(target_vs.size(), vector<double>(envParams.width));
     cv::Mat credibility_img(target_vs.size(), envParams.width, CV_16UC1);
 
     {
-        double min_depth = 1000000;
-        double max_depth = 0;
-        for (int i = 0; i < target_vs.size(); i++)
-        {
-            for (int j = 0; j < envParams.width; j++)
-            {
-                min_depth = min(min_depth, linear_grid[i][j]);
-                max_depth = max(max_depth, linear_grid[i][j]);
-            }
-        }
 
         int dx[] = {1, -1, 0, 0};
         int dy[] = {0, 0, 1, -1};
@@ -37,34 +34,34 @@ void pwas(vector<vector<double>> &target_grid, vector<vector<double>> &base_grid
         {
             for (int j = 0; j < envParams.width; j++)
             {
-                double val = 0;
+                cv::Vec3b val = 0;
                 int cnt = 0;
                 for (int k = 0; k < 4; k++)
                 {
                     int x = j + dx[k];
-                    int y = i + dy[k];
-                    if (x < 0 || x >= envParams.width || y < 0 || y >= target_vs.size())
+                    int y = target_vs[i][j] + dy[k];
+                    if (x < 0 || x >= envParams.width || y < 0 || y >= envParams.height)
                     {
                         continue;
                     }
 
-                    val += linear_grid[y][x];
+                    val += img.at<cv::Vec3b>(y, x);
                     cnt++;
                 }
-                val -= cnt * linear_grid[i][j];
+                val -= cnt * img.at<cv::Vec3b>(target_vs[i][j], j);
                 //val = 65535 * (val - min_depth) / (max_depth - min_depth);
-                credibilities[i][j] = exp(-val * val / 2 / sigma_c / sigma_c);
-                //credibility_img.at<ushort>(i, j) = 10000 * credibilities[i][j];
+                credibilities[i][j] = exp(-cv::norm(val) / 2 / sigma_c / sigma_c);
+                //credibility_img.at<ushort>(i, j) = 100000 * credibilities[i][j];
             }
         }
     }
     /*
     cv::imshow("creds", credibility_img);
     cv::waitKey();
-    */
+*/
 
     target_grid = vector<vector<double>>(target_vs.size(), vector<double>(envParams.width, 0));
-    // Still slow
+    // Still slow??
     {
         for (int i = 0; i < target_vs.size(); i++)
         {
@@ -87,10 +84,17 @@ void pwas(vector<vector<double>> &target_grid, vector<vector<double>> &base_grid
                         }
 
                         int v1 = target_vs[i + dy][j + dx];
+                        if (full_grid[v1][j + dx] <= 0)
+                        {
+                            continue;
+                        }
+
                         cv::Vec3b d1 = img.at<cv::Vec3b>(v1, j + dx);
                         double tmp = exp(-(dx * dx + dy * dy) / 2 / sigma_s / sigma_s) * exp(-cv::norm(d0 - d1) / 2 / sigma_r / sigma_r) * credibilities[i + dy][j + dx];
-                        val += tmp * linear_grid[i + dy][j + dx];
+                        val += tmp * full_grid[v1][j + dx];
                         coef += tmp;
+                        //val += full_grid[v1][j + dx];
+                        //coef++;
                     }
                 }
                 if (coef > 0)
