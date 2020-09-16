@@ -27,11 +27,11 @@ int main(int argc, char *argv[])
         // best params 2020/08/10 sigma_c:12000 sigma_s:1.6 sigma_r:19 r:7
         // best params 2020/08/10 sigma_c:8000 sigma_s:1.6 sigma_r:19 r:7
 
-        for (double sigma_c = 10; sigma_c <= 1000; sigma_c += 10)
+        for (double sigma_c = 1; sigma_c <= 20; sigma_c += 1)
         {
-            for (double sigma_s = 0.1; sigma_s < 1.7; sigma_s += 0.1)
+            for (double sigma_s = 0.5; sigma_s < 1.5; sigma_s += 0.1)
             {
-                for (double sigma_r = 1; sigma_r < 100; sigma_r += 10)
+                for (double sigma_r = 10; sigma_r < 1000; sigma_r += 10)
                 {
                     for (int r = 1; r < 9; r += 2)
                     {
