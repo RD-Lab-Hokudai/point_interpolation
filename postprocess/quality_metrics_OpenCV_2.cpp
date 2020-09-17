@@ -89,6 +89,7 @@ namespace qm
         int height = img1.rows;
         int width = img1.cols;
         int cnt = 0;
+        int cannot = 0;
 
         for (int i = 0; i < height; i++)
         {
@@ -101,9 +102,14 @@ namespace qm
                     eqm += (o - r) * (o - r);
                     cnt++;
                 }
+                if (o > 0 && r <= 0)
+                {
+                    cannot++;
+                }
             }
         }
 
+        cout << "Cannot cnt = " << cannot << endl;
         if (cnt == 0)
         {
             return 1e9;

@@ -202,14 +202,16 @@ public:
 
 void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_grid, vector<vector<int>> &target_vs, vector<vector<int>> &base_vs, EnvParams envParams, cv::Mat img, double color_segment_k, double sigma_s, double sigma_r, int r, double coef_s)
 {
-    // Linear interpolation
-    vector<vector<double>> linear_grid(target_vs.size(), vector<double>(envParams.width, 0));
-    linear(linear_grid, base_grid, target_vs, base_vs, envParams);
+    vector<vector<double>> full_grid(envParams.height, vector<double>(envParams.width, 0));
+    for (int i = 0; i < base_vs.size(); i++)
+    {
+        for (int j = 0; j < envParams.width; j++)
+        {
+            full_grid[base_vs[i][j]][j] = base_grid[i][j];
+        }
+    }
 
     // Original
-    vector<vector<double>> credibilities(target_vs.size(), vector<double>(envParams.width));
-    cv::Mat credibility_img(target_vs.size(), envParams.width, CV_16UC1);
-
     auto start = chrono::system_clock::now();
     shared_ptr<UnionFind> color_segments;
     {
@@ -242,6 +244,11 @@ void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_
                         }
 
                         int v1 = target_vs[i + dy][j + dx];
+                        if (full_grid[v1][j + dx] <= 0)
+                        {
+                            continue;
+                        }
+
                         cv::Vec3b d1 = img.at<cv::Vec3b>(v1, j + dx);
                         int r1 = color_segments->root(v1 * envParams.width + j + dx);
                         double tmp = exp(-(dx * dx + dy * dy) / 2 / sigma_s / sigma_s) * exp(-cv::norm(d0 - d1) / 2 / sigma_r / sigma_r);
@@ -249,7 +256,7 @@ void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_
                         {
                             tmp *= coef_s;
                         }
-                        val += tmp * linear_grid[i + dy][j + dx];
+                        val += tmp * full_grid[v1][j + dx];
                         coef += tmp;
                     }
                 }

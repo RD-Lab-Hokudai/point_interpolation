@@ -11,9 +11,7 @@ using namespace std;
 
 void pwas(vector<vector<double>> &target_grid, vector<vector<double>> &base_grid, vector<vector<int>> &target_vs, vector<vector<int>> &base_vs, EnvParams envParams, cv::Mat img, double sigma_c, double sigma_s, double sigma_r, double r)
 {
-    // Linear interpolation
     vector<vector<double>> full_grid(envParams.height, vector<double>(envParams.width, 0));
-    //linear(linear_grid, base_grid, target_vs, base_vs, envParams);
     for (int i = 0; i < base_vs.size(); i++)
     {
         for (int j = 0; j < envParams.width; j++)
