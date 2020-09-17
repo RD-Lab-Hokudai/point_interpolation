@@ -4,8 +4,8 @@ using namespace std;
 
 struct HyperParams
 {
-    double mrf_c;
     double mrf_k;
+    double mrf_c;
 
     double pwas_sigma_c;
     double pwas_sigma_s;

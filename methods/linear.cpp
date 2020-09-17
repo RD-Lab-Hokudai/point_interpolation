@@ -19,7 +19,6 @@ void linear(vector<vector<double>> &target_grid, vector<vector<double>> &base_gr
         }
     }
 
-    // Need fix for acculate interpolation
     for (int i = 0; i + 1 < base_grid.size(); i++)
     {
         for (int j = 0; j < envParams.width; j++)

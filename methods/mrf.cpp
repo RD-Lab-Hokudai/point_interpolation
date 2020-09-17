@@ -55,10 +55,6 @@ void mrf(vector<vector<double>> &target_grid, vector<vector<double>> &base_grid,
                 if (0 <= x && x < envParams.width && 0 <= y && y < target_vs.size())
                 {
                     int v1 = target_vs[y][x];
-                    if (v1 == -1)
-                    {
-                        continue;
-                    }
                     double x_norm2 = cv::norm(img.at<cv::Vec3b>(v0, j) - img.at<cv::Vec3b>(v1, x)) / 255 / 255;
                     double w = -sqrt(exp(-c * x_norm2));
                     S_triplets.emplace_back(i * envParams.width + j, y * envParams.width + x, w);

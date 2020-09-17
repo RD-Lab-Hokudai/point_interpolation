@@ -102,4 +102,53 @@ void pwas(vector<vector<double>> &target_grid, vector<vector<double>> &base_grid
             }
         }
     }
+    /*
+    for (int i = 0; i < target_vs.size(); i++)
+    {
+        int left = 0;
+        double zPrev = 0;
+        for (int j = 0; j < envParams.width; j++)
+        {
+            if(target_grid[i][j]<=0){
+                continue;
+            }
+
+
+        }
+        int now = 0;
+        int uPrev = (int)(envParams.width / 2 + envParams.f_xy * all_layers[i][0][0] / all_layers[i][0][2]);
+        int vPrev = (int)(envParams.height / 2 + envParams.f_xy * all_layers[i][0][1] / all_layers[i][0][2]);
+        while (now < uPrev)
+        {
+            original_interpolate_grid[i][now] = all_layers[i][0][2];
+            now++;
+        }
+        for (int j = 0; j + 1 < all_layers[i].size(); j++)
+        {
+            int u = (int)(envParams.width / 2 + envParams.f_xy * all_layers[i][j + 1][0] / all_layers[i][j + 1][2]);
+            int v = (int)(envParams.height / 2 + envParams.f_xy * all_layers[i][j + 1][1] / all_layers[i][j + 1][2]);
+            original_grid[i][uPrev] = all_layers[i][j][2];
+            target_vs[i][uPrev] = vPrev;
+
+            while (now < min(envParams.width, u))
+            {
+                double angle = (all_layers[i][j + 1][2] - all_layers[i][j][2]) / (all_layers[i][j + 1][0] - all_layers[i][j][0]);
+                double tan = (now - envParams.width / 2) / envParams.f_xy;
+                double z = (all_layers[i][j][2] - angle * all_layers[i][j][0]) / (1 - tan * angle);
+                original_interpolate_grid[i][now] = z;
+                now++;
+            }
+            uPrev = u;
+            vPrev = v;
+        }
+
+        original_grid[i][uPrev] = all_layers[i].back()[2];
+        target_vs[i][uPrev] = vPrev;
+        while (now < envParams.width)
+        {
+            original_interpolate_grid[i][now] = all_layers[i].back()[2];
+            now++;
+        }
+    }
+    */
 }

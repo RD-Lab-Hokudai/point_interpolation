@@ -26,7 +26,7 @@ double restore_pcd(vector<vector<double>> &target_grid, vector<vector<double>> &
         {
             double z = target_grid[i][j];
             double original_z = original_full_grid[target_vs[i][j]][j];
-            if (z <= 0) //|| original_zenvParams.height <= 0)
+            if (z <= 0 || original_z <= 0)
             {
                 continue;
             }
