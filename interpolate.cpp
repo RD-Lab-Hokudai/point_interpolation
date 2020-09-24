@@ -81,7 +81,7 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
     }
     if (envParams.method == "mrf")
     {
-        mrf(interpolated_z, filtered_grid, target_vs, base_vs, envParams, blured,
+        mrf(interpolated_z, filtered_interpolate_grid, filtered_interpolate_grid, target_vs, base_vs, envParams, blured,
             hyperParams.mrf_k, hyperParams.mrf_c);
     }
     if (envParams.method == "pwas")
@@ -97,20 +97,27 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
                  hyperParams.original_sigma_r, hyperParams.original_r, hyperParams.original_coef_s);
     }
 
+    cv::Mat grid_img = cv::Mat::zeros(target_vs.size(), envParams.width, CV_8UC3);
+    auto filtered_ptr = make_shared<geometry::PointCloud>();
     {
-        cv::Mat interpolate_img = cv::Mat::zeros(target_vs.size(), envParams.width, CV_8UC1);
         for (int i = 0; i < target_vs.size(); i++)
         {
             for (int j = 0; j < envParams.width; j++)
             {
-                if (interpolated_z[i][j] > 0)
+                if (original_grid[i][j] > 0)
                 {
-                    interpolate_img.at<uchar>(i, j) = 255;
+                    grid_img.at<cv::Vec3b>(i, j) = cv::Vec3b(100 * filtered_grid[i / 4][j], 100 * filtered_grid[i / 4][j], 0);
+                    double z = original_grid[i][j];
+                    double x = z * (j - envParams.width / 2) / envParams.f_xy;
+                    double y = z * (target_vs[i][j] - envParams.height / 2) / envParams.f_xy;
+                    filtered_ptr->points_.emplace_back(x, y, z);
                 }
             }
         }
-        //cv::imshow("hoge", interpolate_img);
-        //cv::waitKey();
+
+        cv::imshow("aa", grid_img);
+        cv::waitKey();
+        visualization::DrawGeometries({filtered_ptr});
     }
 
     { // Evaluate

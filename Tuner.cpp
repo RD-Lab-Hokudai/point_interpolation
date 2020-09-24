@@ -12,7 +12,7 @@ ofstream ofs;
 
 int main(int argc, char *argv[])
 {
-    EnvParams params_use = loadParams("miyanosawa_3_3_rgb_pwas_champ2");
+    EnvParams params_use = loadParams("miyanosawa_3_3_thermal_original_champ");
     HyperParams hyperParams = getDefaultHyperParams(params_use.isRGB);
 
     if (params_use.method == "pwas")
@@ -26,6 +26,7 @@ int main(int argc, char *argv[])
         // best params 2020/08/03 sigma_c:1000 sigma_s:1.99 sigma_r:19 r:7
         // best params 2020/08/10 sigma_c:12000 sigma_s:1.6 sigma_r:19 r:7
         // best params 2020/08/10 sigma_c:8000 sigma_s:1.6 sigma_r:19 r:7
+        // 2020/9/18 12 0.5 10 1
 
         for (double sigma_c = 1; sigma_c <= 20; sigma_c += 1)
         {
@@ -33,7 +34,7 @@ int main(int argc, char *argv[])
             {
                 for (double sigma_r = 10; sigma_r < 1000; sigma_r += 10)
                 {
-                    for (int r = 1; r < 9; r += 2)
+                    for (int r = 7; r < 9; r += 2)
                     {
                         double mre_sum = 0;
                         for (int i = 0; i < params_use.data_ids.size(); i++)
@@ -66,6 +67,64 @@ int main(int argc, char *argv[])
         cout << "Sigma S = " << best_sigma_s << endl;
         cout << "Sigma R = " << best_sigma_r << endl;
         cout << "R = " << best_r << endl;
+        cout << "Mean error = " << best_mre_sum / params_use.data_ids.size() << endl;
+    }
+    if (params_use.method == "original")
+    {
+        ofs = ofstream("original_tuning.csv", ios::app);
+        double best_mre_sum = 1000000;
+        double best_color_segment_k = 1;
+        double best_sigma_s = 1;
+        double best_sigma_r = 1;
+        int best_r = 1;
+        double best_coef_s = 1;
+        //110, 1.6, 19, 7, 0.7
+
+        for (double color_segment_k = 110; color_segment_k <= 110; color_segment_k += 10)
+        {
+            for (double sigma_s = 2; sigma_s <= 2; sigma_s += 0.1)
+            {
+                for (double sigma_r = 16; sigma_r <= 18; sigma_r += 1)
+                {
+                    for (int r = 7; r < 9; r += 2)
+                    {
+                        for (double coef_s = 0; coef_s < 2; coef_s += 0.1)
+                        {
+                            double mre_sum = 0;
+                            for (int i = 0; i < params_use.data_ids.size(); i++)
+                            {
+                                double time, ssim, mse, mre;
+                                hyperParams.original_color_segment_k = color_segment_k;
+                                hyperParams.original_sigma_s = sigma_s;
+                                hyperParams.original_sigma_r = sigma_r;
+                                hyperParams.original_r = r;
+                                hyperParams.original_coef_s = coef_s;
+                                interpolate(params_use.data_ids[i], params_use, hyperParams, time, ssim, mse, mre, false, false);
+                                mre_sum += mre;
+                            }
+
+                            if (best_mre_sum > mre_sum)
+                            {
+                                best_mre_sum = mre_sum;
+                                best_color_segment_k = color_segment_k;
+                                best_sigma_s = sigma_s;
+                                best_sigma_r = sigma_r;
+                                best_r = r;
+                                best_coef_s = coef_s;
+                                cout << "Updated : " << best_mre_sum / params_use.data_ids.size() << endl;
+                                ofs << best_mre_sum / params_use.data_ids.size() << "," << color_segment_k << "," << sigma_s << "," << sigma_r << "," << r << "," << coef_s << endl;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        cout << "Sigma C = " << best_color_segment_k << endl;
+        cout << "Sigma S = " << best_sigma_s << endl;
+        cout << "Sigma R = " << best_sigma_r << endl;
+        cout << "R = " << best_r << endl;
+        cout << "Coef S = " << best_coef_s << endl;
         cout << "Mean error = " << best_mre_sum / params_use.data_ids.size() << endl;
     }
 }

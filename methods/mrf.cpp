@@ -9,14 +9,16 @@
 
 using namespace std;
 
-void mrf(vector<vector<double>> &target_grid, vector<vector<double>> &base_grid, vector<vector<int>> &target_vs, vector<vector<int>> &base_vs, EnvParams envParams, cv::Mat img, double k, double c)
+void mrf(vector<vector<double>> &target_grid, vector<vector<double>> &base_grid, vector<vector<double>> &base_interpolate_grid, vector<vector<int>> &target_vs, vector<vector<int>> &base_vs, EnvParams envParams, cv::Mat img, double k, double c)
 {
     vector<vector<double>> base_full_grid(envParams.height, vector<double>(envParams.width, 0));
+    vector<vector<double>> base_interpolate_full_grid(envParams.height, vector<double>(envParams.width, 0));
     for (int i = 0; i < base_grid.size(); i++)
     {
         for (int j = 0; j < envParams.width; j++)
         {
             base_full_grid[base_vs[i][j]][j] = base_grid[i][j];
+            base_interpolate_full_grid[base_vs[i][j]][j] = base_interpolate_grid[i][j];
         }
     }
 
@@ -30,8 +32,11 @@ void mrf(vector<vector<double>> &target_grid, vector<vector<double>> &base_grid,
         {
             if (base_full_grid[target_vs[i][j]][j] > 0)
             {
-                z_line[i * envParams.width + j] = base_full_grid[target_vs[i][j]][j];
                 W_triplets.emplace_back(i * envParams.width + j, i * envParams.width + j, k);
+            }
+            if (base_full_grid[target_vs[i][j]][j] > 0)
+            {
+                z_line[i * envParams.width + j] = base_interpolate_full_grid[target_vs[i][j]][j];
             }
         }
     }
