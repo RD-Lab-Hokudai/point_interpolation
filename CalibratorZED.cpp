@@ -3,17 +3,12 @@
 #include <Open3D/Open3D.h>
 #include <opencv2/opencv.hpp>
 #include <Eigen/Core>
-#include <eigen3/unsupported/Eigen/NonLinearOptimization>
 
 using namespace std;
 
-//const int width = 882;
-//const int height = 560;
-const int width = 938;
-const int height = 606;
-//const int width = 672;
-//const int height = 376;
-const double f_x = width / 2 * 1.01;
+const int width = 672;
+const int height = 376;
+const double f_x = width / 2;
 
 vector<cv::Mat> imgs;
 vector<shared_ptr<open3d::geometry::PointCloud>> pcd_ptrs;
@@ -22,12 +17,12 @@ cv::Mat reprojected;
 int dataNo = 0;
 
 // 02_19_13jo
-int X = 502;
-int Y = 484;
-int Z = 499;
-int roll = 478;
-int pitch = 520;
-int yaw = 502;
+int X = 504;
+int Y = 474;
+int Z = 493;
+int roll = 457;
+int pitch = 489;
+int yaw = 512;
 
 // 02_04_miyanosawa
 /*
@@ -50,18 +45,19 @@ int yaw = 487;
 
 void reproject()
 {
-    cv::Mat thermal_img = cv::Mat::zeros(height, width, CV_8UC3);
+    cv::Mat rgb_img = cv::Mat::zeros(height, width, CV_8UC3);
     cv::Mat points_img = cv::Mat::zeros(height, width, CV_8UC3);
     for (int i = 0; i < height; i++)
     {
         for (int j = 0; j < width; j++)
         {
             reprojected.at<cv::Vec3b>(i, j) = imgs[dataNo].at<cv::Vec3b>(i, j);
-            thermal_img.at<cv::Vec3b>(i, j) = imgs[dataNo].at<cv::Vec3b>(i, j);
+            rgb_img.at<cv::Vec3b>(i, j) = imgs[dataNo].at<cv::Vec3b>(i, j);
         }
     }
     for (int i = 0; i < pcd_ptrs[dataNo]->points_.size(); i++)
     {
+
         double rawX = pcd_ptrs[dataNo]->points_[i][0];
         double rawY = pcd_ptrs[dataNo]->points_[i][1];
         double rawZ = pcd_ptrs[dataNo]->points_[i][2];
@@ -83,7 +79,7 @@ void reproject()
             int v = (int)(height / 2 + f_x * y / z);
             if (0 <= u && u < width && 0 <= v && v < height)
             {
-                uchar color = (uchar)min(z * 100, 255.0);
+                uchar color = min((uchar)(z * 10), (uchar)255);
                 cv::circle(reprojected, cv::Point(u, v), 1, cv::Scalar(color, color, 0));
             }
         }
@@ -131,7 +127,7 @@ void on_trackbarYaw(int val, void *object)
 int main(int argc, char *argv[])
 {
     //vector<int> data_ids = {700, 1290, 1460, 2350, 3850}; //1100 // 2/4 miyanosawa
-    vector<int> data_ids = {10, 50, 100, 150, 200}; // 2/19 13jo
+    vector<int> data_ids = {0, 50, 100, 150, 200}; // 2/19 13jo
 
     /*
     for (int i = 0; i < 10; i += 1)
@@ -155,7 +151,7 @@ int main(int argc, char *argv[])
     for (int i = 0; i < data_ids.size(); i++)
     {
         string folder_path = "../../../data/2020_02_19_13jo/";
-        string img_path = folder_path + to_string(data_ids[i]) + ".png";
+        string img_path = folder_path + to_string(data_ids[i]) + "_rgb.png";
         imgs.emplace_back(cv::imread(img_path));
 
         string pcd_path = folder_path + to_string(data_ids[i]) + ".pcd";

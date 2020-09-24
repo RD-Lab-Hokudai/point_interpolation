@@ -77,6 +77,12 @@ if (Open3D_FOUND)
 
     target_include_directories(CalibratorRGB PUBLIC ${Open3D_INCLUDE_DIRS})
 
+    add_executable(CalibratorZED CalibratorZED.cpp)
+
+    target_link_libraries(CalibratorZED ${Open3D_LIBRARIES} ${OpenCV_LIBS})
+
+    target_include_directories(CalibratorZED PUBLIC ${Open3D_INCLUDE_DIRS})
+
     add_executable(AutoCalibrator AutoCalibrator.cpp)
 
     target_link_libraries(AutoCalibrator ${Open3D_LIBRARIES} ${OpenCV_LIBS})

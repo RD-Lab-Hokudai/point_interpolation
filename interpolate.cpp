@@ -115,9 +115,9 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
             }
         }
 
-        cv::imshow("aa", grid_img);
-        cv::waitKey();
-        visualization::DrawGeometries({filtered_ptr});
+        //cv::imshow("aa", grid_img);
+        //cv::waitKey();
+        //visualization::DrawGeometries({filtered_ptr});
     }
 
     { // Evaluate
