@@ -9,7 +9,7 @@
 using namespace std;
 using namespace open3d;
 
-void find_neighbors(EnvParams envParams, vector<vector<double>> &grid, vector<vector<int>> &vs, vector<vector<vector<int>>> &neighbors)
+void find_neighbors(EnvParams envParams, vector<vector<double>> &grid, vector<vector<int>> &vs, vector<vector<vector<int>>> &neighbors, int neighbor_cnt)
 {
     auto pcd_ptr = make_shared<geometry::PointCloud>();
     for (int i = 0; i < vs.size(); i++)
