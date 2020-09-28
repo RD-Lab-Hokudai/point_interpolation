@@ -1,5 +1,4 @@
 #pragma once
-#include <iostream>
 #include <vector>
 
 #include <Open3D/Open3D.h>

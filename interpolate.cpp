@@ -10,6 +10,7 @@
 #include "models/hyperParams.cpp"
 #include "data/loadParams.cpp"
 #include "preprocess/grid_pcd.cpp"
+#include "preprocess/find_neighbors.cpp"
 #include "methods/linear.cpp"
 #include "methods/mrf.cpp"
 #include "methods/pwas.cpp"
@@ -74,6 +75,9 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
         original_vs = target_vs;
     }
 
+    vector<vector<vector<int>>> neighbors;
+    find_neighbors(envParams, original_grid, original_vs, neighbors);
+
     vector<vector<double>> interpolated_z;
     if (envParams.method == "linear")
     {
@@ -97,10 +101,11 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
                  hyperParams.original_sigma_r, hyperParams.original_r, hyperParams.original_coef_s);
     }
 
+    cout << "hoge" << endl;
     cv::Mat grid_img = cv::Mat::zeros(target_vs.size(), envParams.width, CV_8UC3);
     auto filtered_ptr = make_shared<geometry::PointCloud>();
     {
-        for (int i = 0; i < target_vs.size(); i++)
+        for (int i = 0; i < original_vs.size(); i++)
         {
             for (int j = 0; j < envParams.width; j++)
             {
@@ -110,7 +115,10 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
                     double z = original_grid[i][j];
                     double x = z * (j - envParams.width / 2) / envParams.f_xy;
                     double y = z * (target_vs[i][j] - envParams.height / 2) / envParams.f_xy;
-                    filtered_ptr->points_.emplace_back(x, y, z);
+                    if (i % (64 / layer_cnt) == 0)
+                    {
+                        filtered_ptr->points_.emplace_back(x, y, z);
+                    }
                 }
             }
         }
@@ -136,9 +144,9 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
     auto original_ptr = make_shared<geometry::PointCloud>();
     restore_pcd(interpolated_z, original_grid, target_vs, original_vs, envParams, blured, interpolated_ptr, original_ptr);
 
-    if (show_pcd)
+    if (show_pcd && data_no % 50 == 0)
     {
-        visualization::DrawGeometries({original_ptr, interpolated_ptr}, "Original", 1600, 900);
+        visualization::DrawGeometries({interpolated_ptr}, "Original", 1600, 900);
     }
     if (!io::WritePointCloudToPCD(envParams.folder_path + to_string(data_no) + "_linear.pcd", *interpolated_ptr))
     {

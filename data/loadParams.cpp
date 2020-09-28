@@ -52,7 +52,7 @@ EnvParams loadParams(string params_name)
 
     params["13jo_0219_thermal_linear"] = {938, 606, 938 / 2 * 1.01, 502, 484, 499, 478, 520, 502, "../../../data/2020_02_19_13jo/", data_nos_13jo, "res_linear_13jo_0219_1100-1300_Thermal.csv", "linear", false, false};
     params["13jo_0219_thermal_mrf"] = {938, 606, 938 / 2 * 1.01, 502, 484, 499, 478, 520, 502, "../../../data/2020_02_19_13jo/", data_nos_13jo, "res_mrf_13jo_0219_1100-1300_Thermal.csv", "mrf", false, false};
-    params["13jo_0219_thermal_pwas"] = {938, 606, 938 / 2 * 1.01, 502, 484, 499, 478, 520, 502, "../../../data/2020_02_19_13jo/", data_nos_13jo, "res_pwas_13jo_0219_1100-1300_Thermal.csv", "pwas", false, false};
+    params["13jo_0219_thermal_pwas"] = {938, 606, 938 / 2 * 1.01, 502, 484, 499, 478, 520, 502, "../../../data/2020_02_19_13jo/", data_nos_13jo, "res_pwas_13jo_0219_1100-1300_Thermal.csv", "pwas", true, false};
     params["13jo_0219_thermal_original"] = {938, 606, 938 / 2 * 1.01, 502, 484, 499, 478, 520, 502, "../../../data/2020_02_19_13jo/", data_nos_13jo, "res_original_13jo_0219_1100-1300_Thermal.csv", "original", false, false};
 
     if (params.count(params_name))

@@ -26,7 +26,7 @@ double restore_pcd(vector<vector<double>> &target_grid, vector<vector<double>> &
         {
             double z = target_grid[i][j];
             double original_z = original_full_grid[target_vs[i][j]][j];
-            if (z <= 0 || original_z <= 0)
+            if (z <= 0) //|| original_z <= 0)
             {
                 continue;
             }
@@ -37,7 +37,7 @@ double restore_pcd(vector<vector<double>> &target_grid, vector<vector<double>> &
             target_ptr->points_.emplace_back(100 + x, z, -y);
 
             cv::Vec3b color = img.at<cv::Vec3b>(target_vs[i][j], j);
-            target_ptr->colors_.emplace_back(color[2] / 255.0, color[1] / 255.0, color[0] / 255.0);
+            //target_ptr->colors_.emplace_back(color[2] / 255.0, color[1] / 255.0, color[0] / 255.0);
         }
     }
     for (int i = 0; i < original_vs.size(); i++)
