@@ -76,7 +76,7 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
     }
 
     vector<vector<vector<int>>> neighbors;
-    find_neighbors(envParams, original_grid, original_vs, neighbors, 4);
+    find_neighbors(envParams, original_grid, original_vs, neighbors, 30);
 
     vector<vector<double>> interpolated_z;
     if (envParams.method == "linear")
