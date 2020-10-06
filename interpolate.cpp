@@ -76,7 +76,7 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
     }
 
     vector<vector<vector<int>>> neighbors;
-    find_neighbors(envParams, original_grid, original_vs, neighbors, 30);
+    //find_neighbors(envParams, original_grid, original_vs, neighbors, 30);
 
     vector<vector<double>> interpolated_z;
     if (envParams.method == "linear")
@@ -144,10 +144,11 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
     auto original_ptr = make_shared<geometry::PointCloud>();
     restore_pcd(interpolated_z, original_grid, target_vs, original_vs, envParams, blured, interpolated_ptr, original_ptr);
 
-    if (show_pcd && data_no % 50 == 0)
+    if (show_pcd)
     {
-        visualization::DrawGeometries({interpolated_ptr}, "Original", 1600, 900);
+        visualization::DrawGeometries({original_ptr}, "Original", 1000, 800);
     }
+
     if (!io::WritePointCloudToPCD(envParams.folder_path + to_string(data_no) + "_linear.pcd", *interpolated_ptr))
     {
         cout << "Cannot write" << endl;
