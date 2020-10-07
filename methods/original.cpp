@@ -40,63 +40,6 @@ struct UnionFind
     int size(int x) { return -d[root(x)]; }
 };
 
-/*class UnionFind
-{
-    vector<int> par;
-    vector<int> elements;
-
-public:
-    UnionFind(int length)
-    {
-        for (int i = 0; i < length; i++)
-        {
-            par.emplace_back(i);
-            elements.emplace_back(1);
-        }
-    }
-
-    int root(int x)
-    {
-        int y = x;
-        while (par[y] != y)
-        {
-            y = par[y];
-        }
-        par[x] = y;
-        return y;
-    }
-
-    void unite(int x, int y)
-    {
-        int rx = root(x);
-        int ry = root(y);
-        if (rx == ry)
-        {
-            return;
-        }
-
-        if (rx > ry)
-        {
-            swap(rx, ry);
-        }
-        par[ry] = rx;
-        elements[rx] += elements[ry];
-    }
-
-    bool same(int x, int y)
-    {
-        int rx = root(x);
-        int ry = root(y);
-        return rx == ry;
-    }
-
-    int size(int x)
-    {
-        int rx = root(x);
-        return elements[rx];
-    }
-};*/
-
 class Graph
 {
     vector<tuple<double, int, int>> edges;
@@ -143,7 +86,7 @@ public:
         }
     }
 
-    shared_ptr<UnionFind> segmentate(double k, int min_size)
+    shared_ptr<UnionFind> segmentate(double k)
     {
         auto startTime = chrono::system_clock::now();
         auto unionFind = make_shared<UnionFind>(length);
@@ -221,23 +164,10 @@ public:
             }
         }
         */
+
         cout << "Segmentation end" << endl;
         cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - startTime).count() << "ms" << endl;
 
-        /*
-        for (int i = 0; i < edges.size(); i++)
-        {
-            int from = get<1>(edges[i]);
-            int to = get<2>(edges[i]);
-            from = unionFind->root(from);
-            to = unionFind->root(to);
-
-            if (unionFind->size(from) <= min_size || unionFind->size(to) <= min_size)
-            {
-                unionFind->unite(from, to);
-            }
-        }
-        */
         return unionFind;
     }
 };
@@ -259,7 +189,7 @@ void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_
     {
         Graph graph(&img);
         cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "ms" << endl;
-        color_segments = graph.segmentate(color_segment_k, 1);
+        color_segments = graph.segmentate(color_segment_k);
         cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "ms" << endl;
     }
     cout << "Segmentation" << endl;
