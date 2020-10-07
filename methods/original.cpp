@@ -2,6 +2,7 @@
 #include <iostream>
 #include <vector>
 #include <chrono>
+#include <random>
 
 #include <opencv2/opencv.hpp>
 
@@ -90,21 +91,24 @@ public:
     {
         auto startTime = chrono::system_clock::now();
         auto unionFind = make_shared<UnionFind>(length);
+        int edge_len = edges.size();
         double *thresholds = new double[length];
-        //vector<double> thresholds;
-        double diff_max = 0;
-        double diff_min = 1000000;
         for (int i = 0; i < length; i++)
         {
             thresholds[i] = get_threshold(k, 1);
+        }
+
+        double diff_max = 0;
+        double diff_min = 1000000;
+        for (int i = 0; i < edge_len; i++)
+        {
             double diff = get<0>(edges[i]);
             diff_max = max(diff_max, diff);
             diff_min = min(diff_min, diff);
         }
-
-        int bucket_len = 1000000;
+        int bucket_len = length;
         vector<int> *bucket = new vector<int>[bucket_len + 1];
-        for (int i = 0; i < length; i++)
+        for (int i = 0; i < edge_len; i++)
         {
             int diff_level = (int)(bucket_len * (get<0>(edges[i]) - diff_min) / (diff_max - diff_min));
             bucket[diff_level].emplace_back(i);
@@ -139,10 +143,9 @@ public:
         delete[] bucket;
 
         /*
-        cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - startTime).count() << "ms" << endl;
         sort(edges.begin(), edges.end());
-        cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - startTime).count() << "ms" << endl;
-        for (int i = 0; i < edges.size(); i++)
+        cout << "Sort:" << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - startTime).count() << "ms" << endl;
+        for (int i = 0; i < edge_len; i++)
         {
             double diff = get<0>(edges[i]);
             int from = get<1>(edges[i]);
@@ -165,8 +168,8 @@ public:
         }
         */
 
-        cout << "Segmentation end" << endl;
-        cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - startTime).count() << "ms" << endl;
+        //cout << "Segmentation end" << endl;
+        //cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - startTime).count() << "ms" << endl;
 
         return unionFind;
     }
@@ -190,10 +193,38 @@ void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_
         Graph graph(&img);
         cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "ms" << endl;
         color_segments = graph.segmentate(color_segment_k);
-        cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "ms" << endl;
     }
     cout << "Segmentation" << endl;
     cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "ms" << endl;
+
+    /*
+    {
+        cv::Mat seg_img = cv::Mat::zeros(envParams.height, envParams.width, CV_8UC3);
+        random_device rnd;
+        mt19937 mt(rnd());
+        uniform_int_distribution<> rand(0, 255);
+        for (int i = 0; i < envParams.height; i++)
+        {
+            for (int j = 0; j < envParams.width; j++)
+            {
+                seg_img.at<cv::Vec3b>(i, j) = img.at<cv::Vec3b>(i, j);
+                // cv::Vec3b(rand(mt), rand(mt), rand(mt));
+            }
+        }
+        //cout << envParams.height << " " << envParams.width << endl;
+        for (int i = 0; i < envParams.height; i++)
+        {
+            for (int j = 0; j < envParams.width; j++)
+            {
+                int root = color_segments->root(i * envParams.width + j);
+                seg_img.at<cv::Vec3b>(i, j) = cv::Vec3b(root % 256);
+                //seg_img.at<cv::Vec3b>(root / envParams.width, root % envParams.width);
+            }
+        }
+        cv::imshow("A", seg_img);
+        cv::waitKey();
+    }
+    */
 
     target_grid = vector<vector<double>>(target_vs.size(), vector<double>(envParams.width, 0));
     {
