@@ -12,7 +12,7 @@ ofstream ofs;
 
 int main(int argc, char *argv[])
 {
-    EnvParams params_use = loadParams("miyanosawa_3_3_rgb_original");
+    EnvParams params_use = loadParams("13jo_0219_rgb_original");
     HyperParams hyperParams = getDefaultHyperParams(params_use.isRGB);
     ofs = ofstream(params_use.of_name);
 

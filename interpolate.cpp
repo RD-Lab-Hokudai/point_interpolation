@@ -49,9 +49,10 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
 
     auto start = chrono::system_clock::now();
 
-    vector<vector<double>> original_grid, filtered_grid, original_interpolate_grid, filtered_interpolate_grid;
-    vector<vector<int>> target_vs, base_vs;
     *pcd_ptr = pointcloud;
+    vector<vector<double>>
+        original_grid, filtered_grid, original_interpolate_grid, filtered_interpolate_grid;
+    vector<vector<int>> target_vs, base_vs;
     int layer_cnt = 16;
     calc_grid(pcd_ptr, envParams, original_grid, filtered_grid, original_interpolate_grid, filtered_interpolate_grid, target_vs, base_vs, layer_cnt);
 
@@ -75,8 +76,10 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
         original_vs = target_vs;
     }
 
-    vector<vector<vector<int>>> neighbors;
-    //find_neighbors(envParams, original_grid, original_vs, neighbors, 30);
+    {
+        vector<vector<vector<int>>> neighbors;
+        //find_neighbors(envParams, original_grid, original_vs, neighbors, 30);
+    }
 
     vector<vector<double>> interpolated_z;
     if (envParams.method == "linear")

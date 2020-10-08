@@ -207,18 +207,15 @@ void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_
         {
             for (int j = 0; j < envParams.width; j++)
             {
-                seg_img.at<cv::Vec3b>(i, j) = img.at<cv::Vec3b>(i, j);
-                // cv::Vec3b(rand(mt), rand(mt), rand(mt));
+                seg_img.at<cv::Vec3b>(i, j) = cv::Vec3b(rand(mt), rand(mt), rand(mt));
             }
         }
-        //cout << envParams.height << " " << envParams.width << endl;
         for (int i = 0; i < envParams.height; i++)
         {
             for (int j = 0; j < envParams.width; j++)
             {
                 int root = color_segments->root(i * envParams.width + j);
-                seg_img.at<cv::Vec3b>(i, j) = cv::Vec3b(root % 256);
-                //seg_img.at<cv::Vec3b>(root / envParams.width, root % envParams.width);
+                seg_img.at<cv::Vec3b>(i, j) = seg_img.at<cv::Vec3b>(root / envParams.width, root % envParams.width);
             }
         }
         cv::imshow("A", seg_img);

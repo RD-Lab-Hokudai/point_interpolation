@@ -5,6 +5,7 @@
 #include <opencv2/opencv.hpp>
 
 #include "../models/envParams.cpp"
+#include "remove_snow.cpp"
 
 using namespace std;
 using namespace open3d;
@@ -25,6 +26,7 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
         rad += delta_rad;
     }
 
+    auto clipped_ptr = make_shared<geometry::PointCloud>();
     vector<vector<Eigen::Vector3d>> all_layers(64, vector<Eigen::Vector3d>());
     double rollVal = (envParams.roll - 500) / 1000.0;
     double pitchVal = (envParams.pitch - 500) / 1000.0;
@@ -57,8 +59,16 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
                 auto it = lower_bound(tans.begin(), tans.end(), rawY / r);
                 int index = it - tans.begin();
                 all_layers[index].emplace_back(x, y, z);
+                clipped_ptr->points_.emplace_back(x, y, z);
             }
         }
+    }
+
+    {
+        auto start = chrono::system_clock::now();
+        clipped_ptr = remove_snow(clipped_ptr);
+        cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "ms" << endl;
+        visualization::DrawGeometries({clipped_ptr});
     }
 
     for (int i = 0; i < 64; i++)
