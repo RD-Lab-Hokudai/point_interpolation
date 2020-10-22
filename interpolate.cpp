@@ -149,7 +149,7 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
 
     if (show_pcd)
     {
-        visualization::DrawGeometries({original_ptr}, "Original", 1000, 800);
+        visualization::DrawGeometries({interpolated_ptr}, "Original", 1000, 800);
     }
 
     if (!io::WritePointCloudToPCD(envParams.folder_path + to_string(data_no) + "_linear.pcd", *interpolated_ptr))

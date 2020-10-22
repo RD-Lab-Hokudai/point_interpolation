@@ -13,7 +13,7 @@ using namespace std;
 
 struct UnionFind
 {
-    int d[1000 * 500];
+    int d[1000 * 1000];
     UnionFind(int n = 0)
     {
         for (int i = 0; i < n; i++)

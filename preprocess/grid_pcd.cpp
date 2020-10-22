@@ -64,12 +64,14 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
         }
     }
 
+    /*
     {
         auto start = chrono::system_clock::now();
         clipped_ptr = remove_snow(clipped_ptr);
         cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "ms" << endl;
         visualization::DrawGeometries({clipped_ptr});
     }
+    */
 
     for (int i = 0; i < 64; i++)
     {
