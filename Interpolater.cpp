@@ -12,7 +12,7 @@ ofstream ofs;
 
 int main(int argc, char *argv[])
 {
-    string params_name = argc > 0 ? argv[1] : "13jo_0219_rgb_mrf";
+    string params_name = argc >= 2 ? argv[1] : "13jo_0219_rgb_mrf";
     cout << params_name << endl;
     EnvParams params_use = loadParams(params_name);
     HyperParams hyperParams = getDefaultHyperParams(params_use.isRGB);
