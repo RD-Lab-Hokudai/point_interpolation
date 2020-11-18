@@ -7,11 +7,11 @@
 using namespace std;
 using namespace open3d;
 
-shared_ptr<geometry::PointCloud> remove_snow(shared_ptr<geometry::PointCloud> pcd_ptr)
+vector<vector<Eigen::Vector3d>> remove_snow(shared_ptr<geometry::PointCloud> pcd_ptr, vector<vector<Eigen::Vector3d>> all_layers, vector<int> layer_idxs)
 {
-    auto removed_ptr = make_shared<geometry::PointCloud>();
+    vector<vector<Eigen::Vector3d>> removed_points(64, vector<Eigen::Vector3d>());
     auto kdtree = make_shared<geometry::KDTreeFlann>(*pcd_ptr);
-    double rad_coef = 0.002;
+    double rad_coef = 0.0001; //0.002
     for (int i = 0; i < pcd_ptr->points_.size(); i++)
     {
         double x = pcd_ptr->points_[i][0];
@@ -30,9 +30,9 @@ shared_ptr<geometry::PointCloud> remove_snow(shared_ptr<geometry::PointCloud> pc
         //radiusを超えない範囲に近傍点があれば残す
         if (dists[1] <= radius)
         {
-            removed_ptr->points_.emplace_back(pcd_ptr->points_[i]);
+            removed_points[layer_idxs[i]].emplace_back(x, y, z);
         }
     }
 
-    return removed_ptr;
+    return removed_points;
 }

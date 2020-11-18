@@ -139,12 +139,11 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
     }
     if (envParams.method == "original")
     {
-        original(interpolated_z, filtered_interpolate_grid, target_vs, base_vs, envParams, blured,
+        original(interpolated_z, filtered_grid, target_vs, base_vs, envParams, blured,
                  hyperParams.original_color_segment_k, hyperParams.original_sigma_s,
                  hyperParams.original_sigma_r, hyperParams.original_r, hyperParams.original_coef_s);
     }
 
-    cout << "hoge" << endl;
     cv::Mat grid_img = cv::Mat::zeros(target_vs.size(), envParams.width, CV_8UC3);
     auto filtered_ptr = make_shared<geometry::PointCloud>();
     {
@@ -189,10 +188,15 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
 
     if (show_pcd)
     {
+        visualization::DrawGeometries({original_ptr}, "Original", 1000, 800);
         visualization::DrawGeometries({interpolated_ptr}, "Original", 1000, 800);
     }
 
-    if (!io::WritePointCloudToPCD(envParams.folder_path + to_string(data_no) + "_linear.pcd", *interpolated_ptr))
+    if (!io::WritePointCloudToPCD(envParams.folder_path + to_string(data_no) + "_interpolated.pcd", *interpolated_ptr))
+    {
+        cout << "Cannot write" << endl;
+    }
+    if (!io::WritePointCloudToPCD(envParams.folder_path + to_string(data_no) + "_original.pcd", *original_ptr))
     {
         cout << "Cannot write" << endl;
     }

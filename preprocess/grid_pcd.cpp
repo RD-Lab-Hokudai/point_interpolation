@@ -27,6 +27,7 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
     }
 
     auto clipped_ptr = make_shared<geometry::PointCloud>();
+    vector<int> clipped_idxs;
     vector<vector<Eigen::Vector3d>> all_layers(64, vector<Eigen::Vector3d>());
     double rollVal = (envParams.roll - 500) / 1000.0;
     double pitchVal = (envParams.pitch - 500) / 1000.0;
@@ -60,6 +61,7 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
                 int index = it - tans.begin();
                 all_layers[index].emplace_back(x, y, z);
                 clipped_ptr->points_.emplace_back(x, y, z);
+                clipped_idxs.emplace_back(index);
             }
         }
     }
@@ -67,9 +69,8 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
     /*
     {
         auto start = chrono::system_clock::now();
-        clipped_ptr = remove_snow(clipped_ptr);
+        all_layers = remove_snow(clipped_ptr, all_layers, clipped_idxs);
         cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "ms" << endl;
-        visualization::DrawGeometries({clipped_ptr});
     }
     */
 
@@ -185,17 +186,17 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
             {
                 for (int j = 0; j < envParams.width; j++)
                 {
-                    double z = filtered_interpolate_grid[i / (64 / layer_cnt)][j];
+                    double z = filtered_grid[i / (64 / layer_cnt)][j];
                     if (z < 0)
                     {
                         continue;
                     }
                     double x = z * (j - envParams.width / 2) / envParams.f_xy;
                     double y = z * (target_vs[i][j] - envParams.height / 2) / envParams.f_xy;
-                    filtered_ptr->points_.emplace_back(x, y, z);
+                    filtered_ptr->points_.emplace_back(x, z, -y);
                 }
             }
         }
-        //visualization::DrawGeometries({original_ptr}, "Points", 1200, 720);
+        //visualization::DrawGeometries({filtered_ptr}, "Points", 1200, 720);
     }
 }

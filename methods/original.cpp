@@ -175,6 +175,18 @@ public:
     }
 };
 
+int rate = 2;
+vector<vector<double>> coefs;
+void mouse_callback(int event, int x, int y, int flags, void *userdata)
+{
+    if (event == cv::EVENT_LBUTTONDOWN)
+    {
+        cout << "clicked"
+             << " " << y / rate << " " << x / rate << endl;
+        cout << coefs[y / rate][x / rate] << endl;
+    }
+}
+
 void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_grid, vector<vector<int>> &target_vs, vector<vector<int>> &base_vs, EnvParams envParams, cv::Mat img, double color_segment_k, double sigma_s, double sigma_r, int r, double coef_s)
 {
     vector<vector<double>> full_grid(envParams.height, vector<double>(envParams.width, 0));
@@ -224,6 +236,7 @@ void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_
     */
 
     target_grid = vector<vector<double>>(target_vs.size(), vector<double>(envParams.width, 0));
+    vector<vector<double>> coef_grid(img.rows, vector<double>(img.cols, 0));
     {
         for (int i = 0; i < target_vs.size(); i++)
         {
@@ -232,6 +245,13 @@ void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_
                 double coef = 0;
                 double val = 0;
                 int v = target_vs[i][j];
+                // すでに点があるならそれを使う
+                if (full_grid[v][j] > 0)
+                {
+                    target_grid[i][j] = full_grid[v][j];
+                    continue;
+                }
+
                 cv::Vec3b d0 = img.at<cv::Vec3b>(v, j);
                 int r0 = color_segments->root(v * envParams.width + j);
 
@@ -263,12 +283,103 @@ void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_
                         coef += tmp;
                     }
                 }
-                if (coef > 0)
+                if (coef > 0.3 /* some threshold */)
                 {
                     target_grid[i][j] = val / coef;
+                    coef_grid[target_vs[i][j]][j] = coef;
                 }
             }
         }
     }
+
+    {
+        // Remove noise and Apply
+        int dx[4] = {1, 1, 0, -1};
+        int dy[4] = {0, 1, 1, 1};
+        vector<vector<bool>> oks(target_vs.size(), vector<bool>(envParams.width, false));
+        double rad_coef = 0.0005; //0.002
+        for (int i = 0; i < target_vs.size(); i++)
+        {
+            for (int j = 0; j < envParams.width; j++)
+            {
+                if (full_grid[i][j] > 0)
+                {
+                    // 元の点群はそのまま
+                    continue;
+                }
+                if (target_vs[i][j] <= 0)
+                {
+                    continue;
+                }
+
+                double z = target_grid[i][j];
+                double x = z * (j - envParams.width / 2) / envParams.f_xy;
+                double y = z * (target_vs[i][j] - envParams.height / 2) / envParams.f_xy;
+
+                double dist2 = x * x + y * y + z * z;
+                double radius = rad_coef * dist2;
+
+                bool ok = false;
+                for (int k = 0; k < 4; k++)
+                {
+                    int ii = i + dy[k];
+                    int jj = j + dx[k];
+                    if (ii < 0 || ii >= target_vs.size() || jj < 0 || jj >= envParams.width)
+                    {
+                        continue;
+                    }
+                    if (target_grid[ii][jj] <= 0)
+                    {
+                        continue;
+                    }
+
+                    double z_tmp = target_grid[ii][jj];
+                    double x_tmp = z * (jj - envParams.width / 2) / envParams.f_xy;
+                    double y_tmp = z * (target_vs[ii][jj] - envParams.height / 2) / envParams.f_xy;
+                    double distance2 = (x - x_tmp) * (x - x_tmp) + (y - y_tmp) * (y - y_tmp) + (z - z_tmp) * (z - z_tmp);
+                    // ノイズ除去
+                    if (distance2 <= radius * radius)
+                    {
+                        oks[i][j] = true;
+                        oks[ii][jj] = true;
+                    }
+                }
+
+                //oks[i][j] = true;
+
+                if (!oks[i][j])
+                {
+                    target_grid[i][j] = 0;
+                }
+            }
+        }
+    }
+
+    /*
+    cv::Mat img2 = cv::Mat::zeros(img.rows * rate, img.cols * rate, CV_8UC3);
+    for (int i = 0; i < img.rows; i++)
+    {
+        for (int j = 0; j < img.cols; j++)
+        {
+            for (int ii = 0; ii < rate; ii++)
+            {
+                for (int jj = 0; jj < rate; jj++)
+                {
+                    img2.at<cv::Vec3b>(i * rate + ii, j * rate + jj) = img.at<cv::Vec3b>(i, j);
+                    if (coef_grid[i][j] > 0)
+                    {
+                        img2.at<cv::Vec3b>(i * rate + ii, j * rate + jj) = coef_grid[i][j] * cv::Vec3b(255, 255, 255);
+                    }
+                }
+            }
+        }
+    }
+
+    coefs = coef_grid;
+    cv::imshow("win", img2);
+    cv::setMouseCallback("win", mouse_callback);
+    cv::waitKey();
+    */
+
     cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "ms" << endl;
 }

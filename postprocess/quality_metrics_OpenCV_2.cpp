@@ -90,6 +90,8 @@ namespace qm
         int width = img1.cols;
         int cnt = 0;
         int cannot = 0;
+        int ground_cnt = 0;
+        int interpolate_cnt = 0;
 
         for (int i = 0; i < height; i++)
         {
@@ -106,10 +108,19 @@ namespace qm
                 {
                     cannot++;
                 }
+                if (o > 0)
+                {
+                    ground_cnt++;
+                }
+                if (r > 0)
+                {
+                    interpolate_cnt++;
+                }
             }
         }
 
         cout << "Cannot cnt = " << cannot << endl;
+        cout << ground_cnt << " " << interpolate_cnt << endl;
         if (cnt == 0)
         {
             return 1e9;

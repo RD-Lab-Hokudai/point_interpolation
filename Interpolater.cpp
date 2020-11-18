@@ -21,7 +21,7 @@ int main(int argc, char *argv[])
     for (int i = 0; i < params_use.data_ids.size(); i++)
     {
         double time, ssim, mse, mre;
-        interpolate(params_use.data_ids[i], params_use, hyperParams, time, ssim, mse, mre, false);
+        interpolate(params_use.data_ids[i], params_use, hyperParams, time, ssim, mse, mre, true);
         ofs << params_use.data_ids[i] << "," << time << "," << ssim << "," << mse << "," << mre << "," << endl;
     }
     return 0;
