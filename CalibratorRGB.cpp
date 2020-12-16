@@ -2,8 +2,6 @@
 
 #include <Open3D/Open3D.h>
 #include <opencv2/opencv.hpp>
-#include <Eigen/Core>
-#include <eigen3/unsupported/Eigen/NonLinearOptimization>
 
 using namespace std;
 
@@ -112,7 +110,7 @@ void reproject()
             if (0 <= u && u < width && 0 <= v && v < height)
             {
                 id_img.at<unsigned short>(v, u) = i + 1;
-                cv::circle(reprojected, cv::Point(u, v), 1, cv::Scalar(255, 255, 0));
+                cv::circle(reprojected, cv::Point(u, v), 2, cv::Scalar(255, 255, 0));
                 /*
                 if (v0 <= v && v < v0 + height / rate && u0 <= u && u < u0 + width / rate)
                 {
@@ -197,7 +195,7 @@ int main(int argc, char *argv[])
         tans.emplace_back(tan(rad));
         rad += delta_rad;
     }
-    int layers = 64;
+    int layers = 16;
 
     for (int i = 0; i < data_ids.size(); i++)
     {

@@ -2,8 +2,6 @@
 
 #include <Open3D/Open3D.h>
 #include <opencv2/opencv.hpp>
-#include <Eigen/Core>
-#include <eigen3/unsupported/Eigen/NonLinearOptimization>
 
 using namespace std;
 
@@ -84,7 +82,7 @@ void reproject()
             if (0 <= u && u < width && 0 <= v && v < height)
             {
                 uchar color = (uchar)min(z * 100, 255.0);
-                cv::circle(reprojected, cv::Point(u, v), 1, cv::Scalar(color, color, 0));
+                cv::circle(reprojected, cv::Point(u, v), 2, cv::Scalar(0, 0, 0));
             }
         }
     }

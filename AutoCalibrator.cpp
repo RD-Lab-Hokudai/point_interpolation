@@ -9,7 +9,7 @@
 #include <Eigen/Core>
 #include <Eigen/Eigen>
 #include <Eigen/Sparse>
-#include <eigen3/unsupported/Eigen/NonLinearOptimization>
+#include <unsupported/Eigen/NonLinearOptimization>
 #include <time.h>
 
 using namespace std;

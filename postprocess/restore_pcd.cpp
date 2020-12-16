@@ -19,6 +19,7 @@ double restore_pcd(vector<vector<double>> &target_grid, vector<vector<double>> &
             original_full_grid[original_vs[i][j]][j] = original_grid[i][j];
         }
     }
+    cout << "B" << endl;
 
     for (int i = 0; i < target_vs.size(); i++)
     {
@@ -40,6 +41,8 @@ double restore_pcd(vector<vector<double>> &target_grid, vector<vector<double>> &
             target_ptr->colors_.emplace_back(color[2] / 255.0, color[1] / 255.0, color[0] / 255.0);
         }
     }
+
+    cout << "A" << endl;
     for (int i = 0; i < original_vs.size(); i++)
     {
         for (int j = 0; j < envParams.width; j++)
@@ -53,11 +56,11 @@ double restore_pcd(vector<vector<double>> &target_grid, vector<vector<double>> &
             double original_x = original_z * (j - envParams.width / 2) / envParams.f_xy;
             double original_y = original_z * (original_vs[i][j] - envParams.height / 2) / envParams.f_xy;
             original_ptr->points_.emplace_back(original_x, original_z, -original_y);
-            target_ptr->points_.emplace_back(original_x, original_z, -original_y);
+            //target_ptr->points_.emplace_back(original_x, original_z, -original_y);
 
             cv::Vec3b color = img.at<cv::Vec3b>(original_vs[i][j], j);
             //original_ptr->colors_.emplace_back(color[2] / 255.0, color[1] / 255.0, color[0] / 255.0);
-            target_ptr->colors_.emplace_back(color[2] / 255.0, color[1] / 255.0, color[0] / 255.0);
+            //target_ptr->colors_.emplace_back(color[2] / 255.0, color[1] / 255.0, color[0] / 255.0);
         }
     }
 }

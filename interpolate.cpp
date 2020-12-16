@@ -94,7 +94,7 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
         original_grid, filtered_grid, original_interpolate_grid, filtered_interpolate_grid;
     vector<vector<int>> target_vs, base_vs;
     int layer_cnt = 16;
-    calc_grid(pcd_ptr, envParams, original_grid, filtered_grid, original_interpolate_grid, filtered_interpolate_grid, target_vs, base_vs, layer_cnt);
+    grid_pcd(pcd_ptr, envParams, original_grid, filtered_grid, original_interpolate_grid, filtered_interpolate_grid, target_vs, base_vs, layer_cnt);
 
     vector<vector<int>> original_vs;
     if (envParams.isFullHeight)
@@ -117,7 +117,7 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
     }
 
     {
-        vector<vector<vector<int>>> neighbors;
+        //vector<vector<vector<int>>> neighbors;
         //find_neighbors(envParams, original_grid, original_vs, neighbors, 30);
     }
 
@@ -144,9 +144,74 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
                  hyperParams.original_sigma_r, hyperParams.original_r, hyperParams.original_coef_s);
     }
 
+/*
+    {
+        cout << interpolated_z.size() << endl;
+        double max_original_depth = 0;
+        double min_original_depth = 100;
+        for (int i = 0; i < filtered_grid.size(); i++)
+        {
+            for (int j = 0; j < envParams.width; j++)
+            {
+                if (filtered_grid[i][j] < 100)
+                {
+                    max_original_depth = max(max_original_depth, filtered_grid[i][j]);
+                }
+                min_original_depth = min(min_original_depth, filtered_grid[i][j]);
+            }
+        }
+
+        double max_depth = 0;
+        double min_depth = 100;
+        for (int i = 0; i < interpolated_z.size(); i++)
+        {
+            for (int j = 0; j < envParams.width; j++)
+            {
+                if (interpolated_z[i][j] < 100)
+                {
+                    max_depth = max(max_depth, interpolated_z[i][j]);
+                }
+                min_depth = min(min_depth, interpolated_z[i][j]);
+            }
+        }
+        cv::Mat original_img = cv::Mat::zeros(64 * 2, envParams.width * 2, CV_8UC1);
+        for (int i = 0; i < filtered_grid.size(); i++)
+        {
+            for (int j = 0; j < envParams.width; j++)
+            {
+                uchar val = 255 * (filtered_grid[i][j] - min_original_depth) / (max_original_depth - min_original_depth);
+                original_img.at<uchar>(i * 4 * 2, j * 2) = val;
+                original_img.at<uchar>(i * 4 * 2 + 1, j * 2) = val;
+                original_img.at<uchar>(i * 4 * 2, j * 2 + 1) = val;
+                original_img.at<uchar>(i * 4 * 2 + 1, j * 2 + 1) = val;
+            }
+        }
+        cv::Mat img = cv::Mat::zeros(64 * 2, envParams.width * 2, CV_8UC1);
+        for (int i = 0; i < interpolated_z.size(); i++)
+        {
+            for (int j = 0; j < envParams.width; j++)
+            {
+                uchar val = 255 * (interpolated_z[i][j] - min_depth) / (max_depth - min_depth);
+                img.at<uchar>(i * 2, j * 2) = val;
+                img.at<uchar>(i * 2 + 1, j * 2) = val;
+                img.at<uchar>(i * 2, j * 2 + 1) = val;
+                img.at<uchar>(i * 2 + 1, j * 2 + 1) = val;
+            }
+        }
+        cout << "en" << endl;
+        cv::Mat original_cm_img, cm_img;
+        cv::applyColorMap(original_img, original_cm_img, COLORMAP_JET);
+        cv::applyColorMap(img, cm_img, COLORMAP_JET);
+        cv::imshow("A", original_cm_img);
+        cv::imshow("B", cm_img);
+        cv::waitKey();
+    }
+    */
+
+/*
+    {
     cv::Mat grid_img = cv::Mat::zeros(target_vs.size(), envParams.width, CV_8UC3);
     auto filtered_ptr = make_shared<geometry::PointCloud>();
-    {
         for (int i = 0; i < original_vs.size(); i++)
         {
             for (int j = 0; j < envParams.width; j++)
@@ -169,6 +234,7 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
         //cv::waitKey();
         //visualization::DrawGeometries({filtered_ptr});
     }
+    */
 
     { // Evaluate
         time = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count();
@@ -192,11 +258,11 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
         visualization::DrawGeometries({interpolated_ptr}, "Original", 1000, 800);
     }
 
-    if (!io::WritePointCloudToPCD(envParams.folder_path + to_string(data_no) + "_interpolated.pcd", *interpolated_ptr))
+    if (!io::WritePointCloudToPCD(envParams.folder_path + to_string(data_no) + "_interpolated.pcd", *interpolated_ptr, {true}))
     {
         cout << "Cannot write" << endl;
     }
-    if (!io::WritePointCloudToPCD(envParams.folder_path + to_string(data_no) + "_original.pcd", *original_ptr))
+    if (!io::WritePointCloudToPCD(envParams.folder_path + to_string(data_no) + "_original.pcd", *original_ptr, {true}))
     {
         cout << "Cannot write" << endl;
     }

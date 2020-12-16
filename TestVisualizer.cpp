@@ -6,7 +6,7 @@
 #include <Open3D/Open3D.h>
 #include <opencv2/opencv.hpp>
 #include <Eigen/Core>
-#include <eigen3/unsupported/Eigen/NonLinearOptimization>
+#include <unsupported/Eigen/NonLinearOptimization>
 #include <time.h>
 
 using namespace std;

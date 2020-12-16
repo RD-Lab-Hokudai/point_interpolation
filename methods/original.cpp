@@ -209,7 +209,6 @@ void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_
     cout << "Segmentation" << endl;
     cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "ms" << endl;
 
-    /*
     {
         cv::Mat seg_img = cv::Mat::zeros(envParams.height, envParams.width, CV_8UC3);
         random_device rnd;
@@ -230,10 +229,9 @@ void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_
                 seg_img.at<cv::Vec3b>(i, j) = seg_img.at<cv::Vec3b>(root / envParams.width, root % envParams.width);
             }
         }
-        cv::imshow("A", seg_img);
+        cv::imshow("C", seg_img);
         cv::waitKey();
     }
-    */
 
     target_grid = vector<vector<double>>(target_vs.size(), vector<double>(envParams.width, 0));
     vector<vector<double>> coef_grid(img.rows, vector<double>(img.cols, 0));

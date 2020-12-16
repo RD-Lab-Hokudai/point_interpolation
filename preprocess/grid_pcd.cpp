@@ -10,7 +10,7 @@
 using namespace std;
 using namespace open3d;
 
-void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams,
+void grid_pcd(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams,
                vector<vector<double>> &original_grid, vector<vector<double>> &filtered_grid,
                vector<vector<double>> &original_interpolate_grid, vector<vector<double>> &filtered_interpolate_grid,
                vector<vector<int>> &target_vs, vector<vector<int>> &base_vs, int layer_cnt = 16)
@@ -27,7 +27,7 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
     }
 
     auto clipped_ptr = make_shared<geometry::PointCloud>();
-    vector<int> clipped_idxs;
+    vector<int> clipped_indecies;
     vector<vector<Eigen::Vector3d>> all_layers(64, vector<Eigen::Vector3d>());
     double rollVal = (envParams.roll - 500) / 1000.0;
     double pitchVal = (envParams.pitch - 500) / 1000.0;
@@ -61,15 +61,15 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
                 int index = it - tans.begin();
                 all_layers[index].emplace_back(x, y, z);
                 clipped_ptr->points_.emplace_back(x, y, z);
-                clipped_idxs.emplace_back(index);
+                clipped_indecies.emplace_back(index);
             }
         }
     }
-
+    
     /*
     {
         auto start = chrono::system_clock::now();
-        all_layers = remove_snow(clipped_ptr, all_layers, clipped_idxs);
+        all_layers = remove_snow(clipped_ptr, all_layers, clipped_indecies);
         cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "ms" << endl;
     }
     */
@@ -165,6 +165,7 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
         }
     }
 
+/*
     { // Check
         auto original_ptr = make_shared<geometry::PointCloud>();
         auto filtered_ptr = make_shared<geometry::PointCloud>();
@@ -199,4 +200,5 @@ void calc_grid(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams
         }
         //visualization::DrawGeometries({filtered_ptr}, "Points", 1200, 720);
     }
+    */
 }
