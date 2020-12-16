@@ -19,7 +19,6 @@ double restore_pcd(vector<vector<double>> &target_grid, vector<vector<double>> &
             original_full_grid[original_vs[i][j]][j] = original_grid[i][j];
         }
     }
-    cout << "B" << endl;
 
     for (int i = 0; i < target_vs.size(); i++)
     {
@@ -42,7 +41,6 @@ double restore_pcd(vector<vector<double>> &target_grid, vector<vector<double>> &
         }
     }
 
-    cout << "A" << endl;
     for (int i = 0; i < original_vs.size(); i++)
     {
         for (int j = 0; j < envParams.width; j++)

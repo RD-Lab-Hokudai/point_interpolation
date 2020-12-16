@@ -34,6 +34,7 @@ EnvParams loadParams(string params_name)
     params["miyanosawa_3_3_rgb_original_champ2"] = {640, 480, 640, 498, 489, 388, 554, 560, 506, "../../../data/2020_03_03_miyanosawa/", {100, 102, 104, 106, 108}, "res_original_miyanosawa_0303_1100-1300_RGB.csv", "original", false, true};
 
     params["miyanosawa_3_3_thermal_linear"] = {938, 606, 938 / 2 * 1.01, 495, 466, 450, 469, 503, 487, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_linear_miyanosawa_0303_1100-1300_Thermal.csv", "linear", false, false};
+    params["miyanosawa_3_3_thermal_mrf"] = {938, 606, 938 / 2 * 1.01, 495, 466, 450, 469, 503, 487, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_mrf_miyanosawa_0303_1100-1300_Thermal.csv", "mrf", false, false};
     params["miyanosawa_3_3_thermal_pwas"] = {938, 606, 938 / 2 * 1.01, 495, 466, 450, 469, 503, 487, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_pwas_miyanosawa_0303_1100-1300_Thermal.csv", "pwas", false, false};
     params["miyanosawa_3_3_thermal_original"] = {938, 606, 938 / 2 * 1.01, 495, 466, 450, 469, 503, 487, "../../../data/2020_03_03_miyanosawa/", data_nos, "res_original_miyanosawa_0303_1100-1300_Thermal.csv", "original", false, false};
     params["miyanosawa_3_3_thermal_original_champ"] = {938, 606, 938 / 2 * 1.01, 495, 466, 450, 469, 503, 487, "../../../data/2020_03_03_miyanosawa/", {1207, 1262, 1264, 1265, 1277}, "res_original_miyanosawa_0303_Thermal.csv", "original", false, false};

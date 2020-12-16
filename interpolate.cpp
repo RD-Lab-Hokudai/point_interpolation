@@ -128,12 +128,12 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
     }
     if (envParams.method == "mrf")
     {
-        mrf(interpolated_z, filtered_interpolate_grid, filtered_interpolate_grid, target_vs, base_vs, envParams, blured,
+        mrf(interpolated_z, filtered_grid, filtered_interpolate_grid, target_vs, base_vs, envParams, blured,
             hyperParams.mrf_k, hyperParams.mrf_c);
     }
     if (envParams.method == "pwas")
     {
-        pwas(interpolated_z, filtered_interpolate_grid, target_vs, base_vs, envParams, blured,
+        pwas(interpolated_z, filtered_grid, target_vs, base_vs, envParams, blured,
              hyperParams.pwas_sigma_c, hyperParams.pwas_sigma_s,
              hyperParams.pwas_sigma_r, hyperParams.pwas_r);
     }
