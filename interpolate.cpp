@@ -78,7 +78,9 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
     */
 
     cv::Mat blured;
-    cv::GaussianBlur(img, blured, cv::Size(3, 3), 0.5);
+    cv::GaussianBlur(img, blured, cv::Size(5, 5), 1.0);
+    //cv::imshow("A",blured);
+    //cv::waitKey();
 
     geometry::PointCloud pointcloud;
     auto pcd_ptr = make_shared<geometry::PointCloud>();

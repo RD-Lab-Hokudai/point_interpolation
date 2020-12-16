@@ -209,6 +209,7 @@ void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_
     cout << "Segmentation" << endl;
     cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "ms" << endl;
 
+
 /*
     {
         cv::Mat seg_img = cv::Mat::zeros(envParams.height, envParams.width, CV_8UC3);
