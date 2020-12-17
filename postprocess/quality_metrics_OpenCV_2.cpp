@@ -217,6 +217,41 @@ namespace qm
         }
     }
 
+    double f_value(Mat &img1, Mat &img2){
+        int tp=0;
+        int fp=0;
+        int fn=0;
+        int tn=0;
+        int height = img1.rows;
+        int width = img1.cols;
+
+        for (int i = 0; i < height; i++)
+        {
+            for (int j = 0; j < width; j++)
+            {
+                double o = img1.at<double>(i, j);
+                double r = img2.at<double>(i, j);
+                if (o > 0 && r > 0)
+                {
+                    tp++;
+                }
+                else if(o>0){
+                    fn++;
+                }
+                else if(r>0){
+fp++;
+                }else{
+                    tn++;
+                }
+            }
+        }
+
+cout<<tp<<" "<<fp<<" "<<fn<<" "<<tn<<endl;
+        double precision=(0.0+tp)/(tp+fp);
+        double recall=(0.0+tp)/(tp+fn);
+        return 2*precision*recall/(precision+recall);
+    }
+
     void compute_quality_metrics(char *file1, char *file2, int block_size)
     {
 

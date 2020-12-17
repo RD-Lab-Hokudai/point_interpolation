@@ -240,13 +240,15 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
 
     { // Evaluate
         time = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count();
-        evaluate(interpolated_z, original_grid, target_vs, original_vs, envParams, layer_cnt, ssim, mse, mre);
+        double f_val;
+        evaluate(interpolated_z, original_grid, target_vs, original_vs, envParams, layer_cnt, ssim, mse, mre,f_val);
         if (show_result)
         {
             cout << time << "ms" << endl;
             cout << "SSIM = " << fixed << setprecision(5) << ssim << endl;
             cout << "MSE = " << mse << endl;
             cout << "MRE = " << mre << endl;
+            cout<<"F value = "<<f_val<<endl;
         }
     }
 

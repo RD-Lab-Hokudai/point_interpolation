@@ -209,7 +209,6 @@ void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_
     cout << "Segmentation" << endl;
     cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "ms" << endl;
 
-
 /*
     {
         cv::Mat seg_img = cv::Mat::zeros(envParams.height, envParams.width, CV_8UC3);
@@ -275,7 +274,7 @@ void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_
 
                         cv::Vec3b d1 = img.at<cv::Vec3b>(v1, j + dx);
                         int r1 = color_segments->root(v1 * envParams.width + j + dx);
-                        double tmp = exp(-(dx * dx + dy * dy) / 2 / sigma_s / sigma_s) * exp(-cv::norm(d0 - d1) / 2 / sigma_r / sigma_r);
+                        double tmp = exp(-(dx * dx + dy * dy) / 2 / sigma_s / sigma_s);// * exp(-cv::norm(d0 - d1) / 2 / sigma_r / sigma_r);
                         if (r1 != r0)
                         {
                             tmp *= coef_s;

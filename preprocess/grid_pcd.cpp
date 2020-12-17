@@ -36,6 +36,7 @@ void grid_pcd(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams,
     calibration_mtx << cos(yawVal) * cos(pitchVal), cos(yawVal) * sin(pitchVal) * sin(rollVal) - sin(yawVal) * cos(rollVal), cos(yawVal) * sin(pitchVal) * cos(rollVal) + sin(yawVal) * sin(rollVal),
         sin(yawVal) * cos(pitchVal), sin(yawVal) * sin(pitchVal) * sin(rollVal) + cos(yawVal) * cos(rollVal), sin(yawVal) * sin(pitchVal) * cos(rollVal) - cos(yawVal) * sin(rollVal),
         -sin(pitchVal), cos(pitchVal) * sin(rollVal), cos(pitchVal) * cos(rollVal);
+        //cv::Mat depth_img=cv::Mat 
 
     for (int i = 0; i < raw_pcd_ptr->points_.size(); i++)
     {
@@ -65,7 +66,7 @@ void grid_pcd(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams,
             }
         }
     }
-    
+
     /*
     {
         auto start = chrono::system_clock::now();

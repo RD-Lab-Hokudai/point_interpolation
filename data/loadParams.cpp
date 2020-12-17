@@ -9,7 +9,7 @@ using namespace std;
 EnvParams loadParams(string params_name)
 {
     vector<int> data_nos;
-    for (int i = 1100; i <= 1300; i++)
+    for (int i = 100; i <= 300; i++)
     {
         data_nos.emplace_back(i);
     }

@@ -12,7 +12,7 @@ ofstream ofs;
 
 int main(int argc, char *argv[])
 {
-    EnvParams params_use = loadParams("miyanosawa_3_3_rgb_pwas_champ");
+    EnvParams params_use = loadParams("miyanosawa_3_3_rgb_original_champ");
     HyperParams hyperParams = getDefaultHyperParams(params_use.isRGB);
 
     if (params_use.method == "pwas")
@@ -79,17 +79,19 @@ int main(int argc, char *argv[])
         double best_sigma_r = 1;
         int best_r = 1;
         double best_coef_s = 1;
+        // 2020/12/17 MRE : 0.140269	440	1.6	19	7	0.32
+        // 2020/12/17 MRE : 0.0597379 820 1.6 inf(ignore) 7 0.03
         //110, 1.6, 19, 7, 0.7
 
-        for (double color_segment_k = 110; color_segment_k <= 110; color_segment_k += 10)
+        for (double color_segment_k = 400; color_segment_k <= 500; color_segment_k += 10)
         {
-            for (double sigma_s = 2; sigma_s <= 2; sigma_s += 0.1)
+            for (double sigma_s = 1.6; sigma_s <= 1.6; sigma_s += 0.1)
             {
-                for (double sigma_r = 16; sigma_r <= 18; sigma_r += 1)
+                for (double sigma_r = 19; sigma_r <= 19; sigma_r += 1)
                 {
-                    for (int r = 7; r < 9; r += 2)
+                    for (int r = 7; r <=7; r += 2)
                     {
-                        for (double coef_s = 0; coef_s < 2; coef_s += 0.1)
+                        for (double coef_s = 0.2; coef_s <= 0.4; coef_s += 0.01)
                         {
                             double mre_sum = 0;
                             hyperParams.original_color_segment_k = color_segment_k;

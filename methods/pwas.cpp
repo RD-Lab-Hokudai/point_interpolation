@@ -74,7 +74,7 @@ void pwas(vector<vector<double>> &target_grid, vector<vector<double>> &base_grid
                     target_grid[i][j] = full_grid[v][j];
                     continue;
                 }
-                
+
                 cv::Vec3b d0 = img.at<cv::Vec3b>(v, j);
 
                 for (int ii = 0; ii < r; ii++)

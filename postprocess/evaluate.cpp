@@ -12,7 +12,7 @@
 using namespace std;
 using namespace open3d;
 
-void evaluate(vector<vector<double>> &target_grid, vector<vector<double>> &original_grid, vector<vector<int>> &target_vs, vector<vector<int>> &original_vs, EnvParams envParams, int layer_cnt, double &ssim, double &mse, double &mre)
+void evaluate(vector<vector<double>> &target_grid, vector<vector<double>> &original_grid, vector<vector<int>> &target_vs, vector<vector<int>> &original_vs, EnvParams envParams, int layer_cnt, double &ssim, double &mse, double &mre,double &f_val)
 {
     cv::Mat target_Mat = cv::Mat::zeros(envParams.height, envParams.width, CV_64FC1);
     cv::Mat original_reproject_Mat = cv::Mat::zeros(original_vs.size(), envParams.width, CV_64FC1);
@@ -39,4 +39,5 @@ void evaluate(vector<vector<double>> &target_grid, vector<vector<double>> &origi
     ssim = qm::ssim(original_reproject_Mat, target_reproject_Mat, 64 / layer_cnt);
     mse = qm::eqm(original_reproject_Mat, target_reproject_Mat);
     mre = qm::mre(original_reproject_Mat, target_reproject_Mat);
+    f_val=qm::f_value(original_reproject_Mat, target_reproject_Mat);
 }
