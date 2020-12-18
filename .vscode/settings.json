@@ -1,5 +1,6 @@
 {
     "files.associations": {
+        "*.cpp": "cpp",
         "*.tcc": "cpp",
         "cctype": "cpp",
         "clocale": "cpp",
@@ -59,6 +60,7 @@
         "cinttypes": "cpp",
         "typeindex": "cpp",
         "typeinfo": "cpp",
-        "nonlinearoptimization": "cpp"
+        "nonlinearoptimization": "cpp",
+        "random": "cpp"
     }
 }

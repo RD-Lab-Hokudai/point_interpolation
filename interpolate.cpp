@@ -15,7 +15,9 @@
 #include "methods/mrf.cpp"
 #include "methods/pwas.cpp"
 #include "methods/original.cpp"
+#include "methods/ip_basic.cpp"
 #include "postprocess/evaluate.cpp"
+#include "postprocess/generate_depth_image.cpp"
 #include "postprocess/restore_pcd.cpp"
 
 using namespace std;
@@ -145,8 +147,12 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
                  hyperParams.original_color_segment_k, hyperParams.original_sigma_s,
                  hyperParams.original_sigma_r, hyperParams.original_r, hyperParams.original_coef_s);
     }
+    if (envParams.method == "ip-basic")
+    {
+        ip_basic(interpolated_z, filtered_grid, target_vs, base_vs, envParams);
+    }
 
-/*
+    /*
     {
         cout << interpolated_z.size() << endl;
         double max_original_depth = 0;
@@ -210,7 +216,7 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
     }
     */
 
-/*
+    /*
     {
     cv::Mat grid_img = cv::Mat::zeros(target_vs.size(), envParams.width, CV_8UC3);
     auto filtered_ptr = make_shared<geometry::PointCloud>();
@@ -241,14 +247,14 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
     { // Evaluate
         time = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count();
         double f_val;
-        evaluate(interpolated_z, original_grid, target_vs, original_vs, envParams, layer_cnt, ssim, mse, mre,f_val);
+        evaluate(interpolated_z, original_grid, target_vs, original_vs, envParams, layer_cnt, ssim, mse, mre, f_val);
         if (show_result)
         {
             cout << time << "ms" << endl;
             cout << "SSIM = " << fixed << setprecision(5) << ssim << endl;
             cout << "MSE = " << mse << endl;
             cout << "MRE = " << mre << endl;
-            cout<<"F value = "<<f_val<<endl;
+            cout << "F value = " << f_val << endl;
         }
     }
 
@@ -258,6 +264,7 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
 
     if (show_pcd)
     {
+        generate_depth_image(interpolated_z, target_vs, envParams);
         visualization::DrawGeometries({original_ptr}, "Original", 1000, 800);
         visualization::DrawGeometries({interpolated_ptr}, "Original", 1000, 800);
     }

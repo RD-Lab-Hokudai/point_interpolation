@@ -209,7 +209,7 @@ void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_
     cout << "Segmentation" << endl;
     cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "ms" << endl;
 
-/*
+    /*
     {
         cv::Mat seg_img = cv::Mat::zeros(envParams.height, envParams.width, CV_8UC3);
         random_device rnd;
@@ -274,7 +274,7 @@ void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_
 
                         cv::Vec3b d1 = img.at<cv::Vec3b>(v1, j + dx);
                         int r1 = color_segments->root(v1 * envParams.width + j + dx);
-                        double tmp = exp(-(dx * dx + dy * dy) / 2 / sigma_s / sigma_s);// * exp(-cv::norm(d0 - d1) / 2 / sigma_r / sigma_r);
+                        double tmp = exp(-(dx * dx + dy * dy) / 2 / sigma_s / sigma_s); // * exp(-cv::norm(d0 - d1) / 2 / sigma_r / sigma_r);
                         if (r1 != r0)
                         {
                             tmp *= coef_s;
@@ -283,7 +283,7 @@ void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_
                         coef += tmp;
                     }
                 }
-                if (coef > 0/*0.3*/ /* some threshold */)
+                if (coef > 0 /*0.3*/ /* some threshold */)
                 {
                     target_grid[i][j] = val / coef;
                     coef_grid[target_vs[i][j]][j] = coef;
@@ -292,7 +292,7 @@ void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_
         }
     }
 
-/*
+    /*
     {
         // Remove noise and Apply
         int dx[4] = {1, 1, 0, -1};
