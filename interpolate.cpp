@@ -135,6 +135,10 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
         mrf(interpolated_z, filtered_grid, filtered_interpolate_grid, target_vs, base_vs, envParams, blured,
             hyperParams.mrf_k, hyperParams.mrf_c);
     }
+    if (envParams.method == "ip-basic")
+    {
+        ip_basic(interpolated_z, filtered_grid, target_vs, base_vs, envParams);
+    }
     if (envParams.method == "pwas")
     {
         pwas(interpolated_z, filtered_grid, target_vs, base_vs, envParams, blured,
@@ -143,13 +147,9 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
     }
     if (envParams.method == "original")
     {
-        original(interpolated_z, filtered_grid, target_vs, base_vs, envParams, blured,
+        original(interpolated_z, filtered_interpolate_grid, target_vs, base_vs, envParams, blured,
                  hyperParams.original_color_segment_k, hyperParams.original_sigma_s,
                  hyperParams.original_sigma_r, hyperParams.original_r, hyperParams.original_coef_s);
-    }
-    if (envParams.method == "ip-basic")
-    {
-        ip_basic(interpolated_z, filtered_grid, target_vs, base_vs, envParams);
     }
 
     /*

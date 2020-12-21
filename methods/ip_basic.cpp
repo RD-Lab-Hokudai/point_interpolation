@@ -39,7 +39,7 @@ void ip_basic(vector<vector<double>> &target_grid, vector<vector<double>> &base_
             }
         }
     }
-    cv::imshow("inv", full_inverted);
+    //cv::imshow("inv", full_inverted);
 
     cv::Mat inverted = cv::Mat::zeros(target_vs.size(), envParams.width, CV_64FC1);
     for (int i = 0; i < target_vs.size(); i++)
@@ -56,15 +56,15 @@ void ip_basic(vector<vector<double>> &target_grid, vector<vector<double>> &base_
     cv::Mat depth;
     if (1)
     {
-        cv::Mat dilate_kernel = generateDiamondKernel(7);
-        cv::imshow("inv2", inverted);
+        cv::Mat dilate_kernel = generateDiamondKernel(11);
+        //cv::imshow("inv2", inverted);
 
         cv::Mat dilated;
         cv::dilate(inverted, dilated, dilate_kernel);
-        cv::imshow("dilated", dilated);
+        //cv::imshow("dilated", dilated);
 
         cv::Mat closed;
-        cv::Mat full_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(7, 7));
+        cv::Mat full_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(11, 11));
         cv::morphologyEx(dilated, depth, cv::MORPH_CLOSE, full_kernel);
     }
     else
