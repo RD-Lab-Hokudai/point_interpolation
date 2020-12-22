@@ -309,7 +309,7 @@ int main(int argc, char *argv[])
             }
         }
         cv::Mat closed;
-        cv::Mat full_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(13, 13));
+        cv::Mat full_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(11, 11));
         cv::morphologyEx(interpolated_depth, closed, cv::MORPH_CLOSE, full_kernel);
         for (int j = 0; j < envParams.height; j++)
         {

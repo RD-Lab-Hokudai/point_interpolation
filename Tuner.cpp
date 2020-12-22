@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
         int best_r = 1;
         double best_coef_s = 1;
         // 2020/12/17 MRE : 0.140269	440	1.6	19	7	0.32
-        // 2020/12/17 MRE : 0.0597379 820 1.6 inf(ignore) 7 0.03
+        // 2020/12/17 MRE : 0.0597379 820 1.6 inf(ignore) 7 0.03 thermal?
         //110, 1.6, 19, 7, 0.7
 
         for (double color_segment_k = 400; color_segment_k <= 500; color_segment_k += 10)
@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
             {
                 for (double sigma_r = 19; sigma_r <= 19; sigma_r += 1)
                 {
-                    for (int r = 7; r <=7; r += 2)
+                    for (int r = 7; r <= 7; r += 2)
                     {
                         for (double coef_s = 0.2; coef_s <= 0.4; coef_s += 0.01)
                         {

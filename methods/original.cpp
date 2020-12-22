@@ -293,20 +293,19 @@ void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_
         }
     }
 
-    /*
     {
         // Remove noise and Apply
         int dx[4] = {1, 1, 0, -1};
         int dy[4] = {0, 1, 1, 1};
         vector<vector<bool>> oks(target_vs.size(), vector<bool>(envParams.width, false));
-        double rad_coef = 0.0005; //0.002
+        double rad_coef = 0.002; //0.002
         for (int i = 0; i < target_vs.size(); i++)
         {
             for (int j = 0; j < envParams.width; j++)
             {
                 if (full_grid[i][j] > 0)
                 {
-                    // 元の点群はそのまま
+                    // 元の点はそのまま
                     continue;
                 }
                 if (target_vs[i][j] <= 0)
@@ -351,12 +350,12 @@ void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_
 
                 if (!oks[i][j])
                 {
+
                     target_grid[i][j] = 0;
                 }
             }
         }
     }
-    */
 
     /*
     cv::Mat img2 = cv::Mat::zeros(img.rows * rate, img.cols * rate, CV_8UC3);
