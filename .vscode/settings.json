@@ -61,6 +61,7 @@
         "typeindex": "cpp",
         "typeinfo": "cpp",
         "nonlinearoptimization": "cpp",
-        "random": "cpp"
+        "random": "cpp",
+        "filesystem": "cpp"
     }
 }

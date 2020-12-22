@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8.0)
-set (CMAKE_CXX_STANDARD 14)
+set (CMAKE_CXX_STANDARD 17)
 
 project(TestVisualizer)
 
@@ -15,7 +15,7 @@ add_compile_options(-Wno-unused-result)
 add_definitions(-O3)
 
 link_directories(${Open3D_LIBRARY_DIRS})
-link_libraries(${Open3D_LIBRARIES} ${OpenCV_LIBS})
+link_libraries(${Open3D_LIBRARIES} ${OpenCV_LIBS} stdc++fs)
 include_directories(PUBLIC ${Open3D_INCLUDE_DIRS})
 
 add_executable(TestVisualizer TestVisualizer.cpp)
@@ -41,3 +41,5 @@ add_executable(CalibratorWithICP CalibratorWithICP.cpp)
 add_executable(Interpolater Interpolater.cpp)
 
 add_executable(Tuner Tuner.cpp)
+
+add_executable(InterpolateKitti InterpolateKitti.cpp)

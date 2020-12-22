@@ -219,6 +219,7 @@ void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_
         {
             for (int j = 0; j < envParams.width; j++)
             {
+                int root = color_segments->root(i * envParams.width + j);
                 seg_img.at<cv::Vec3b>(i, j) = cv::Vec3b(rand(mt), rand(mt), rand(mt));
             }
         }
@@ -236,7 +237,7 @@ void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_
     */
 
     target_grid = vector<vector<double>>(target_vs.size(), vector<double>(envParams.width, 0));
-    vector<vector<double>> coef_grid(img.rows, vector<double>(img.cols, 0));
+    vector<vector<double>> coef_grid(envParams.height, vector<double>(envParams.width, 0));
     {
         for (int i = 0; i < target_vs.size(); i++)
         {
