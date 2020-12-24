@@ -16,6 +16,7 @@
 #include "methods/pwas.cpp"
 #include "methods/original.cpp"
 #include "methods/ip_basic.cpp"
+#include "methods/original_cv.cpp"
 #include "postprocess/evaluate.cpp"
 #include "postprocess/generate_depth_image.cpp"
 #include "postprocess/restore_pcd.cpp"
@@ -251,84 +252,50 @@ int main(int argc, char *argv[])
     {
         cv::Mat img = cv::imread(img_dir + img_names[i], IMREAD_ANYCOLOR);
         cv::Mat depth = cv::imread(depth_dir + depth_names[i], IMREAD_ANYDEPTH);
-        //cout << img.type() << endl;
-        //cout << depth.type() << endl;
 
-        vector<vector<double>> interpolated(envParams.height, vector<double>(envParams.width, 0));
-        vector<vector<double>> filtered(envParams.height, vector<double>(envParams.width, 0));
-        vector<vector<int>> vs(envParams.height, vector<int>(envParams.width, 0));
-        for (int j = 0; j < envParams.height; j++)
-        {
-            ushort *p = &depth.at<ushort>(j, 0);
-            for (int k = 0; k < envParams.width; k++)
-            {
-                filtered[j][k] = *p / 256.0;
-                vs[j][k] = j;
-                p++;
-            }
-        }
+        cv::Mat vs_mat = cv::Mat::zeros(envParams.height, envParams.width, CV_32SC1);
+        vs_mat.forEach<int>([](int &now, const int position[]) -> void {
+            now = position[0];
+        });
+        cv::Mat depth_d = cv::Mat::zeros(envParams.height, envParams.width, CV_64FC1);
+        depth_d.forEach<double>([&depth](double &now, const int position[]) -> void {
+            now = depth.at<ushort>(position[0], position[1]) / 256.0;
+        });
 
         auto start = chrono::system_clock::now();
 
         cv::Mat blured;
         cv::GaussianBlur(img, blured, cv::Size(5, 5), 1.0);
-
-        if (envParams.method == "pwas")
-        {
-            pwas(interpolated, filtered, vs, vs, envParams, blured,
-                 hyperParams.pwas_sigma_c, hyperParams.pwas_sigma_s,
-                 hyperParams.pwas_sigma_r, hyperParams.pwas_r);
-        }
-        if (envParams.method == "original")
-        {
-            original(interpolated, filtered, vs, vs, envParams, blured,
-                     hyperParams.original_color_segment_k, hyperParams.original_sigma_s,
-                     hyperParams.original_sigma_r, hyperParams.original_r, hyperParams.original_coef_s);
-        }
+        cv::Mat target_mat;
+        original_cv(target_mat, depth_d, vs_mat, vs_mat, envParams, blured,
+                    hyperParams.original_color_segment_k, hyperParams.original_sigma_s,
+                    hyperParams.original_sigma_r, hyperParams.original_r, hyperParams.original_coef_s);
 
         double time = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count();
-        total_time += time;
-        cout << time << "ms" << endl;
 
-        cv::Mat interpolated_depth = cv::Mat::zeros(envParams.height, envParams.width, CV_16UC1);
-        for (int j = 0; j < envParams.height; j++)
-        {
-            ushort *p = &interpolated_depth.at<ushort>(j, 0);
-            for (int k = 0; k < envParams.width; k++)
+        // 16FC1 inverseに変換
+        cv::Mat interpolated_inv_depth = cv::Mat::zeros(envParams.height, envParams.width, CV_16UC1);
+        interpolated_inv_depth.forEach<ushort>([&target_mat](ushort &now, const int position[]) -> void {
+            double d = target_mat.at<double>(position[0], position[1]);
+            if (d > 0 && d * 256 < 65536)
             {
-                if (interpolated[j][k] > 0)
-                {
-                    ushort val = 65535 - interpolated[j][k] * 256;
-                    if (val < 0)
-                    {
-                        val = 0;
-                    }
-                    *p = val;
-                }
-                p++;
+                now = 65535 - d * 256;
             }
-        }
+        });
         cv::Mat closed;
         cv::Mat full_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(11, 11));
-        cv::morphologyEx(interpolated_depth, closed, cv::MORPH_CLOSE, full_kernel);
-        for (int j = 0; j < envParams.height; j++)
-        {
-            ushort *c = &closed.at<ushort>(j, 0);
-            ushort *p = &interpolated_depth.at<ushort>(j, 0);
-            for (int k = 0; k < envParams.width; k++)
+        cv::morphologyEx(interpolated_inv_depth, closed, cv::MORPH_CLOSE, full_kernel);
+        cv::Mat interpolated_depth = cv::Mat::zeros(envParams.height, envParams.width, CV_16UC1);
+        interpolated_depth.forEach<ushort>([&closed](ushort &now, const int position[]) -> void {
+            ushort d = closed.at<ushort>(position[0], position[1]);
+            if (d > 0)
             {
-                if (*c == 0)
-                {
-                    *p = *c;
-                }
-                else
-                {
-                    *p = 65535 - *c;
-                }
-                c++;
-                p++;
+                now = 65535 - d;
             }
-        }
+        });
+
+        total_time += time;
+        cout << time << "ms" << endl;
 
         cv::imwrite("../kitti_out_" + envParams.method + "/" + depth_names[i], interpolated_depth);
     }
