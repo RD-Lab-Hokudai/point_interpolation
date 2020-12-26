@@ -27,9 +27,9 @@ using namespace experimental;
 
 ofstream ofs;
 
-void interpolate_kitti(vector<vector<double>> interpolated, cv::Mat &img, cv::Mat &depth, EnvParams &envParams, HyperParams &hyperParams)
+void interpolate_kitti(cv::Mat &interpolated_depth, cv::Mat &img, cv::Mat &depth, EnvParams &envParams, HyperParams &hyperParams)
 {
-    interpolated = vector<vector<double>>(envParams.height, vector<double>(envParams.width, 0));
+    vector<vector<double>> interpolated(envParams.height, vector<double>(envParams.width, 0));
     vector<vector<double>> filtered(envParams.height, vector<double>(envParams.width, 0));
     vector<vector<int>> vs(envParams.height, vector<int>(envParams.width, 0));
     for (int j = 0; j < envParams.height; j++)
@@ -42,8 +42,6 @@ void interpolate_kitti(vector<vector<double>> interpolated, cv::Mat &img, cv::Ma
             p++;
         }
     }
-
-    auto start = chrono::system_clock::now();
 
     cv::Mat blured;
     cv::GaussianBlur(img, blured, cv::Size(5, 5), 1.0);
@@ -61,19 +59,39 @@ void interpolate_kitti(vector<vector<double>> interpolated, cv::Mat &img, cv::Ma
                  hyperParams.original_sigma_r, hyperParams.original_r, hyperParams.original_coef_s);
     }
 
-    double time = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count();
-    cout << time << "ms" << endl;
-
-    cv::Mat interpolated_depth = cv::Mat::zeros(envParams.height, envParams.width, CV_16UC1);
+    cv::Mat interpolated_inv_depth = cv::Mat::zeros(envParams.height, envParams.width, CV_16UC1);
     for (int j = 0; j < envParams.height; j++)
     {
-        ushort *p = &interpolated_depth.at<ushort>(j, 0);
+        ushort *p = &interpolated_inv_depth.at<ushort>(j, 0);
         for (int k = 0; k < envParams.width; k++)
         {
-            *p = std::min((ushort)65535, (ushort)(interpolated[j][k] * 256));
+            if (interpolated[j][k] > 0)
+            {
+                ushort val = 65535 - interpolated[j][k] * 256;
+                if (val < 0)
+                {
+                    val = 0;
+                }
+                *p = val;
+            }
             p++;
         }
     }
+    cv::Mat closed;
+    cv::Mat full_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(11, 11));
+    cv::morphologyEx(interpolated_inv_depth, closed, cv::MORPH_CLOSE, full_kernel);
+    interpolated_depth = cv::Mat::zeros(envParams.height, envParams.width, CV_16UC1);
+    interpolated_depth.forEach<ushort>([&closed](ushort &now, const int position[]) -> void {
+        ushort d = closed.at<ushort>(position[0], position[1]);
+        if (d > 0)
+        {
+            now = 65535 - d;
+        }
+        else
+        {
+            now = 0;
+        }
+    });
 }
 
 void tune(string img_dir, string depth_dir, string gt_dir, EnvParams &envParams, HyperParams &hyperParams)
@@ -257,6 +275,7 @@ int main(int argc, char *argv[])
         vs_mat.forEach<int>([](int &now, const int position[]) -> void {
             now = position[0];
         });
+
         cv::Mat depth_d = cv::Mat::zeros(envParams.height, envParams.width, CV_64FC1);
         depth_d.forEach<double>([&depth](double &now, const int position[]) -> void {
             now = depth.at<ushort>(position[0], position[1]) / 256.0;
@@ -277,9 +296,9 @@ int main(int argc, char *argv[])
         cv::Mat interpolated_inv_depth = cv::Mat::zeros(envParams.height, envParams.width, CV_16UC1);
         interpolated_inv_depth.forEach<ushort>([&target_mat](ushort &now, const int position[]) -> void {
             double d = target_mat.at<double>(position[0], position[1]);
-            if (d > 0 && d * 256 < 65536)
+            if (d > 0)
             {
-                now = 65535 - d * 256;
+                now = max(65535 - d * 256, 0.0);
             }
         });
         cv::Mat closed;
@@ -296,6 +315,11 @@ int main(int argc, char *argv[])
 
         total_time += time;
         cout << time << "ms" << endl;
+
+        /*
+        cv::Mat interpolated_depth;
+        interpolate_kitti(interpolated_depth, img, depth, envParams, hyperParams);
+*/
 
         cv::imwrite("../kitti_out_" + envParams.method + "/" + depth_names[i], interpolated_depth);
     }

@@ -41,7 +41,7 @@ void ext_jbu(cv::Mat &src_mat, cv::Mat &dst_mat, cv::Mat &target_vs_mat, UnionFi
                     }
 
                     int v1 = target_vs_mat.at<int>(y + dy, x + dx);
-                    double neighbor_val = src_mat.at<double>(y, x + dx);
+                    double neighbor_val = src_mat.at<double>(y + dy, x + dx);
                     if (neighbor_val <= 0)
                     {
                         continue;
@@ -57,7 +57,7 @@ void ext_jbu(cv::Mat &src_mat, cv::Mat &dst_mat, cv::Mat &target_vs_mat, UnionFi
                     coef += tmp;
                 }
             }
-            if (coef > 0.3 /* some threshold */)
+            if (coef > 0 /* some threshold */)
             {
                 now = val / coef;
             }
@@ -110,7 +110,7 @@ void remove_noise(cv::Mat &src_mat, cv::Mat &dst_mat, cv::Mat &target_vs_mat, En
                 }
             }
 
-            if (ok_cnt > 2)
+            if (ok_cnt > 0)
             {
                 now = z;
             }
@@ -144,8 +144,8 @@ void original_cv(cv::Mat &target_mat, cv::Mat &base_mat, cv::Mat &target_vs_mat,
 
     cv::Mat interpolated, noise_removed;
     ext_jbu(low_mat, interpolated, target_vs_mat, *color_segments, envParams, color_segment_k, sigma_s, sigma_r, r, coef_s);
-    remove_noise(interpolated, noise_removed, target_vs_mat, envParams);
-    ext_jbu(noise_removed, target_mat, target_vs_mat, *color_segments, envParams, color_segment_k, sigma_s, sigma_r, r, coef_s);
+    remove_noise(interpolated, target_mat, target_vs_mat, envParams);
+    //ext_jbu(noise_removed, target_mat, target_vs_mat, *color_segments, envParams, color_segment_k, sigma_s, sigma_r, r, coef_s);
 
     cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "ms" << endl;
 }
