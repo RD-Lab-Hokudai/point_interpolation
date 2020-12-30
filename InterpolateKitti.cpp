@@ -17,6 +17,7 @@
 #include "methods/original.cpp"
 #include "methods/ip_basic.cpp"
 #include "methods/original_cv.cpp"
+#include "methods/guided_filter.cpp"
 #include "postprocess/evaluate.cpp"
 #include "postprocess/generate_depth_image.cpp"
 #include "postprocess/restore_pcd.cpp"
@@ -286,10 +287,16 @@ int main(int argc, char *argv[])
         cv::Mat blured;
         cv::GaussianBlur(img, blured, cv::Size(5, 5), 1.0);
         cv::Mat target_mat;
-        original_cv(target_mat, depth_d, vs_mat, vs_mat, envParams, blured,
-                    hyperParams.original_color_segment_k, hyperParams.original_sigma_s,
-                    hyperParams.original_sigma_r, hyperParams.original_r, hyperParams.original_coef_s);
-
+        if (envParams.method == "guided")
+        {
+            guided_filter(target_mat, depth_d, vs_mat, vs_mat, envParams, blured);
+        }
+        if (envParams.method == "original")
+        {
+            original_cv(target_mat, depth_d, vs_mat, vs_mat, envParams, blured,
+                        hyperParams.original_color_segment_k, hyperParams.original_sigma_s,
+                        hyperParams.original_sigma_r, hyperParams.original_r, hyperParams.original_coef_s);
+        }
         double time = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count();
 
         // 16FC1 inverseに変換
@@ -301,9 +308,10 @@ int main(int argc, char *argv[])
                 now = max(65535 - d * 256, 0.0);
             }
         });
-        cv::Mat closed;
-        cv::Mat full_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(11, 11));
-        cv::morphologyEx(interpolated_inv_depth, closed, cv::MORPH_CLOSE, full_kernel);
+
+        cv::Mat closed = interpolated_inv_depth;
+        //cv::Mat full_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(1, 1));
+        //cv::morphologyEx(interpolated_inv_depth, closed, cv::MORPH_CLOSE, full_kernel);
         cv::Mat interpolated_depth = cv::Mat::zeros(envParams.height, envParams.width, CV_16UC1);
         interpolated_depth.forEach<ushort>([&closed](ushort &now, const int position[]) -> void {
             ushort d = closed.at<ushort>(position[0], position[1]);
