@@ -79,7 +79,7 @@ void interpolate_kitti(cv::Mat &interpolated_depth, cv::Mat &img, cv::Mat &depth
         }
     }
     cv::Mat closed;
-    cv::Mat full_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(1, 1));
+    cv::Mat full_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(11, 11));
     cv::morphologyEx(interpolated_inv_depth, closed, cv::MORPH_CLOSE, full_kernel);
     interpolated_depth = cv::Mat::zeros(envParams.height, envParams.width, CV_16UC1);
     interpolated_depth.forEach<ushort>([&closed](ushort &now, const int position[]) -> void {

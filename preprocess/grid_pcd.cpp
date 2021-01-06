@@ -5,7 +5,7 @@
 #include <opencv2/opencv.hpp>
 
 #include "../models/envParams.cpp"
-#include "remove_snow.cpp"
+#include "remove_noise.cpp"
 
 using namespace std;
 using namespace open3d;

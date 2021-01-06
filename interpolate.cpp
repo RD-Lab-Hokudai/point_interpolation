@@ -120,6 +120,19 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
         original_vs = target_vs;
     }
 
+    { // snow removal
+        vector<vector<double>> removed_grid;
+        auto start_tmp = chrono::system_clock::now();
+        remove_noise(filtered_grid, removed_grid, base_vs, envParams, 0.0015);
+        cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start_tmp).count() << "ms" << endl;
+
+        shared_ptr<geometry::PointCloud> filtered_ptr, removed_ptr, removed_ptr2;
+        restore_pcd_simple(filtered_grid, base_vs, envParams, filtered_ptr);
+        restore_pcd_simple(removed_grid, base_vs, envParams, removed_ptr, 100);
+        cout << filtered_ptr->points_.size() << " " << removed_ptr->points_.size() << endl;
+        visualization::DrawGeometries({filtered_ptr, removed_ptr});
+    }
+
     {
         //vector<vector<vector<int>>> neighbors;
         //find_neighbors(envParams, original_grid, original_vs, neighbors, 30);

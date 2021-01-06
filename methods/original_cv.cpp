@@ -57,7 +57,7 @@ void ext_jbu(cv::Mat &src_mat, cv::Mat &dst_mat, cv::Mat &target_vs_mat, UnionFi
                     coef += tmp;
                 }
             }
-            if (coef > 0.05 /* some threshold */)
+            if (coef > 0.00 /* some threshold */)
             {
                 now = val / coef;
             }
@@ -130,8 +130,8 @@ void original_cv(cv::Mat &target_mat, cv::Mat &base_mat, cv::Mat &target_vs_mat,
         int v = target_vs_mat.at<int>(position[0], position[1]);
         now = full_mat.at<double>(v, position[1]);
     });
-    cv::imshow("A", low_mat);
-    cv::waitKey();
+    //cv::imshow("A", low_mat);
+    //cv::waitKey();
 
     // Original
     auto start = chrono::system_clock::now();
@@ -145,18 +145,19 @@ void original_cv(cv::Mat &target_mat, cv::Mat &base_mat, cv::Mat &target_vs_mat,
     cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "ms" << endl;
 
     cv::Mat interpolated, noise_removed;
+
     ext_jbu(low_mat, interpolated, target_vs_mat, *color_segments, envParams, color_segment_k, sigma_s, sigma_r, r, coef_s);
     remove_noise(interpolated, noise_removed, target_vs_mat, envParams);
     ext_jbu(noise_removed, target_mat, target_vs_mat, *color_segments, envParams, color_segment_k, sigma_s, sigma_r, r, coef_s);
     remove_noise(target_mat, noise_removed, target_vs_mat, envParams);
     ext_jbu(noise_removed, target_mat, target_vs_mat, *color_segments, envParams, color_segment_k, sigma_s, sigma_r, r, coef_s);
     remove_noise(target_mat, noise_removed, target_vs_mat, envParams);
+    target_mat = noise_removed;
     /*
     ext_jbu(low_mat, interpolated, target_vs_mat, *color_segments, envParams, color_segment_k, sigma_s, sigma_r, r, coef_s);
     ext_jbu(interpolated, noise_removed, target_vs_mat, *color_segments, envParams, color_segment_k, sigma_s, sigma_r, r, coef_s);
     ext_jbu(noise_removed, target_mat, target_vs_mat, *color_segments, envParams, color_segment_k, sigma_s, sigma_r, r, coef_s);
-    */
-    target_mat = noise_removed;
+*/
 
     cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "ms" << endl;
 }
