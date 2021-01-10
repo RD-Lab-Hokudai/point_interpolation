@@ -174,7 +174,7 @@ int main(int argc, char *argv[])
     EnvParams envParams = loadParams("");
     envParams.width = 1216;
     envParams.height = 352;
-    envParams.method = "jbu";
+    envParams.method = "original";
 
     //tune(img_dir, depth_dir, gt_dir, envParams, hyperParams);
 
