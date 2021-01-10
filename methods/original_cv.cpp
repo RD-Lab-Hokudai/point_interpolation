@@ -189,7 +189,7 @@ void original_cv(cv::Mat &target_mat, cv::Mat &base_mat, cv::Mat &target_vs_mat,
     });
 
     cv::Mat filled, filled2;
-    cv::Mat fix_calibration_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(11, 11));
+    cv::Mat fix_calibration_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(7, 7));
     cv::morphologyEx(inverted, filled, cv::MORPH_CLOSE, fix_calibration_kernel);
     cv::Mat full_fill_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(31, 31));
     cv::dilate(filled, filled2, full_fill_kernel);
@@ -201,23 +201,6 @@ void original_cv(cv::Mat &target_mat, cv::Mat &base_mat, cv::Mat &target_vs_mat,
         }
     });
 
-    //cv::imshow("D", filled);
-    //cv::waitKey();
-    /*
-    ext_jbu(noise_removed, target_mat, target_vs_mat, *color_segments, envParams, color_segment_k, sigma_s, sigma_r, r, coef_s);
-    remove_noise(target_mat, noise_removed, target_vs_mat, envParams);
-    ext_jbu(noise_removed, target_mat, target_vs_mat, *color_segments, envParams, color_segment_k, sigma_s, sigma_r, r, coef_s);
-    remove_noise(target_mat, noise_removed, target_vs_mat, envParams);
-
-    ext_jbu(noise_removed, target_mat, target_vs_mat, *color_segments, envParams, color_segment_k, sigma_s, sigma_r, r, coef_s);
-    remove_noise(target_mat, noise_removed, target_vs_mat, envParams);
-    ext_jbu(noise_removed, target_mat, target_vs_mat, *color_segments, envParams, color_segment_k, sigma_s, sigma_r, r, coef_s);
-    remove_noise(target_mat, noise_removed, target_vs_mat, envParams);
-    ext_jbu(noise_removed, target_mat, target_vs_mat, *color_segments, envParams, color_segment_k, sigma_s, sigma_r, r, coef_s);
-    remove_noise(target_mat, noise_removed, target_vs_mat, envParams);
-    ext_jbu(noise_removed, target_mat, target_vs_mat, *color_segments, envParams, color_segment_k, sigma_s, sigma_r, r, coef_s);
-    remove_noise(target_mat, noise_removed, target_vs_mat, envParams);
-*/
     target_mat = cv::Mat::zeros(target_vs_mat.rows, target_vs_mat.cols, CV_64FC1);
     target_mat.forEach<double>([&filled2, &max_dist](double &now, const int position[]) -> void {
         double d = filled2.at<double>(position[0], position[1]);

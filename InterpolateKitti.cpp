@@ -29,73 +29,6 @@ using namespace experimental;
 
 ofstream ofs;
 
-void interpolate_kitti(cv::Mat &interpolated_depth, cv::Mat &img, cv::Mat &depth, EnvParams &envParams, HyperParams &hyperParams)
-{
-    vector<vector<double>> interpolated(envParams.height, vector<double>(envParams.width, 0));
-    vector<vector<double>> filtered(envParams.height, vector<double>(envParams.width, 0));
-    vector<vector<int>> vs(envParams.height, vector<int>(envParams.width, 0));
-    for (int j = 0; j < envParams.height; j++)
-    {
-        ushort *p = &depth.at<ushort>(j, 0);
-        for (int k = 0; k < envParams.width; k++)
-        {
-            filtered[j][k] = *p / 256.0;
-            vs[j][k] = j;
-            p++;
-        }
-    }
-
-    cv::Mat blured;
-    cv::GaussianBlur(img, blured, cv::Size(5, 5), 1.0);
-
-    if (envParams.method == "pwas")
-    {
-        pwas(interpolated, filtered, vs, vs, envParams, blured,
-             hyperParams.pwas_sigma_c, hyperParams.pwas_sigma_s,
-             hyperParams.pwas_sigma_r, hyperParams.pwas_r);
-    }
-    if (envParams.method == "original")
-    {
-        original(interpolated, filtered, vs, vs, envParams, blured,
-                 hyperParams.original_color_segment_k, hyperParams.original_sigma_s,
-                 hyperParams.original_sigma_r, hyperParams.original_r, hyperParams.original_coef_s);
-    }
-
-    cv::Mat interpolated_inv_depth = cv::Mat::zeros(envParams.height, envParams.width, CV_16UC1);
-    for (int j = 0; j < envParams.height; j++)
-    {
-        ushort *p = &interpolated_inv_depth.at<ushort>(j, 0);
-        for (int k = 0; k < envParams.width; k++)
-        {
-            if (interpolated[j][k] > 0)
-            {
-                ushort val = 65535 - interpolated[j][k] * 256;
-                if (val < 0)
-                {
-                    val = 0;
-                }
-                *p = val;
-            }
-            p++;
-        }
-    }
-    cv::Mat closed;
-    cv::Mat full_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(1, 1));
-    cv::morphologyEx(interpolated_inv_depth, closed, cv::MORPH_CLOSE, full_kernel);
-    interpolated_depth = cv::Mat::zeros(envParams.height, envParams.width, CV_16UC1);
-    interpolated_depth.forEach<ushort>([&closed](ushort &now, const int position[]) -> void {
-        ushort d = closed.at<ushort>(position[0], position[1]);
-        if (d > 0)
-        {
-            now = 65535 - d;
-        }
-        else
-        {
-            now = 0;
-        }
-    });
-}
-
 void tune(string img_dir, string depth_dir, string gt_dir, EnvParams &envParams, HyperParams &hyperParams)
 {
     vector<string> img_names;
@@ -241,7 +174,7 @@ int main(int argc, char *argv[])
     EnvParams envParams = loadParams("");
     envParams.width = 1216;
     envParams.height = 352;
-    envParams.method = "original";
+    envParams.method = "jbu";
 
     //tune(img_dir, depth_dir, gt_dir, envParams, hyperParams);
 
@@ -291,7 +224,7 @@ int main(int argc, char *argv[])
         if (envParams.method == "jbu")
         {
             jbu_cv(target_mat, depth_d, vs_mat, vs_mat, envParams, blured,
-                   hyperParams.pwas_sigma_s, hyperParams.pwas_sigma_r, hyperParams.pwas_r);
+                   hyperParams.pwas_sigma_c, hyperParams.pwas_sigma_s, hyperParams.pwas_sigma_r, hyperParams.pwas_r);
         }
         if (envParams.method == "original")
         {
