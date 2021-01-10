@@ -57,7 +57,7 @@ void ext_jbu(cv::Mat &src_mat, cv::Mat &dst_mat, cv::Mat &target_vs_mat, UnionFi
                     coef += tmp;
                 }
             }
-            if (coef > 0.05 /* some threshold */)
+            if (coef > 0.0 /* some threshold */)
             {
                 now = val / coef;
             }
@@ -138,6 +138,30 @@ void original_cv(cv::Mat &target_mat, cv::Mat &base_mat, cv::Mat &target_vs_mat,
         Graph graph(&img);
         cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "ms" << endl;
         color_segments = graph.segmentate(color_segment_k);
+        /*
+        cv::Mat hoge = cv::Mat::zeros(target_vs_mat.rows, target_vs_mat.cols, CV_8UC3);
+        random_device rnd;
+        mt19937 mt(rnd());
+        uniform_int_distribution<> rand(0, 255);
+        for (int i = 0; i < envParams.height; i++)
+        {
+            for (int j = 0; j < envParams.width; j++)
+            {
+                int root = color_segments->root(i * envParams.width + j);
+                hoge.at<cv::Vec3b>(i, j) = cv::Vec3b(rand(mt), rand(mt), rand(mt));
+            }
+        }
+        for (int i = 0; i < envParams.height; i++)
+        {
+            for (int j = 0; j < envParams.width; j++)
+            {
+                int root = color_segments->root(i * envParams.width + j);
+                hoge.at<cv::Vec3b>(i, j) = hoge.at<cv::Vec3b>(root / envParams.width, root % envParams.width);
+            }
+        }
+        cv::imshow("C", hoge);
+        cv::waitKey();
+        */
     }
     cout << "Segmentation" << endl;
     cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "ms" << endl;
@@ -145,10 +169,21 @@ void original_cv(cv::Mat &target_mat, cv::Mat &base_mat, cv::Mat &target_vs_mat,
     cv::Mat interpolated, noise_removed;
     ext_jbu(low_mat, interpolated, target_vs_mat, *color_segments, envParams, color_segment_k, sigma_s, sigma_r, r, coef_s);
     remove_noise(interpolated, noise_removed, target_vs_mat, envParams);
+    /*
     ext_jbu(noise_removed, target_mat, target_vs_mat, *color_segments, envParams, color_segment_k, sigma_s, sigma_r, r, coef_s);
     remove_noise(target_mat, noise_removed, target_vs_mat, envParams);
     ext_jbu(noise_removed, target_mat, target_vs_mat, *color_segments, envParams, color_segment_k, sigma_s, sigma_r, r, coef_s);
     remove_noise(target_mat, noise_removed, target_vs_mat, envParams);
+
+    ext_jbu(noise_removed, target_mat, target_vs_mat, *color_segments, envParams, color_segment_k, sigma_s, sigma_r, r, coef_s);
+    remove_noise(target_mat, noise_removed, target_vs_mat, envParams);
+    ext_jbu(noise_removed, target_mat, target_vs_mat, *color_segments, envParams, color_segment_k, sigma_s, sigma_r, r, coef_s);
+    remove_noise(target_mat, noise_removed, target_vs_mat, envParams);
+    ext_jbu(noise_removed, target_mat, target_vs_mat, *color_segments, envParams, color_segment_k, sigma_s, sigma_r, r, coef_s);
+    remove_noise(target_mat, noise_removed, target_vs_mat, envParams);
+    ext_jbu(noise_removed, target_mat, target_vs_mat, *color_segments, envParams, color_segment_k, sigma_s, sigma_r, r, coef_s);
+    remove_noise(target_mat, noise_removed, target_vs_mat, envParams);
+*/
     target_mat = noise_removed;
 
     cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "ms" << endl;

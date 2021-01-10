@@ -24,7 +24,10 @@ HyperParams getDefaultHyperParams(bool is_rgb = true)
     HyperParams params;
     if (is_rgb)
     {
-        params = {1.5, 1, 10, 1.6, 19, 7, 440, 1.3, 19, 7, 0.32};
+        // Normal
+        // params = {1.5, 1, 10, 1.6, 19, 7, 440, 1.3, 19, 7, 0.32};
+        // Kitti
+        params = {1.5, 1, 10, 1.6, 19, 7, 2500, 1.3, 19, 13, 0.32};
     }
     else
     {
