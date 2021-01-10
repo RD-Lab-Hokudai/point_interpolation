@@ -65,7 +65,7 @@ void ext_jbu(cv::Mat &src_mat, cv::Mat &dst_mat, cv::Mat &target_vs_mat, UnionFi
     });
 }
 
-void remove_noise(cv::Mat &src_mat, cv::Mat &dst_mat, cv::Mat &target_vs_mat, EnvParams envParams, double rad_coef = 0.002)
+void remove_noise(cv::Mat &src_mat, cv::Mat &dst_mat, cv::Mat &target_vs_mat, EnvParams envParams, double rad_coef = 0.001)
 {
     int dx[8] = {1, 1, 0, -1, -1, -1, 0, 1};
     int dy[8] = {0, 1, 1, 1, 0, -1, -1, -1};
@@ -130,6 +130,8 @@ void original_cv(cv::Mat &target_mat, cv::Mat &base_mat, cv::Mat &target_vs_mat,
         int v = target_vs_mat.at<int>(position[0], position[1]);
         now = full_mat.at<double>(v, position[1]);
     });
+    cv::imshow("A", low_mat);
+    cv::waitKey();
 
     // Original
     auto start = chrono::system_clock::now();

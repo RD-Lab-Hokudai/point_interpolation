@@ -17,13 +17,16 @@
 #include "methods/original.cpp"
 #include "methods/ip_basic_cv.cpp"
 #include "methods/original_cv.cpp"
+<<<<<<< HEAD
 #include "methods/jbu_cv.cpp"
-#include "methods/guided_filter.cpp"
+=======
+>>>>>>> 9778675d30e1f7016655086b31c4625ffdac3584
+    #include "methods/guided_filter.cpp"
 #include "postprocess/evaluate.cpp"
 #include "postprocess/generate_depth_image.cpp"
 #include "postprocess/restore_pcd.cpp"
 
-using namespace std;
+    using namespace std;
 using namespace open3d;
 using namespace experimental;
 
