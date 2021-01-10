@@ -16,17 +16,17 @@ void ext_jbu(cv::Mat &src_mat, cv::Mat &dst_mat, cv::Mat &target_vs_mat, UnionFi
     dst_mat.forEach<double>([&](double &now, const int position[]) -> void {
         int y = position[0];
         int x = position[1];
+        int v = target_vs_mat.at<int>(y, x);
         double coef = 0;
         double val = 0;
         // すでに点があるならそれを使う
-        double src_val = src_mat.at<double>(y, x);
+        double src_val = src_mat.at<double>(v, x);
         if (src_val > 0)
         {
             now = src_val;
         }
         else
         {
-            int v = target_vs_mat.at<int>(y, x);
             int r0 = color_segments.root(v * envParams.width + x);
 
             for (int ii = 0; ii < r; ii++)
@@ -41,7 +41,7 @@ void ext_jbu(cv::Mat &src_mat, cv::Mat &dst_mat, cv::Mat &target_vs_mat, UnionFi
                     }
 
                     int v1 = target_vs_mat.at<int>(y + dy, x + dx);
-                    double neighbor_val = src_mat.at<double>(y + dy, x + dx);
+                    double neighbor_val = src_mat.at<double>(v1, x + dx);
                     if (neighbor_val <= 0)
                     {
                         continue;
@@ -57,7 +57,7 @@ void ext_jbu(cv::Mat &src_mat, cv::Mat &dst_mat, cv::Mat &target_vs_mat, UnionFi
                     coef += tmp;
                 }
             }
-            if (coef > 0.0 /* some threshold */)
+            if (coef > 0.00 /* some threshold */)
             {
                 now = val / coef;
             }
@@ -130,12 +130,11 @@ void original_cv(cv::Mat &target_mat, cv::Mat &base_mat, cv::Mat &target_vs_mat,
         int v = target_vs_mat.at<int>(position[0], position[1]);
         now = full_mat.at<double>(v, position[1]);
     });
-    cv::imshow("A", low_mat);
-    cv::waitKey();
 
     // Original
     auto start = chrono::system_clock::now();
     shared_ptr<UnionFind> color_segments;
+
     {
         Graph graph(&img);
         cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "ms" << endl;
@@ -162,15 +161,48 @@ void original_cv(cv::Mat &target_mat, cv::Mat &base_mat, cv::Mat &target_vs_mat,
             }
         }
         cv::imshow("C", hoge);
+        cv::imshow("D", img);
         cv::waitKey();
         */
     }
     cout << "Segmentation" << endl;
     cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "ms" << endl;
 
-    cv::Mat interpolated, noise_removed;
+    cv::Mat interpolated, interpolated2, noise_removed;
     ext_jbu(low_mat, interpolated, target_vs_mat, *color_segments, envParams, color_segment_k, sigma_s, sigma_r, r, coef_s);
-    remove_noise(interpolated, noise_removed, target_vs_mat, envParams);
+    //cv::imshow("A", interpolated);
+    //cv::waitKey();
+    ext_jbu(interpolated, interpolated2, target_vs_mat, *color_segments, envParams, color_segment_k, sigma_s, sigma_r, r, coef_s);
+    //cv::imshow("A", interpolated2);
+    //cv::waitKey();
+
+    //remove_noise(interpolated, noise_removed, target_vs_mat, envParams);
+
+    double max_dist = 500;
+    cv::Mat inverted = cv::Mat::zeros(target_vs_mat.rows, target_vs_mat.cols, CV_64FC1);
+    inverted.forEach<double>([&interpolated2, &max_dist](double &now, const int position[]) -> void {
+        double d = interpolated2.at<double>(position[0], position[1]);
+        if (d > 0)
+        {
+            now = max_dist - d;
+        }
+    });
+
+    cv::Mat filled, filled2;
+    cv::Mat fix_calibration_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(11, 11));
+    cv::morphologyEx(inverted, filled, cv::MORPH_CLOSE, fix_calibration_kernel);
+    cv::Mat full_fill_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(31, 31));
+    cv::dilate(filled, filled2, full_fill_kernel);
+    filled2.forEach<double>([&filled](double &now, const int position[]) -> void {
+        double d = filled.at<double>(position[0], position[1]);
+        if (d > 0)
+        {
+            now = d;
+        }
+    });
+
+    //cv::imshow("D", filled);
+    //cv::waitKey();
     /*
     ext_jbu(noise_removed, target_mat, target_vs_mat, *color_segments, envParams, color_segment_k, sigma_s, sigma_r, r, coef_s);
     remove_noise(target_mat, noise_removed, target_vs_mat, envParams);
@@ -186,7 +218,14 @@ void original_cv(cv::Mat &target_mat, cv::Mat &base_mat, cv::Mat &target_vs_mat,
     ext_jbu(noise_removed, target_mat, target_vs_mat, *color_segments, envParams, color_segment_k, sigma_s, sigma_r, r, coef_s);
     remove_noise(target_mat, noise_removed, target_vs_mat, envParams);
 */
-    target_mat = noise_removed;
+    target_mat = cv::Mat::zeros(target_vs_mat.rows, target_vs_mat.cols, CV_64FC1);
+    target_mat.forEach<double>([&filled2, &max_dist](double &now, const int position[]) -> void {
+        double d = filled2.at<double>(position[0], position[1]);
+        if (d > 0)
+        {
+            now = max_dist - d;
+        }
+    });
 
     cout << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count() << "ms" << endl;
 }

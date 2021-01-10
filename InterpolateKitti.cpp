@@ -17,16 +17,13 @@
 #include "methods/original.cpp"
 #include "methods/ip_basic_cv.cpp"
 #include "methods/original_cv.cpp"
-<<<<<<< HEAD
 #include "methods/jbu_cv.cpp"
-=======
->>>>>>> 9778675d30e1f7016655086b31c4625ffdac3584
-    #include "methods/guided_filter.cpp"
+#include "methods/guided_filter.cpp"
 #include "postprocess/evaluate.cpp"
 #include "postprocess/generate_depth_image.cpp"
 #include "postprocess/restore_pcd.cpp"
 
-    using namespace std;
+using namespace std;
 using namespace open3d;
 using namespace experimental;
 
@@ -244,7 +241,7 @@ int main(int argc, char *argv[])
     EnvParams envParams = loadParams("");
     envParams.width = 1216;
     envParams.height = 352;
-    envParams.method = "ip-basic";
+    envParams.method = "original";
 
     //tune(img_dir, depth_dir, gt_dir, envParams, hyperParams);
 
@@ -313,24 +310,13 @@ int main(int argc, char *argv[])
 
         double time = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count();
 
-        // 16FC1 inverseに変換
-        cv::Mat interpolated_inv_depth = cv::Mat::zeros(envParams.height, envParams.width, CV_16UC1);
-        interpolated_inv_depth.forEach<ushort>([&target_mat](ushort &now, const int position[]) -> void {
+        // 16FC1に変換
+        cv::Mat interpolated_depth = cv::Mat::zeros(envParams.height, envParams.width, CV_16UC1);
+        interpolated_depth.forEach<ushort>([&target_mat](ushort &now, const int position[]) -> void {
             double d = target_mat.at<double>(position[0], position[1]);
             if (d > 0)
             {
-                now = max(65535 - d * 256, 0.0);
-            }
-        });
-        cv::Mat closed;
-        cv::Mat full_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(1, 1));
-        cv::morphologyEx(interpolated_inv_depth, closed, cv::MORPH_CLOSE, full_kernel);
-        cv::Mat interpolated_depth = cv::Mat::zeros(envParams.height, envParams.width, CV_16UC1);
-        interpolated_depth.forEach<ushort>([&closed](ushort &now, const int position[]) -> void {
-            ushort d = closed.at<ushort>(position[0], position[1]);
-            if (d > 0)
-            {
-                now = 65535 - d;
+                now = d * 256;
             }
         });
 
