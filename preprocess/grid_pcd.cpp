@@ -32,10 +32,12 @@ void grid_pcd(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams,
     double rollVal = (envParams.roll - 500) / 1000.0;
     double pitchVal = (envParams.pitch - 500) / 1000.0;
     double yawVal = (envParams.yaw - 500) / 1000.0;
-    Eigen::MatrixXd calibration_mtx(3, 3);
-    calibration_mtx << cos(yawVal) * cos(pitchVal), cos(yawVal) * sin(pitchVal) * sin(rollVal) - sin(yawVal) * cos(rollVal), cos(yawVal) * sin(pitchVal) * cos(rollVal) + sin(yawVal) * sin(rollVal),
-        sin(yawVal) * cos(pitchVal), sin(yawVal) * sin(pitchVal) * sin(rollVal) + cos(yawVal) * cos(rollVal), sin(yawVal) * sin(pitchVal) * cos(rollVal) - cos(yawVal) * sin(rollVal),
-        -sin(pitchVal), cos(pitchVal) * sin(rollVal), cos(pitchVal) * cos(rollVal);
+    Eigen::MatrixXd calibration_mtx(4, 4);
+    calibration_mtx << cos(yawVal) * cos(pitchVal), cos(yawVal) * sin(pitchVal) * sin(rollVal) - sin(yawVal) * cos(rollVal), cos(yawVal) * sin(pitchVal) * cos(rollVal) + sin(yawVal) * sin(rollVal), (envParams.X - 500) / 100.0,
+        sin(yawVal) * cos(pitchVal), sin(yawVal) * sin(pitchVal) * sin(rollVal) + cos(yawVal) * cos(rollVal), sin(yawVal) * sin(pitchVal) * cos(rollVal) - cos(yawVal) * sin(rollVal), (envParams.Y - 500) / 100.0,
+        -sin(pitchVal), cos(pitchVal) * sin(rollVal), cos(pitchVal) * cos(rollVal), (envParams.Z - 500) / 100.0,
+        0, 0, 0, 1;
+    cout << calibration_mtx << endl;
 
     for (int i = 0; i < raw_pcd_ptr->points_.size(); i++)
     {
@@ -44,12 +46,9 @@ void grid_pcd(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams,
         double rawZ = -raw_pcd_ptr->points_[i][0];
 
         double r = sqrt(rawX * rawX + rawZ * rawZ);
-        double xp = calibration_mtx(0, 0) * rawX + calibration_mtx(0, 1) * rawY + calibration_mtx(0, 2) * rawZ;
-        double yp = calibration_mtx(1, 0) * rawX + calibration_mtx(1, 1) * rawY + calibration_mtx(1, 2) * rawZ;
-        double zp = calibration_mtx(2, 0) * rawX + calibration_mtx(2, 1) * rawY + calibration_mtx(2, 2) * rawZ;
-        double x = xp + (envParams.X - 500) / 100.0;
-        double y = yp + (envParams.Y - 500) / 100.0;
-        double z = zp + (envParams.Z - 500) / 100.0;
+        double x = calibration_mtx(0, 0) * rawX + calibration_mtx(0, 1) * rawY + calibration_mtx(0, 2) * rawZ + calibration_mtx(0, 3);
+        double y = calibration_mtx(1, 0) * rawX + calibration_mtx(1, 1) * rawY + calibration_mtx(1, 2) * rawZ + calibration_mtx(1, 3);
+        double z = calibration_mtx(2, 0) * rawX + calibration_mtx(2, 1) * rawY + calibration_mtx(2, 2) * rawZ + calibration_mtx(2, 3);
 
         if (z > 0)
         {
