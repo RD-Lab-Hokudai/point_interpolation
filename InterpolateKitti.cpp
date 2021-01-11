@@ -15,8 +15,9 @@
 #include "methods/mrf.cpp"
 #include "methods/pwas.cpp"
 #include "methods/original.cpp"
-#include "methods/ip_basic.cpp"
+#include "methods/ip_basic_cv.cpp"
 #include "methods/original_cv.cpp"
+#include "methods/jbu_cv.cpp"
 #include "methods/guided_filter.cpp"
 #include "postprocess/evaluate.cpp"
 #include "postprocess/generate_depth_image.cpp"
@@ -27,73 +28,6 @@ using namespace open3d;
 using namespace experimental;
 
 ofstream ofs;
-
-void interpolate_kitti(cv::Mat &interpolated_depth, cv::Mat &img, cv::Mat &depth, EnvParams &envParams, HyperParams &hyperParams)
-{
-    vector<vector<double>> interpolated(envParams.height, vector<double>(envParams.width, 0));
-    vector<vector<double>> filtered(envParams.height, vector<double>(envParams.width, 0));
-    vector<vector<int>> vs(envParams.height, vector<int>(envParams.width, 0));
-    for (int j = 0; j < envParams.height; j++)
-    {
-        ushort *p = &depth.at<ushort>(j, 0);
-        for (int k = 0; k < envParams.width; k++)
-        {
-            filtered[j][k] = *p / 256.0;
-            vs[j][k] = j;
-            p++;
-        }
-    }
-
-    cv::Mat blured;
-    cv::GaussianBlur(img, blured, cv::Size(5, 5), 1.0);
-
-    if (envParams.method == "pwas")
-    {
-        pwas(interpolated, filtered, vs, vs, envParams, blured,
-             hyperParams.pwas_sigma_c, hyperParams.pwas_sigma_s,
-             hyperParams.pwas_sigma_r, hyperParams.pwas_r);
-    }
-    if (envParams.method == "original")
-    {
-        original(interpolated, filtered, vs, vs, envParams, blured,
-                 hyperParams.original_color_segment_k, hyperParams.original_sigma_s,
-                 hyperParams.original_sigma_r, hyperParams.original_r, hyperParams.original_coef_s);
-    }
-
-    cv::Mat interpolated_inv_depth = cv::Mat::zeros(envParams.height, envParams.width, CV_16UC1);
-    for (int j = 0; j < envParams.height; j++)
-    {
-        ushort *p = &interpolated_inv_depth.at<ushort>(j, 0);
-        for (int k = 0; k < envParams.width; k++)
-        {
-            if (interpolated[j][k] > 0)
-            {
-                ushort val = 65535 - interpolated[j][k] * 256;
-                if (val < 0)
-                {
-                    val = 0;
-                }
-                *p = val;
-            }
-            p++;
-        }
-    }
-    cv::Mat closed;
-    cv::Mat full_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(11, 11));
-    cv::morphologyEx(interpolated_inv_depth, closed, cv::MORPH_CLOSE, full_kernel);
-    interpolated_depth = cv::Mat::zeros(envParams.height, envParams.width, CV_16UC1);
-    interpolated_depth.forEach<ushort>([&closed](ushort &now, const int position[]) -> void {
-        ushort d = closed.at<ushort>(position[0], position[1]);
-        if (d > 0)
-        {
-            now = 65535 - d;
-        }
-        else
-        {
-            now = 0;
-        }
-    });
-}
 
 void tune(string img_dir, string depth_dir, string gt_dir, EnvParams &envParams, HyperParams &hyperParams)
 {
@@ -287,9 +221,10 @@ int main(int argc, char *argv[])
         cv::Mat blured;
         cv::GaussianBlur(img, blured, cv::Size(5, 5), 1.0);
         cv::Mat target_mat;
-        if (envParams.method == "guided")
+        if (envParams.method == "jbu")
         {
-            guided_filter(target_mat, depth_d, vs_mat, vs_mat, envParams, blured);
+            jbu_cv(target_mat, depth_d, vs_mat, vs_mat, envParams, blured,
+                   hyperParams.pwas_sigma_c, hyperParams.pwas_sigma_s, hyperParams.pwas_sigma_r, hyperParams.pwas_r);
         }
         if (envParams.method == "original")
         {
@@ -297,27 +232,24 @@ int main(int argc, char *argv[])
                         hyperParams.original_color_segment_k, hyperParams.original_sigma_s,
                         hyperParams.original_sigma_r, hyperParams.original_r, hyperParams.original_coef_s);
         }
+        if (envParams.method == "guided")
+        {
+            guided_filter(target_mat, depth_d, vs_mat, vs_mat, envParams, blured);
+        }
+        if (envParams.method == "ip-basic")
+        {
+            ip_basic_cv(target_mat, depth_d, vs_mat, vs_mat, envParams);
+        }
+
         double time = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count();
 
-        // 16FC1 inverseに変換
-        cv::Mat interpolated_inv_depth = cv::Mat::zeros(envParams.height, envParams.width, CV_16UC1);
-        interpolated_inv_depth.forEach<ushort>([&target_mat](ushort &now, const int position[]) -> void {
+        // 16FC1に変換
+        cv::Mat interpolated_depth = cv::Mat::zeros(envParams.height, envParams.width, CV_16UC1);
+        interpolated_depth.forEach<ushort>([&target_mat](ushort &now, const int position[]) -> void {
             double d = target_mat.at<double>(position[0], position[1]);
             if (d > 0)
             {
-                now = max(65535 - d * 256, 0.0);
-            }
-        });
-
-        cv::Mat closed = interpolated_inv_depth;
-        //cv::Mat full_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(1, 1));
-        //cv::morphologyEx(interpolated_inv_depth, closed, cv::MORPH_CLOSE, full_kernel);
-        cv::Mat interpolated_depth = cv::Mat::zeros(envParams.height, envParams.width, CV_16UC1);
-        interpolated_depth.forEach<ushort>([&closed](ushort &now, const int position[]) -> void {
-            ushort d = closed.at<ushort>(position[0], position[1]);
-            if (d > 0)
-            {
-                now = 65535 - d;
+                now = d * 256;
             }
         });
 

@@ -54,31 +54,15 @@ void ip_basic(vector<vector<double>> &target_grid, vector<vector<double>> &base_
     }
 
     cv::Mat depth;
-    if (1)
-    {
-        cv::Mat dilate_kernel = generateDiamondKernel(11);
-        //cv::imshow("inv2", inverted);
+    cv::Mat dilate_kernel = generateDiamondKernel(5);
+    cv::Mat dilated;
+    cv::dilate(inverted, dilated, dilate_kernel);
 
-        cv::Mat dilated;
-        cv::dilate(inverted, dilated, dilate_kernel);
-        //cv::imshow("dilated", dilated);
-
-        cv::Mat full_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(11, 11));
-        cv::morphologyEx(dilated, depth, cv::MORPH_CLOSE, full_kernel);
-    }
-    else
-    {
-        cv::Mat dilate_kernel = generateDiamondKernel(7);
-        cv::imshow("inv2", inverted);
-
-        cv::Mat dilated;
-        cv::dilate(inverted, dilated, dilate_kernel);
-        cv::imshow("dilated", dilated);
-
-        cv::Mat closed;
-        cv::Mat full_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(7, 7));
-        cv::morphologyEx(dilated, depth, cv::MORPH_CLOSE, full_kernel);
-    }
+    cv::Mat closed;
+    cv::Mat close_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5));
+    cv::morphologyEx(dilated, closed, cv::MORPH_CLOSE, close_kernel);
+    cv::Mat full_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(7, 7));
+    cv::dilate(closed, depth, full_kernel);
 
     target_grid = vector<vector<double>>(target_vs.size(), vector<double>(envParams.width, 0));
     depth.forEach<double>([&target_grid, max_dist](double &now, const int position[]) -> void {
