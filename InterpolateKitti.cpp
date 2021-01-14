@@ -245,7 +245,7 @@ int main(int argc, char *argv[])
         double time = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count();
 
         shared_ptr<geometry::PointCloud> ptr;
-        restore_pcd_simple_cv(target_mat, vs_mat, envParams, ptr);
+        restore_pcd_simple_cv_colored(target_mat, vs_mat, envParams, ptr, blured);
         visualization::DrawGeometries({ptr});
 
         // 16FC1に変換

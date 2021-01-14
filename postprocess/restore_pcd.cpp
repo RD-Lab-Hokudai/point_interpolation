@@ -102,3 +102,26 @@ double restore_pcd_simple_cv(cv::Mat &target_mat, cv::Mat &target_vs_mat, EnvPar
         }
     }
 }
+
+double restore_pcd_simple_cv_colored(cv::Mat &target_mat, cv::Mat &target_vs_mat, EnvParams envParams, shared_ptr<geometry::PointCloud> &target_ptr, cv::Mat &img, double offset = 0)
+{
+    target_ptr = make_shared<geometry::PointCloud>();
+    for (int i = 0; i < target_vs_mat.rows; i++)
+    {
+        for (int j = 0; j < envParams.width; j++)
+        {
+            double z = target_mat.at<double>(i, j);
+            if (z <= 0)
+            {
+                continue;
+            }
+
+            int v = target_vs_mat.at<int>(i, j);
+            double x = z * (j - envParams.width / 2) / envParams.f_xy;
+            double y = z * (v - envParams.height / 2) / envParams.f_xy;
+            target_ptr->points_.emplace_back(x + offset, z, -y);
+            cv::Vec3b color = img.at<cv::Vec3b>(v, j);
+            target_ptr->colors_.emplace_back(color[2] / 255.0, color[1] / 255.0, color[0] / 255.0);
+        }
+    }
+}
