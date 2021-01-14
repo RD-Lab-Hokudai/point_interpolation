@@ -58,11 +58,30 @@ void ip_basic(vector<vector<double>> &target_grid, vector<vector<double>> &base_
     cv::Mat dilated;
     cv::dilate(inverted, dilated, dilate_kernel);
 
-    cv::Mat closed;
+    cv::Mat closed, fulled;
     cv::Mat close_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5));
     cv::morphologyEx(dilated, closed, cv::MORPH_CLOSE, close_kernel);
     cv::Mat full_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(7, 7));
     cv::dilate(closed, depth, full_kernel);
+    depth.forEach<double>([&closed](double &now, const int position[]) -> void {
+        double d = closed.at<double>(position[0], position[1]);
+        if (d > 0)
+        {
+            now = d;
+        }
+    });
+
+    /*
+    cv::Mat full_fill_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(31, 31));
+    cv::dilate(depth, fulled, full_fill_kernel);
+    depth.forEach<double>([&fulled](double &now, const int position[]) -> void {
+        double d = fulled.at<double>(position[0], position[1]);
+        if (now == 0)
+        {
+            now = d;
+        }
+    });
+    */
 
     target_grid = vector<vector<double>>(target_vs.size(), vector<double>(envParams.width, 0));
     depth.forEach<double>([&target_grid, max_dist](double &now, const int position[]) -> void {

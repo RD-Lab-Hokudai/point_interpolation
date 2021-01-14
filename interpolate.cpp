@@ -120,6 +120,7 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
         original_vs = target_vs;
     }
 
+    /*
     { // snow removal
         vector<vector<double>> removed_grid;
         auto start_tmp = chrono::system_clock::now();
@@ -132,6 +133,7 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
         cout << filtered_ptr->points_.size() << " " << removed_ptr->points_.size() << endl;
         visualization::DrawGeometries({filtered_ptr, removed_ptr});
     }
+    */
 
     {
         //vector<vector<vector<int>>> neighbors;
@@ -277,10 +279,11 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
 
     if (show_pcd)
     {
+        //visualization::DrawGeometries({pcd_ptr}, "A");
         generate_depth_image(interpolated_z, target_vs, envParams);
         visualization::DrawGeometries({original_ptr}, "Original", 1000, 800);
         visualization::DrawGeometries({interpolated_ptr}, "Original", 1000, 800);
-    }
+        }
 
     if (!io::WritePointCloudToPCD(envParams.folder_path + to_string(data_no) + "_interpolated.pcd", *interpolated_ptr, {true}))
     {
