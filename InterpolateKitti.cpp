@@ -174,6 +174,7 @@ int main(int argc, char *argv[])
     EnvParams envParams = loadParams("");
     envParams.width = 1216;
     envParams.height = 352;
+    envParams.f_xy = 721.5377;
     envParams.method = "original";
 
     //tune(img_dir, depth_dir, gt_dir, envParams, hyperParams);
@@ -242,6 +243,10 @@ int main(int argc, char *argv[])
         }
 
         double time = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start).count();
+
+        shared_ptr<geometry::PointCloud> ptr;
+        restore_pcd_simple_cv(target_mat, vs_mat, envParams, ptr);
+        visualization::DrawGeometries({ptr});
 
         // 16FC1に変換
         cv::Mat interpolated_depth = cv::Mat::zeros(envParams.height, envParams.width, CV_16UC1);
