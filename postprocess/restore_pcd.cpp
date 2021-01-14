@@ -82,3 +82,23 @@ double restore_pcd_simple(vector<vector<double>> &target_grid, vector<vector<int
         }
     }
 }
+
+double restore_pcd_simple_cv(cv::Mat &target_mat, cv::Mat &target_vs_mat, EnvParams envParams, shared_ptr<geometry::PointCloud> &target_ptr, double offset = 0)
+{
+    target_ptr = make_shared<geometry::PointCloud>();
+    for (int i = 0; i < target_vs_mat.rows; i++)
+    {
+        for (int j = 0; j < envParams.width; j++)
+        {
+            double z = target_mat.at<double>(i, j);
+            if (z <= 0)
+            {
+                continue;
+            }
+
+            double x = z * (j - envParams.width / 2) / envParams.f_xy;
+            double y = z * (target_vs_mat.at<int>(i, j) - envParams.height / 2) / envParams.f_xy;
+            target_ptr->points_.emplace_back(x + offset, z, -y);
+        }
+    }
+}
