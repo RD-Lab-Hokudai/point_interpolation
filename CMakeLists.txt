@@ -43,3 +43,5 @@ add_executable(Interpolater Interpolater.cpp)
 add_executable(Tuner Tuner.cpp)
 
 add_executable(InterpolateKitti InterpolateKitti.cpp)
+
+add_executable(DistortionCorrector DistortionCorrector.cpp)
