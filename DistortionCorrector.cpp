@@ -25,17 +25,17 @@ double k4 = 1.53712821e-11;
 double p1 = -2.42560758e-06;
 double p2 = -4.05806821e-06;
 double alpha = 9.88930697e-01;
-//int width = 882;
-//int height = 560;
+int width = 882;
+int height = 560;
 // Ignore p
-int width = 938;
-int height = 606;
+//int width = 938;
+//int height = 606;
 
 int main(int argc, char *argv[])
 {
     cv::Mat input = cv::imread("../distorted.png");
 
-    cv::Mat img = cv::Mat::zeros(1200, 1700, CV_8UC3);
+    cv::Mat img = cv::Mat::zeros(height, width, CV_8UC3);
     for (int i = 0; i < img.rows; i++)
     {
         cv::Vec3b *out = img.ptr<cv::Vec3b>(i);

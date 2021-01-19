@@ -7,7 +7,7 @@
 using namespace std;
 using namespace open3d;
 
-void remove_noise(vector<vector<double>> &src, vector<vector<double>> &dst, vector<vector<int>> &target_vs, EnvParams envParams, double rad_coef = 0.001)
+void remove_noise(vector<vector<double> > &src, vector<vector<double> > &dst, vector<vector<int> > &target_vs, EnvParams envParams, double rad_coef = 0.001, int min_k = 1)
 {
     auto ptr = make_shared<geometry::PointCloud>();
     for (int i = 0; i < target_vs.size(); i++)
@@ -26,7 +26,7 @@ void remove_noise(vector<vector<double>> &src, vector<vector<double>> &dst, vect
         }
     }
     auto kdtree = make_shared<geometry::KDTreeFlann>(*ptr);
-    vector<vector<double>> full_grid(envParams.height, vector<double>(envParams.width, 0));
+    vector<vector<double> > full_grid(envParams.height, vector<double>(envParams.width, 0));
     for (int i = 0; i < ptr->points_.size(); i++)
     {
         double x = ptr->points_[i][0];
@@ -38,20 +38,30 @@ void remove_noise(vector<vector<double>> &src, vector<vector<double>> &dst, vect
         double radius = rad_coef * distance2;
 
         //最も近い点を探索し，半径r以内にあるか判定
-        vector<int> indexes(2);
-        vector<double> dists(2);
-        kdtree->SearchKNN(ptr->points_[i], 2, indexes, dists);
+        vector<int> indexes;
+        vector<double> dists;
+        kdtree->SearchKNN(ptr->points_[i], min_k + 1, indexes, dists);
 
         //radiusを超えない範囲に近傍点があれば残す
-        if (dists[1] <= radius)
+        if (dists[min_k] <= radius)
         {
             int u = x / z * envParams.f_xy + envParams.width / 2;
             int v = y / z * envParams.f_xy + envParams.height / 2;
             full_grid[v][u] = z;
         }
+
+        /*
+        kdtree->SearchRadius(ptr->points_[i], radius, indexes, dists);
+        if (indexes.size() >= min_k + 1)
+        {
+            int u = x / z * envParams.f_xy + envParams.width / 2;
+            int v = y / z * envParams.f_xy + envParams.height / 2;
+            full_grid[v][u] = z;
+        }
+        */
     }
 
-    dst = vector<vector<double>>(target_vs.size(), vector<double>(envParams.width, 0));
+    dst = vector<vector<double> >(target_vs.size(), vector<double>(envParams.width, 0));
     for (int i = 0; i < target_vs.size(); i++)
     {
         for (int j = 0; j < envParams.width; j++)

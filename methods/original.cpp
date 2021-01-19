@@ -16,7 +16,7 @@
 using namespace std;
 
 int rate = 2;
-vector<vector<double>> coefs;
+vector<vector<double> > coefs;
 void mouse_callback(int event, int x, int y, int flags, void *userdata)
 {
     if (event == cv::EVENT_LBUTTONDOWN)
@@ -27,12 +27,12 @@ void mouse_callback(int event, int x, int y, int flags, void *userdata)
     }
 }
 
-void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_grid, vector<vector<int>> &target_vs, vector<vector<int>> &base_vs, EnvParams envParams, cv::Mat img, double color_segment_k, double sigma_s, double sigma_r, int r, double coef_s)
+void original(vector<vector<double> > &target_grid, vector<vector<double> > &base_grid, vector<vector<int> > &target_vs, vector<vector<int> > &base_vs, EnvParams envParams, cv::Mat img, double color_segment_k, double sigma_s, double sigma_r, int r, double coef_s)
 {
-    vector<vector<double>> noise_removed;
+    vector<vector<double> > noise_removed;
     remove_noise(base_grid, noise_removed, base_vs, envParams);
 
-    vector<vector<double>>
+    vector<vector<double> >
         full_grid(envParams.height, vector<double>(envParams.width, 0));
     for (int i = 0; i < base_vs.size(); i++)
     {
@@ -78,8 +78,8 @@ void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_
         cv::waitKey();
     }
 
-    target_grid = vector<vector<double>>(target_vs.size(), vector<double>(envParams.width, 0));
-    vector<vector<double>> coef_grid(envParams.height, vector<double>(envParams.width, 0));
+    target_grid = vector<vector<double> >(target_vs.size(), vector<double>(envParams.width, 0));
+    vector<vector<double> > coef_grid(envParams.height, vector<double>(envParams.width, 0));
     {
         for (int i = 0; i < target_vs.size(); i++)
         {
@@ -135,8 +135,8 @@ void original(vector<vector<double>> &target_grid, vector<vector<double>> &base_
         }
     }
 
-    vector<vector<double>> last_noise_removed;
-    remove_noise(target_grid, last_noise_removed, target_vs, envParams, 0.0001);
+    vector<vector<double> > last_noise_removed;
+    remove_noise(target_grid, last_noise_removed, target_vs, envParams, 0.0001, 3);
     //target_grid = last_noise_removed;
     auto ptr = shared_ptr<geometry::PointCloud>();
     restore_pcd_simple(target_grid, target_vs, envParams, ptr);
