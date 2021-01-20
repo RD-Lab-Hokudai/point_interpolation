@@ -136,8 +136,8 @@ void original(vector<vector<double> > &target_grid, vector<vector<double> > &bas
     }
 
     vector<vector<double> > last_noise_removed;
-    remove_noise(target_grid, last_noise_removed, target_vs, envParams, 0.0001, 3);
-    //target_grid = last_noise_removed;
+    remove_noise(target_grid, last_noise_removed, target_vs, envParams, 0.0001, 4);
+    target_grid = last_noise_removed;
     auto ptr = shared_ptr<geometry::PointCloud>();
     restore_pcd_simple(target_grid, target_vs, envParams, ptr);
     visualization::DrawGeometries({ptr});

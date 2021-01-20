@@ -14,21 +14,25 @@ const int height = 606;
 const double f_x = width / 2 * 1.01;
 
 vector<cv::Mat> imgs;
-vector<shared_ptr<open3d::geometry::PointCloud>> pcd_ptrs;
+vector<shared_ptr<open3d::geometry::PointCloud> > pcd_ptrs;
 cv::Mat reprojected;
 
 int dataNo = 0;
 
 // 02_19_13jo
+/*
+vector<int> data_ids = {10, 50, 100, 150, 200};
 int X = 502;
 int Y = 484;
 int Z = 499;
 int roll = 478;
 int pitch = 520;
 int yaw = 502;
+*/
 
 // 02_04_miyanosawa
 /*
+vector<int> data_ids = {700, 1290, 1460, 2350, 3850}; //1100 
 int X = 495;
 int Y = 475;
 int Z = 458;
@@ -45,6 +49,16 @@ int roll = 469;
 int pitch = 503;
 int yaw = 487;
 */
+
+// 2021_01_15_teine
+string folder_path = "../../../data/2021_01_15_teine/";
+vector<int> data_ids = {100, 200, 300, 400, 500};
+int X = 520;
+int Y = 499;
+int Z = 499;
+int roll = 527;
+int pitch = 3700;
+int yaw = 527;
 
 void reproject()
 {
@@ -128,8 +142,6 @@ void on_trackbarYaw(int val, void *object)
 
 int main(int argc, char *argv[])
 {
-    //vector<int> data_ids = {700, 1290, 1460, 2350, 3850}; //1100 // 2/4 miyanosawa
-    vector<int> data_ids = {10, 50, 100, 150, 200}; // 2/19 13jo
 
     /*
     for (int i = 0; i < 10; i += 1)
@@ -148,11 +160,10 @@ int main(int argc, char *argv[])
         tans.emplace_back(tan(rad));
         rad += delta_rad;
     }
-    int layers = 16;
+    int layers = 64;
 
     for (int i = 0; i < data_ids.size(); i++)
     {
-        string folder_path = "../../../data/2020_02_19_13jo/";
         string img_path = folder_path + to_string(data_ids[i]) + ".png";
         imgs.emplace_back(cv::imread(img_path));
 
@@ -177,6 +188,7 @@ int main(int argc, char *argv[])
                 pcd_ptr->points_.emplace_back(x, y, z);
             }
         }
+        //open3d::visualization::DrawGeometries({pcd_ptr});
         pcd_ptrs.emplace_back(pcd_ptr);
     }
 
@@ -185,9 +197,9 @@ int main(int argc, char *argv[])
     cv::createTrackbar("X(-5,5)", "Image", &X, 1000, &on_trackbarX);
     cv::createTrackbar("Y(-5,5)", "Image", &Y, 1000, &on_trackbarY);
     cv::createTrackbar("Z(-5,5)", "Image", &Z, 1000, &on_trackbarZ);
-    cv::createTrackbar("Roll(-1,1)", "Image", &roll, 1000, &on_trackbarRoll);
-    cv::createTrackbar("Pitch(-1,1)", "Image", &pitch, 1000, &on_trackbarPitch);
-    cv::createTrackbar("Yaw(-1,1)", "Image", &yaw, 1000, &on_trackbarYaw);
+    cv::createTrackbar("Roll(-1,1)", "Image", &roll, 10000, &on_trackbarRoll);
+    cv::createTrackbar("Pitch(-1,1)", "Image", &pitch, 10000, &on_trackbarPitch);
+    cv::createTrackbar("Yaw(-1,1)", "Image", &yaw, 10000, &on_trackbarYaw);
 
     reprojected = cv::Mat::zeros(height, width, CV_8UC3);
     reproject();
