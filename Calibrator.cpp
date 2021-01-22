@@ -50,6 +50,17 @@ int pitch = 503;
 int yaw = 487;
 */
 
+// 2020_12_03_miyanosawa snowy daytime
+string folder_path = "../../../data/2020_12_3_miyanosawa/";
+vector<int> data_ids = {100, 600, 1100, 1600, 2100};
+int X = 486;
+int Y = 483;
+int Z = 448;
+int roll = 491;
+int pitch = 472;
+int yaw = 495;
+
+/*
 // 2021_01_15_teine
 string folder_path = "../../../data/2021_01_15_teine/";
 vector<int> data_ids = {100, 200, 300, 400, 500};
@@ -59,6 +70,7 @@ int Z = 499;
 int roll = 527;
 int pitch = 3700;
 int yaw = 527;
+*/
 
 void reproject()
 {
@@ -164,7 +176,7 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < data_ids.size(); i++)
     {
-        string img_path = folder_path + to_string(data_ids[i]) + ".png";
+        string img_path = folder_path + to_string(data_ids[i]) + "_thermal.png";
         imgs.emplace_back(cv::imread(img_path));
 
         string pcd_path = folder_path + to_string(data_ids[i]) + ".pcd";
