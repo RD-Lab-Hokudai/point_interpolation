@@ -71,6 +71,18 @@ EnvParams loadParams(string params_name)
 
     params["13jo_0219_2_rgb_linear"] = {672, 376, 672 / 2, 504, 474, 493, 457, 489, 512, "../../../data/2020_02_19_13jo_2/", data_nos_13jo, "res_linear_13jo_2_0219_10-209_RGB.csv", "linear", false, true};
 
+    params["hassamu_1203_rgb_linear"] = {640, 480, 640, 489, 492, 510, 571, 529, 501, "../../../data/2020_12_03_hassamu/", data_nos_3_3, "res_linear_hassamu_1203_100-300_RGB.csv", "linear", false, true};
+    params["hassamu_1203_rgb_ip-basic"] = {640, 480, 640, 489, 492, 510, 571, 529, 501, "../../../data/2020_12_03_hassamu/", data_nos_3_3, "res_ip-basic_hassamu_1203_100-300_RGB.csv", "ip-basic", false, true};
+    params["hassamu_1203_rgb_mrf"] = {640, 480, 640, 489, 492, 510, 571, 529, 501, "../../../data/2020_12_03_hassamu/", data_nos_3_3, "res_mrf_hassamu_1203_100-300_RGB.csv", "mrf", false, true};
+    params["hassamu_1203_rgb_pwas"] = {640, 480, 640, 489, 492, 510, 571, 529, 501, "../../../data/2020_12_03_hassamu/", data_nos_3_3, "res_pwas_hassamu_1203_100-300_RGB.csv", "pwas", false, true};
+    params["hassamu_1203_rgb_original"] = {640, 480, 640, 489, 492, 510, 571, 529, 501, "../../../data/2020_12_03_hassamu/", data_nos_3_3, "res_original_hassamu_1203_100-300_RGB.csv", "original", false, true};
+
+    params["hassamu_1203_thermal_linear"] = {938, 606, 938 / 2 * 1.01, 486, 483, 448, 491, 472, 495, "../../../data/2020_12_03_hassamu/", data_nos_3_3, "res_linear_hassamu_1203_100-300_Thermal.csv", "linear", false, false};
+    params["hassamu_1203_thermal_ip-basic"] = {938, 606, 938 / 2 * 1.01, 486, 483, 448, 491, 472, 495, "../../../data/2020_12_03_hassamu/", data_nos_3_3, "res_ip-basic_hassamu_1203_100-300_Thermal.csv", "ip-basic", false, false};
+    params["hassamu_1203_thermal_mrf"] = {938, 606, 938 / 2 * 1.01, 486, 483, 448, 491, 472, 495, "../../../data/2020_12_03_hassamu/", data_nos_3_3, "res_mrf_hassamu_1203_100-300_Thermal.csv", "mrf", false, false};
+    params["hassamu_1203_thermal_pwas"] = {938, 606, 938 / 2 * 1.01, 486, 483, 448, 491, 472, 495, "../../../data/2020_12_03_hassamu/", data_nos_3_3, "res_pwas_hassamu_1203_100-300_Thermal.csv", "pwas", false, false};
+    params["hassamu_1203_thermal_original"] = {938, 606, 938 / 2 * 1.01, 486, 483, 448, 491, 472, 495, "../../../data/2020_12_03_hassamu/", data_nos_3_3, "res_original_hassamu_1203_100-300_Thermal.csv", "original", false, false};
+
     if (params.count(params_name))
     {
         return params[params_name];

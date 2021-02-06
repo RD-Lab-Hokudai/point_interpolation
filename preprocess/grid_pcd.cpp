@@ -88,8 +88,8 @@ void grid_pcd(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams,
         }
     }
 
-    target_vs = vector<vector<int>>(64, vector<int>(envParams.width, -1));
-    base_vs = vector<vector<int>>(layer_cnt, vector<int>(envParams.width, -1));
+    target_vs = vector<vector<int>>(64, vector<int>(envParams.width, 0));
+    base_vs = vector<vector<int>>(layer_cnt, vector<int>(envParams.width, 0));
     for (int i = 0; i < 64; i++)
     {
         for (int j = 0; j < envParams.width; j++)
@@ -104,7 +104,7 @@ void grid_pcd(shared_ptr<geometry::PointCloud> raw_pcd_ptr, EnvParams envParams,
             double z = calibration_mtx(2, 0) * rawX + calibration_mtx(2, 1) * rawY + calibration_mtx(2, 2) * rawZ;
             int v = (int)(envParams.f_xy * y + envParams.height / 2 * z) / z;
 
-            target_vs[i][j] = v;
+            target_vs[i][j] = max(v, 0);
         }
     }
 

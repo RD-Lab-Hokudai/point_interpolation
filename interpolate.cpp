@@ -166,6 +166,7 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
                  hyperParams.original_color_segment_k, hyperParams.original_sigma_s,
                  hyperParams.original_sigma_r, hyperParams.original_r, hyperParams.original_coef_s);
     }
+    cout << "Done" << endl;
 
     /*
     {
@@ -279,11 +280,11 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
 
     if (show_pcd)
     {
-        //visualization::DrawGeometries({pcd_ptr}, "A");
+        visualization::DrawGeometries({pcd_ptr}, "Raw");
         generate_depth_image(interpolated_z, target_vs, envParams);
-        visualization::DrawGeometries({original_ptr}, "Original", 1000, 800);
-        visualization::DrawGeometries({interpolated_ptr}, "Original", 1000, 800);
-        }
+        visualization::DrawGeometries({original_ptr}, "Downsampled", 1000, 800);
+        visualization::DrawGeometries({interpolated_ptr}, "Interpolated", 1000, 800);
+    }
 
     if (!io::WritePointCloudToPCD(envParams.folder_path + to_string(data_no) + "_interpolated.pcd", *interpolated_ptr, {true}))
     {

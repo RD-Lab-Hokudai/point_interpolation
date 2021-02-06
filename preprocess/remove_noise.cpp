@@ -7,7 +7,7 @@
 using namespace std;
 using namespace open3d;
 
-void remove_noise(vector<vector<double> > &src, vector<vector<double> > &dst, vector<vector<int> > &target_vs, EnvParams envParams, double rad_coef = 0.001, int min_k = 1)
+void remove_noise(vector<vector<double>> &src, vector<vector<double>> &dst, vector<vector<int>> &target_vs, EnvParams envParams, double rad_coef = 0.001, int min_k = 1)
 {
     auto ptr = make_shared<geometry::PointCloud>();
     for (int i = 0; i < target_vs.size(); i++)
@@ -26,7 +26,8 @@ void remove_noise(vector<vector<double> > &src, vector<vector<double> > &dst, ve
         }
     }
     auto kdtree = make_shared<geometry::KDTreeFlann>(*ptr);
-    vector<vector<double> > full_grid(envParams.height, vector<double>(envParams.width, 0));
+
+    vector<vector<double>> full_grid(envParams.height, vector<double>(envParams.width, 0));
     for (int i = 0; i < ptr->points_.size(); i++)
     {
         double x = ptr->points_[i][0];
@@ -61,7 +62,7 @@ void remove_noise(vector<vector<double> > &src, vector<vector<double> > &dst, ve
         */
     }
 
-    dst = vector<vector<double> >(target_vs.size(), vector<double>(envParams.width, 0));
+    dst = vector<vector<double>>(target_vs.size(), vector<double>(envParams.width, 0));
     for (int i = 0; i < target_vs.size(); i++)
     {
         for (int j = 0; j < envParams.width; j++)

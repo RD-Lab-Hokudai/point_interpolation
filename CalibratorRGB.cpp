@@ -28,7 +28,7 @@ vector<int> data_ids = {700, 1290, 1460, 2350, 3850}; //1100 // 2/4 miyanosawa
     */
 
 // 02_04_miyanosawa
-
+/*
 string folder_path = "../../../data/2020_02_04_miyanosawa/";
 int X = 506;
 int Y = 483;
@@ -36,6 +36,7 @@ int Z = 495;
 int roll = 568;
 int pitch = 551;
 int yaw = 510;
+*/
 
 // 03_03_miyanosawa
 /*
@@ -58,6 +59,15 @@ int roll = 554;
 int pitch = 560;
 int yaw = 506;
 */
+
+//12_03_hassamu
+string folder_path = "../../../data/2020_12_03_hassamu/";
+int X = 489;
+int Y = 492;
+int Z = 510;
+int roll = 571;
+int pitch = 529;
+int yaw = 501;
 
 int u0 = 0;
 int v0 = 0;
@@ -195,7 +205,7 @@ int main(int argc, char *argv[])
         tans.emplace_back(tan(rad));
         rad += delta_rad;
     }
-    int layers = 16;
+    int layers = 64;
 
     for (int i = 0; i < data_ids.size(); i++)
     {
