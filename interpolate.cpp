@@ -39,45 +39,6 @@ void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
     const string pcd_path = envParams.folder_path + to_string(data_no) + ".pcd";
 
     auto img = cv::imread(img_path);
-    /*
-    //一時的にzed miniとサーモを同等の解像度，範囲にする
-    if (envParams.isRGB)
-    {
-        int height = 376;
-        int width = 582;
-        cv::Mat trimed_img = cv::Mat::zeros(height, width, CV_8UC3);
-        for (int i = 0; i < height; i++)
-        {
-            for (int j = 0; j < width; j++)
-            {
-                trimed_img.at<cv::Vec3b>(i, j) = img.at<cv::Vec3b>(i, j + 45);
-            }
-        }
-        envParams.width = width;
-        envParams.height = height;
-        img = trimed_img;
-    }
-    else
-    {
-        // 672x376
-        // 縦方向を揃えてみる
-        int height = 376;
-        int width = 582;
-        cv::Mat trimed_img = cv::Mat::zeros(height, width, CV_8UC3);
-        for (int i = 0; i < height; i++)
-        {
-            for (int j = 0; j < width; j++)
-            {
-                trimed_img.at<cv::Vec3b>(i, j) = img.at<cv::Vec3b>(i * 606 / 376, j * 938 / 582);
-            }
-        }
-        envParams.width = width;
-        envParams.height = height;
-        img = trimed_img;
-    }
-    //cv::imshow("a", img);
-    //cv::waitKey();
-    */
 
     cv::Mat blured;
     cv::GaussianBlur(img, blured, cv::Size(5, 5), 1.0);

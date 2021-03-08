@@ -16,12 +16,5 @@ struct EnvParams
     int pitch;
     int yaw;
 
-    string folder_path;
-    vector<int> data_ids;
-    string of_name;
-
-    string method;
-
     bool isFullHeight;
-    bool isRGB;
 };
