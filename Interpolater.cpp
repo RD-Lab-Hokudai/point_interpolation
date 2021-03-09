@@ -1,14 +1,16 @@
 #include <iostream>
 
-#include "models/envParams.cpp"
-#include "models/hyperParams.cpp"
-#include "data/loadParams.cpp"
-#include "interpolate.cpp"
+#include <opencv2/opencv.hpp>
+#include <pcl/point_cloud.h>
+#include <pcl/io/pcd_io.h>
+#include <dirent.h>
+
+#include "models/env_params.cpp"
+#include "models/hyper_params.cpp"
+#include "data/load_params.cpp"
+//include "interpolate.cpp"
 
 using namespace std;
-using namespace open3d;
-
-ofstream ofs;
 
 int main(int argc, char *argv[])
 {
@@ -76,22 +78,13 @@ int main(int argc, char *argv[])
                 cloud->points[i].z = z;
             }
 
-            imgs.emplace_back(img);
-            pcd_ptrs.emplace_back(cloud);
-
-            height = img.rows;
-            width = img.cols;
-            f_x = width / 2;
-            f_y = f_x;
-            size_is_initialized = true;
-
         double time, ssim, mse, mre;
         interpolate(cloud,img, params_use, hyper_params, time, ssim, mse, mre, true);
-        cout << str << "," << time << "," << ssim << "," << mse << "," << mre << "," << endl;
+        //cout << str << "," << time << "," << ssim << "," << mse << "," << mre << "," << endl;
         }
         catch (int e)
         {
-            cout<<"File ID "<<str<<": Either the image or the point cloud does not exist"<endl;
+            cout<<"File ID "<<str<<": Either the image or the point cloud does not exist"<<endl;
         }
     }
     return 0;

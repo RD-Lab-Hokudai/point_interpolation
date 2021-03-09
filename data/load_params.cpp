@@ -2,7 +2,7 @@
 #include <map>
 
 #include "../models/env_params.cpp"
-#include "../models/hyper_params"
+#include "../models/hyper_params.cpp"
 
 using namespace std;
 

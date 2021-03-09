@@ -2,13 +2,13 @@
 #include <vector>
 #include <chrono>
 
-#include <Open3D/Open3D.h>
+#include <pcl/point_cloud.h>
 #include <opencv2/opencv.hpp>
 #include <time.h>
 
-#include "models/envParams.cpp"
-#include "models/hyperParams.cpp"
-#include "data/loadParams.cpp"
+#include "models/env_params.cpp"
+#include "models/hyper_params.cpp"
+#include "data/load_params.cpp"
 #include "preprocess/grid_pcd.cpp"
 #include "preprocess/find_neighbors.cpp"
 #include "methods/linear.cpp"
@@ -21,42 +21,17 @@
 #include "postprocess/restore_pcd.cpp"
 
 using namespace std;
-using namespace open3d;
 
-void interpolate(int data_no, EnvParams envParams, HyperParams hyperParams,
+void interpolate(pcl::PointCloud<pcl::PointXYZ>& cloud,cv::Mat& img, EnvParams env_params, HyperParams hyper_params,
                  double &time, double &ssim, double &mse, double &mre,
                  bool show_pcd = false, bool show_result = true)
 {
-    string img_path = envParams.folder_path + to_string(data_no);
-    if (envParams.isRGB)
-    {
-        img_path += "_rgb.png";
-    }
-    else
-    {
-        img_path += ".png";
-    }
-    const string pcd_path = envParams.folder_path + to_string(data_no) + ".pcd";
-
-    auto img = cv::imread(img_path);
-
     cv::Mat blured;
     cv::GaussianBlur(img, blured, cv::Size(5, 5), 1.0);
-    //cv::imshow("A",blured);
-    //cv::waitKey();
-
-    geometry::PointCloud pointcloud;
-    auto pcd_ptr = make_shared<geometry::PointCloud>();
-    if (!io::ReadPointCloud(pcd_path, pointcloud))
-    {
-        cout << "Cannot read" << endl;
-    }
 
     auto start = chrono::system_clock::now();
 
-    *pcd_ptr = pointcloud;
-    vector<vector<double>>
-        original_grid, filtered_grid, original_interpolate_grid, filtered_interpolate_grid;
+    vector<vector<double>>        original_grid, filtered_grid, original_interpolate_grid, filtered_interpolate_grid;
     vector<vector<int>> target_vs, base_vs;
     int layer_cnt = 16;
     grid_pcd(pcd_ptr, envParams, original_grid, filtered_grid, original_interpolate_grid, filtered_interpolate_grid, target_vs, base_vs, layer_cnt);
