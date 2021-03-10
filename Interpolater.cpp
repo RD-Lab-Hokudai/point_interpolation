@@ -38,6 +38,8 @@ int main(int argc, char* argv[]) {
   EnvParams params_use = load_env_params(params_name);
   HyperParams hyper_params = load_default_hyper_params();
 
+  string method_name = argv[3];
+
   for (auto it = file_names.begin(); it != file_names.end(); it++) {
     string str = *it;
 
@@ -53,28 +55,30 @@ int main(int argc, char* argv[]) {
       cv::Mat img = cv::imread(img_path);
 
       string pcd_path = data_folder_path + name + ".pcd";
-      pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(
-          new pcl::PointCloud<pcl::PointXYZ>);
-      if (pcl::io::loadPCDFile<pcl::PointXYZ>(pcd_path, *cloud) == -1) {
+      pcl::PointCloud<pcl::PointXYZ> cloud;
+      if (pcl::io::loadPCDFile<pcl::PointXYZ>(pcd_path, cloud) == -1) {
         throw 2;
       }
 
-      for (int i = 0; i < cloud->points.size(); i++) {
-                // Assign position for camera coordinates
+      for (int i = 0; i < cloud.points.size(); i++) {
+        // Assign position for camera coordinates
         // Right-handed coordinate system
-        double x = cloud->points[i].y;
-        double y = -cloud->points[i].z;
-        double z = -cloud->points[i].x;
+        double x = cloud.points[i].y;
+        double y = -cloud.points[i].z;
+        double z = -cloud.points[i].x;
 
-        cloud->points[i].x = x;
-        cloud->points[i].y = y;
-        cloud->points[i].z = z;
+        cloud.points[i].x = x;
+        cloud.points[i].y = y;
+        cloud.points[i].z = z;
       }
 
       double time, ssim, mse, mre;
-      interpolate(*cloud, img, params_use, hyper_params, time, ssim, mse, mre);
-      // cout << str << "," << time << "," << ssim << "," << mse << "," << mre
-      // << "," << endl;
+      interpolate(cloud, img, params_use, hyper_params, method_name, time, ssim,
+                  mse, mre, true);
+
+      cout << name << "," << time << "," << ssim << "," << mse << "," << mre
+           << endl;
+
     } catch (int e) {
       switch (e) {
         case 1:

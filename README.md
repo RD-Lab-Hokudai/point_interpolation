@@ -47,11 +47,17 @@ $ make
 3. Run
 
 ```
-$ ./Interpolater <folder_path>
+$ ./Interpolater <folder_path> <calibration_id> <method_name>
 ```
 
 If you want to output the result to file,
 
 ```
-$ ./Interpolater <folder_path> > <output_path>
+$ ./Interpolater <folder_path> > <calibration_id> <method_name> > <output_path>
+```
+
+ex)
+
+```
+$ ./Interpolater ~/data miyanosawa_20200303 original
 ```

@@ -1,5 +1,6 @@
 #pragma once
 #include <chrono>
+#include <map>
 #include <vector>
 
 #include <pcl/point_cloud.h>
@@ -8,8 +9,8 @@
 #include <opencv2/opencv.hpp>
 
 #include "data/load_params.cpp"
+#include "methods/ip_basic_cv.cpp"
 /*
-#include "methods/ip_basic.cpp"
 #include "methods/linear.cpp"
 #include "methods/mrf.cpp"
 #include "methods/original.cpp"
@@ -30,29 +31,37 @@
 
 using namespace std;
 
-void interpolate(pcl::PointCloud<pcl::PointXYZ>& cloud, cv::Mat& img,
-                 EnvParams env_params, HyperParams hyper_params, double& time,
-                 double& ssim, double& mse, double& mre, bool show_pcd = false,
-                 bool show_result = true) {
+void interpolate(pcl::PointCloud<pcl::PointXYZ>& src_cloud, cv::Mat& img,
+                 EnvParams env_params, HyperParams hyper_params,
+                 string method_name, double& time, double& ssim, double& mse,
+                 double& mre, bool show_cloud = false) {
   cv::Mat blured;
   cv::GaussianBlur(img, blured, cv::Size(5, 5), 1.0);
 
   auto start = chrono::system_clock::now();
   pcl::PointCloud<pcl::PointXYZ> downsampled;
   double PI = acos(-1);
-  downsample(cloud, downsampled, -16.6, 16.6, 64, 16);
+  downsample(src_cloud, downsampled, -16.6, 16.6, 64, 16);
 
   cv::Mat grid, vs;
   grid_pointcloud(downsampled, -16.6, 16.6, 64, env_params, grid, vs);
 
-  pcl::PointCloud<pcl::PointXYZ> restored;
-  restore_pointcloud(grid, vs, env_params, restored);
+  cv::Mat interpolated;
 
-  pcl::PointCloud<pcl::PointXYZ>::Ptr downed_ptr(
-      new pcl::PointCloud<pcl::PointXYZ>(restored));
-  pcl::visualization::CloudViewer viewer("3D Viewer");
-  viewer.showCloud(downed_ptr);
-  while (!viewer.wasStopped()) {
+  if (method_name == "ip-basic") {
+    ip_basic_cv(grid, interpolated, vs, env_params);
+  }
+
+  pcl::PointCloud<pcl::PointXYZ> dst_cloud;
+  restore_pointcloud(interpolated, vs, env_params, dst_cloud);
+
+  if (show_cloud) {
+    pcl::visualization::CloudViewer viewer("Point Cloud");
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ptr(
+        new pcl::PointCloud<pcl::PointXYZ>(dst_cloud));
+    viewer.showCloud(cloud_ptr);
+    while (!viewer.wasStopped()) {
+    }
   }
 
   /*
