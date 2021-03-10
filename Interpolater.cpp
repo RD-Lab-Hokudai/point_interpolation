@@ -1,9 +1,9 @@
 #include <iostream>
 
 #include <dirent.h>
-#include <opencv2/opencv.hpp>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
+#include <opencv2/opencv.hpp>
 
 #include "data/load_params.cpp"
 #include "interpolate.cpp"
@@ -12,7 +12,7 @@
 
 using namespace std;
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   if (argc <= 3) {
     cout << "You should specify data folder, calibration setting name and "
             "interpolation method"
@@ -21,8 +21,8 @@ int main(int argc, char *argv[]) {
   }
 
   string data_folder_path = argv[1];
-  DIR *dir;
-  struct dirent *diread;
+  DIR* dir;
+  struct dirent* diread;
   set<string> file_names;
   if ((dir = opendir(data_folder_path.c_str())) != nullptr) {
     while ((diread = readdir(dir)) != nullptr) {
@@ -60,7 +60,8 @@ int main(int argc, char *argv[]) {
       }
 
       for (int i = 0; i < cloud->points.size(); i++) {
-        // Assign position for camera coordinates
+                // Assign position for camera coordinates
+        // Right-handed coordinate system
         double x = cloud->points[i].y;
         double y = -cloud->points[i].z;
         double z = -cloud->points[i].x;
@@ -76,11 +77,11 @@ int main(int argc, char *argv[]) {
       // << "," << endl;
     } catch (int e) {
       switch (e) {
-      case 1:
-        break;
-      case 2:
-        cout << "Img " << str << ": The point cloud does not exist" << endl;
-        break;
+        case 1:
+          break;
+        case 2:
+          cout << "Img " << str << ": The point cloud does not exist" << endl;
+          break;
       }
     }
   }

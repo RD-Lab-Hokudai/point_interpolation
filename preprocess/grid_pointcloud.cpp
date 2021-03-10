@@ -1,0 +1,134 @@
+#pragma once
+#include <vector>
+
+#include <pcl/point_cloud.h>
+#include <opencv2/opencv.hpp>
+
+#include "../models/env_params.cpp"
+
+using namespace std;
+
+/*
+Transform point cloud into depth image
+*/
+void grid_pointcloud(pcl::PointCloud<pcl::PointXYZ>& src_cloud,
+                     double min_angle_degree, double max_angle_degree,
+                     int target_layer_cnt, EnvParams& env_params, cv::Mat& grid,
+                     cv::Mat& vs) {
+  double PI = acos(-1);
+  double min_rad = min_angle_degree * PI / 180;
+  double delta_rad =
+      (max_angle_degree - min_angle_degree) / (target_layer_cnt - 1) * PI / 180;
+
+  grid = cv::Mat::zeros(target_layer_cnt, env_params.width, CV_64FC1);
+  vs = cv::Mat::zeros(target_layer_cnt, env_params.width, CV_16SC1);
+
+  double rollVal = (env_params.roll - 500) / 1000.0;
+  double pitchVal = (env_params.pitch - 500) / 1000.0;
+  double yawVal = (env_params.yaw - 500) / 1000.0;
+  Eigen::MatrixXd calibration_mtx(4, 4);
+  calibration_mtx << cos(yawVal) * cos(pitchVal),
+      cos(yawVal) * sin(pitchVal) * sin(rollVal) - sin(yawVal) * cos(rollVal),
+      cos(yawVal) * sin(pitchVal) * cos(rollVal) + sin(yawVal) * sin(rollVal),
+      (env_params.X - 500) / 100.0, sin(yawVal) * cos(pitchVal),
+      sin(yawVal) * sin(pitchVal) * sin(rollVal) + cos(yawVal) * cos(rollVal),
+      sin(yawVal) * sin(pitchVal) * cos(rollVal) - cos(yawVal) * sin(rollVal),
+      (env_params.Y - 500) / 100.0, -sin(pitchVal),
+      cos(pitchVal) * sin(rollVal), cos(pitchVal) * cos(rollVal),
+      (env_params.Z - 500) / 100.0, 0, 0, 0, 1;
+
+  for (int i = 0; i < src_cloud.points.size(); i++) {
+    double rawX = src_cloud.points[i].x;
+    double rawY = src_cloud.points[i].y;
+    double rawZ = src_cloud.points[i].z;
+
+    double rawR = sqrt(rawX * rawX + rawZ * rawZ);
+    double x = calibration_mtx(0, 0) * rawX + calibration_mtx(0, 1) * rawY +
+               calibration_mtx(0, 2) * rawZ + calibration_mtx(0, 3);
+    double y = calibration_mtx(1, 0) * rawX + calibration_mtx(1, 1) * rawY +
+               calibration_mtx(1, 2) * rawZ + calibration_mtx(1, 3);
+    double z = calibration_mtx(2, 0) * rawX + calibration_mtx(2, 1) * rawY +
+               calibration_mtx(2, 2) * rawZ + calibration_mtx(2, 3);
+
+    int v_idx = (int)((atan2(rawY, rawR) - min_rad) / delta_rad);
+
+    if (z > 0) {
+      int u = (int)(env_params.width / 2 + env_params.f_xy * x / z);
+      int v = (int)(env_params.height / 2 + env_params.f_xy * y / z);
+      if (0 <= u && u < env_params.width && 0 <= v && v < env_params.height) {
+        grid.at<double>(v_idx, u) = z;
+        vs.at<ushort>(v_idx, u) = v;
+      }
+    }
+  }
+  cv::imshow("A", grid);
+  cv::waitKey();
+
+  vs.forEach<ushort>([&](ushort& now, const int position[]) -> void {
+    if (now > 0) {
+      return;
+    }
+
+    double rawZ = 1;
+    double rawY = rawZ * tan(min_rad + position[0] * delta_rad);
+    double x_coef =
+        env_params.f_xy * calibration_mtx(0, 0) -
+        (position[1] - env_params.width / 2) * calibration_mtx(2, 0);
+    double right_value =
+        ((position[1] - env_params.width / 2) * calibration_mtx(2, 1) -
+         env_params.f_xy * calibration_mtx(0, 1)) *
+            rawY +
+        ((position[1] - env_params.width / 2) * calibration_mtx(2, 2) -
+         env_params.f_xy * calibration_mtx(0, 2)) *
+            rawZ;
+    //-env_params.f_xy* calibration_mtx(0, 3) +
+    //    (position[1] - env_params.width / 2) * calibration_mtx(2, 3);
+    double rawX = right_value / x_coef;
+
+    double y = calibration_mtx(1, 0) * rawX + calibration_mtx(1, 1) * rawY +
+               calibration_mtx(1, 2) * rawZ + calibration_mtx(1, 3);
+    double z = calibration_mtx(2, 0) * rawX + calibration_mtx(2, 1) * rawY +
+               calibration_mtx(2, 2) * rawZ + calibration_mtx(2, 3);
+    now = (ushort)((env_params.f_xy * y + env_params.height / 2 * z) / z);
+    // cout << now << endl;
+  });
+  cv::imshow("A", vs);
+  cv::waitKey();
+
+  /*
+  { // Check
+      auto original_ptr = make_shared<geometry::PointCloud>();
+      auto filtered_ptr = make_shared<geometry::PointCloud>();
+      for (int i = 0; i < 64; i++)
+      {
+          for (int j = 0; j < env_params.width; j++)
+          {
+              double z = original_grid[i][j];
+              if (z < 0)
+              {
+                  continue;
+              }
+              double x = z * (j - env_params.width / 2) / env_params.f_xy;
+              double y = z * (target_vs[i][j] - env_params.height / 2) /
+  env_params.f_xy; original_ptr->points_.emplace_back(x, y, z);
+          }
+
+          if (i % (64 / layer_cnt) == 0)
+          {
+              for (int j = 0; j < env_params.width; j++)
+              {
+                  double z = filtered_grid[i / (64 / layer_cnt)][j];
+                  if (z < 0)
+                  {
+                      continue;
+                  }
+                  double x = z * (j - env_params.width / 2) / env_params.f_xy;
+                  double y = z * (target_vs[i][j] - env_params.height / 2) /
+  env_params.f_xy; filtered_ptr->points_.emplace_back(x, z, -y);
+              }
+          }
+      }
+      //visualization::DrawGeometries({filtered_ptr}, "Points", 1200, 720);
+  }
+  */
+}

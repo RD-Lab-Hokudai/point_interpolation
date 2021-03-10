@@ -2,10 +2,10 @@
 #include <chrono>
 #include <vector>
 
-#include <opencv2/opencv.hpp>
 #include <pcl/point_cloud.h>
 #include <pcl/visualization/cloud_viewer.h>
 #include <time.h>
+#include <opencv2/opencv.hpp>
 
 #include "data/load_params.cpp"
 /*
@@ -20,18 +20,19 @@
 /*
 #include "postprocess/evaluate.cpp"
 #include "postprocess/generate_depth_image.cpp"
-#include "postprocess/restore_pcd.cpp"
 #include "preprocess/downsample.cpp"
 #include "preprocess/find_neighbors.cpp"
 #include "preprocess/grid_pcd.cpp"
 */
+#include "postprocess/restore_pointcloud.cpp"
 #include "preprocess/downsample.cpp"
+#include "preprocess/grid_pointcloud.cpp"
 
 using namespace std;
 
-void interpolate(pcl::PointCloud<pcl::PointXYZ> &cloud, cv::Mat &img,
-                 EnvParams env_params, HyperParams hyper_params, double &time,
-                 double &ssim, double &mse, double &mre, bool show_pcd = false,
+void interpolate(pcl::PointCloud<pcl::PointXYZ>& cloud, cv::Mat& img,
+                 EnvParams env_params, HyperParams hyper_params, double& time,
+                 double& ssim, double& mse, double& mre, bool show_pcd = false,
                  bool show_result = true) {
   cv::Mat blured;
   cv::GaussianBlur(img, blured, cv::Size(5, 5), 1.0);
@@ -40,10 +41,16 @@ void interpolate(pcl::PointCloud<pcl::PointXYZ> &cloud, cv::Mat &img,
   pcl::PointCloud<pcl::PointXYZ> downsampled;
   double PI = acos(-1);
   downsample(cloud, downsampled, -16.6, 0.52698, 64, 16);
+
+  cv::Mat grid, vs;
+  grid_pointcloud(cloud, -16.6, 16.6, 64, env_params, grid, vs);
+
+  pcl::PointCloud<pcl::PointXYZ> restored;
+  restore_pointcloud(grid, vs, env_params, restored);
+
   pcl::PointCloud<pcl::PointXYZ>::Ptr downed_ptr(
-      new pcl::PointCloud<pcl::PointXYZ>(downsampled));
-  pcl::visualization::CloudViewer viewer("Cloud Viewer");
-  // viewer.setBackgroundColor(1.0, 0.5, 1.0);
+      new pcl::PointCloud<pcl::PointXYZ>(restored));
+  pcl::visualization::CloudViewer viewer("3D Viewer");
   viewer.showCloud(downed_ptr);
   while (!viewer.wasStopped()) {
   }

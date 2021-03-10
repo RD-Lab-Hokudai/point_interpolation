@@ -8,63 +8,35 @@ using namespace std;
 /*
 Downsample point cloud
 */
-void downsample(pcl::PointCloud<pcl::PointXYZ> &src_cloud,
-                pcl::PointCloud<pcl::PointXYZ> &dst_cloud,
+void downsample(pcl::PointCloud<pcl::PointXYZ>& src_cloud,
+                pcl::PointCloud<pcl::PointXYZ>& dst_cloud,
                 double min_angle_degree, double max_angle_degree,
                 int original_layer_cnt, int down_layer_cnt) {
   double PI = acos(-1);
+  double min_rad = min_angle_degree * PI / 180;
   double delta_rad = (max_angle_degree - min_angle_degree) /
                      (original_layer_cnt - 1) * PI / 180;
 
-  dst_cloud = src_cloud;
-  /*
-    dst_cloud = new pcl::PointCloud<pcl::PointXYZ>();
+  dst_cloud = pcl::PointCloud<pcl::PointXYZ>();
 
+  for (int i = 0; i < src_cloud.points.size(); i++) {
+    double x = src_cloud.points[i].x;
+    double y = src_cloud.points[i].y;
+    double z = src_cloud.points[i].z;
 
-    pcl::PointCloud<pcl::PointXYZ> cloud;
-    auto clipped_ptr = make_shared<geometry::PointCloud>();
-    vector<int> clipped_indecies;
-    vector<vector<Eigen::Vector3d>> all_layers(64, vector<Eigen::Vector3d>());
-    double rollVal = (envParams.roll - 500) / 1000.0;
-    double pitchVal = (envParams.pitch - 500) / 1000.0;
-    double yawVal = (envParams.yaw - 500) / 1000.0;
-    Eigen::MatrixXd calibration_mtx(4, 4);
-    calibration_mtx << cos(yawVal) * cos(pitchVal),
-        cos(yawVal) * sin(pitchVal) * sin(rollVal) - sin(yawVal) * cos(rollVal),
-        cos(yawVal) * sin(pitchVal) * cos(rollVal) + sin(yawVal) * sin(rollVal),
-        (envParams.X - 500) / 100.0, sin(yawVal) * cos(pitchVal),
-        sin(yawVal) * sin(pitchVal) * sin(rollVal) + cos(yawVal) * cos(rollVal),
-        sin(yawVal) * sin(pitchVal) * cos(rollVal) - cos(yawVal) * sin(rollVal),
-        (envParams.Y - 500) / 100.0, -sin(pitchVal), cos(pitchVal) *
-    sin(rollVal), cos(pitchVal) * cos(rollVal), (envParams.Z - 500) / 100.0, 0,
-    0, 0, 1; cout << calibration_mtx << endl;
+    double r = sqrt(x * x + z * z);
 
-    for (int i = 0; i < raw_pcd_ptr->points_.size(); i++) {
-      double rawX = raw_pcd_ptr->points_[i][1];
-      double rawY = -raw_pcd_ptr->points_[i][2];
-      double rawZ = -raw_pcd_ptr->points_[i][0];
+    double rad = atan2(y, r);
 
-      double r = sqrt(rawX * rawX + rawZ * rawZ);
-      double x = calibration_mtx(0, 0) * rawX + calibration_mtx(0, 1) * rawY +
-                 calibration_mtx(0, 2) * rawZ + calibration_mtx(0, 3);
-      double y = calibration_mtx(1, 0) * rawX + calibration_mtx(1, 1) * rawY +
-                 calibration_mtx(1, 2) * rawZ + calibration_mtx(1, 3);
-      double z = calibration_mtx(2, 0) * rawX + calibration_mtx(2, 1) * rawY +
-                 calibration_mtx(2, 2) * rawZ + calibration_mtx(2, 3);
-
-      if (z > 0) {
-        int u = (int)(envParams.width / 2 + envParams.f_xy * x / z);
-        int v = (int)(envParams.height / 2 + envParams.f_xy * y / z);
-        if (0 <= u && u < envParams.width && 0 <= v && v < envParams.height) {
-          auto it = lower_bound(tans.begin(), tans.end(), rawY / r);
-          int index = it - tans.begin();
-          all_layers[index].emplace_back(x, y, z);
-          clipped_ptr->points_.emplace_back(x, y, z);
-          clipped_indecies.emplace_back(index);
-        }
-      }
+    int idx = (int)((rad - min_rad) / delta_rad);
+    if (idx < 0 || idx >= original_layer_cnt) {
+      continue;
     }
-    */
+
+    if (idx % (original_layer_cnt / down_layer_cnt) == 0) {
+      dst_cloud.points.push_back(pcl::PointXYZ(x, y, z));
+    }
+  }
 
   /*
   {
