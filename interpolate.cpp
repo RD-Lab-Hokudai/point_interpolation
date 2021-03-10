@@ -40,10 +40,10 @@ void interpolate(pcl::PointCloud<pcl::PointXYZ>& cloud, cv::Mat& img,
   auto start = chrono::system_clock::now();
   pcl::PointCloud<pcl::PointXYZ> downsampled;
   double PI = acos(-1);
-  downsample(cloud, downsampled, -16.6, 0.52698, 64, 16);
+  downsample(cloud, downsampled, -16.6, 16.6, 64, 16);
 
   cv::Mat grid, vs;
-  grid_pointcloud(cloud, -16.6, 16.6, 64, env_params, grid, vs);
+  grid_pointcloud(downsampled, -16.6, 16.6, 64, env_params, grid, vs);
 
   pcl::PointCloud<pcl::PointXYZ> restored;
   restore_pointcloud(grid, vs, env_params, restored);
