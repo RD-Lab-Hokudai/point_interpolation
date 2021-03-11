@@ -19,12 +19,12 @@
 #include "models/env_params.cpp"
 #include "models/hyper_params.cpp"
 /*
-#include "postprocess/evaluate.cpp"
 #include "postprocess/generate_depth_image.cpp"
 #include "preprocess/downsample.cpp"
 #include "preprocess/find_neighbors.cpp"
 #include "preprocess/grid_pcd.cpp"
 */
+#include "postprocess/evaluate.cpp"
 #include "postprocess/restore_pointcloud.cpp"
 #include "preprocess/downsample.cpp"
 #include "preprocess/grid_pointcloud.cpp"
@@ -52,10 +52,16 @@ void interpolate(pcl::PointCloud<pcl::PointXYZ>& src_cloud, cv::Mat& img,
     ip_basic_cv(grid, interpolated, vs, env_params);
   }
 
-  pcl::PointCloud<pcl::PointXYZ> dst_cloud;
-  restore_pointcloud(interpolated, vs, env_params, dst_cloud);
+  cv::Mat original_grid, original_vs;
+  grid_pointcloud(src_cloud, -16.6, 16.6, 128, env_params, original_grid,
+                  original_vs);
+
+  double f_val;
+  // evaluate(interpolated, original_grid, env_params, ssim, mse, mre, f_val);
 
   if (show_cloud) {
+    pcl::PointCloud<pcl::PointXYZ> dst_cloud;
+    restore_pointcloud(original_grid, vs, env_params, dst_cloud);
     pcl::visualization::CloudViewer viewer("Point Cloud");
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ptr(
         new pcl::PointCloud<pcl::PointXYZ>(dst_cloud));

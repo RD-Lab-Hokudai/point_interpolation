@@ -22,6 +22,8 @@ void grid_pointcloud(pcl::PointCloud<pcl::PointXYZ>& src_cloud,
 
   grid = cv::Mat::zeros(target_layer_cnt, env_params.width, CV_64FC1);
   vs = cv::Mat::zeros(target_layer_cnt, env_params.width, CV_16SC1);
+  cv::Mat hoge = cv::Mat::zeros(env_params.height, env_params.width, CV_64FC1);
+  cv::Mat vs2 = cv::Mat::zeros(target_layer_cnt, env_params.width, CV_64FC1);
 
   double rollVal = (env_params.roll - 500) / 1000.0;
   double pitchVal = (env_params.pitch - 500) / 1000.0;
@@ -57,7 +59,9 @@ void grid_pointcloud(pcl::PointCloud<pcl::PointXYZ>& src_cloud,
       int v = (int)(env_params.height / 2 + env_params.f_xy * y / z);
       if (0 <= u && u < env_params.width && 0 <= v && v < env_params.height) {
         grid.at<double>(v_idx, u) = z;
-        vs.at<ushort>(v_idx, u) = v;
+        vs.at<ushort>(v_idx, u) = (ushort)v;
+        vs2.at<double>(v_idx, u) = v / 300.0;
+        hoge.at<double>(v, u) = z;
       }
     }
   }
@@ -67,26 +71,62 @@ void grid_pointcloud(pcl::PointCloud<pcl::PointXYZ>& src_cloud,
       return;
     }
 
-    double rawZ = 1;
-    double rawY = rawZ * tan(min_rad + position[0] * delta_rad);
-    double x_coef =
-        env_params.f_xy * calibration_mtx(0, 0) -
-        (position[1] - env_params.width / 2) * calibration_mtx(2, 0);
-    double right_value =
-        ((position[1] - env_params.width / 2) * calibration_mtx(2, 1) -
-         env_params.f_xy * calibration_mtx(0, 1)) *
-            rawY +
-        ((position[1] - env_params.width / 2) * calibration_mtx(2, 2) -
-         env_params.f_xy * calibration_mtx(0, 2)) *
-            rawZ -
-        env_params.f_xy * calibration_mtx(0, 3) +
-        (position[1] - env_params.width / 2) * calibration_mtx(2, 3);
-    double rawX = right_value / x_coef;
+    /* Old strategy
+        double rawZ = 1;
+        double rawY = rawZ * tan(min_rad + position[0] * delta_rad);
+        double x_coef =
+            env_params.f_xy * calibration_mtx(0, 0) -
+            (position[1] - env_params.width / 2) * calibration_mtx(2, 0);
+        double right_value =
+            ((position[1] - env_params.width / 2) * calibration_mtx(2, 1) -
+             env_params.f_xy * calibration_mtx(0, 1)) *
+                rawY +
+            ((position[1] - env_params.width / 2) * calibration_mtx(2, 2) -
+             env_params.f_xy * calibration_mtx(0, 2)) *
+                rawZ -
+            env_params.f_xy * calibration_mtx(0, 3) +
+            (position[1] - env_params.width / 2) * calibration_mtx(2, 3);
+        double rawX = right_value / x_coef;
 
+        double y = calibration_mtx(1, 0) * rawX + calibration_mtx(1, 1) * rawY +
+                   calibration_mtx(1, 2) * rawZ;  //+ calibration_mtx(1, 3);
+        double z = calibration_mtx(2, 0) * rawX + calibration_mtx(2, 1) * rawY +
+                   calibration_mtx(2, 2) * rawZ;  // + calibration_mtx(2, 3);
+        now = (ushort)(env_params.height / 2 + env_params.f_xy * y / z);
+        vs2.at<double>(position[0], position[1]) = now / 300.0;
+        */
+
+    double rawY = tan(min_rad + position[0] * delta_rad);
+    double A = env_params.f_xy * calibration_mtx(0, 0) +
+               (env_params.width / 2 - position[1]) * calibration_mtx(2, 0);
+    double B = (env_params.f_xy * calibration_mtx(0, 1) +
+                (env_params.width / 2 - position[1]) * calibration_mtx(2, 1)) *
+               rawY;
+    double C = env_params.f_xy * calibration_mtx(0, 2) +
+               (env_params.width / 2 - position[1]) * calibration_mtx(2, 2);
+    double D = env_params.f_xy * calibration_mtx(0, 3) +
+               (env_params.width / 2 - position[1]) * calibration_mtx(2, 3);
+    double E = B + D;
+
+    double rawZ = (-C * E + A * sqrt(A * A + C * C - E * E)) / (A * A + C * C);
+    double rawX = sqrt(1 - rawZ * rawZ);
+    double x = calibration_mtx(0, 0) * rawX + calibration_mtx(0, 1) * rawY +
+               calibration_mtx(0, 2) * rawZ + calibration_mtx(0, 3);
     double y = calibration_mtx(1, 0) * rawX + calibration_mtx(1, 1) * rawY +
                calibration_mtx(1, 2) * rawZ + calibration_mtx(1, 3);
     double z = calibration_mtx(2, 0) * rawX + calibration_mtx(2, 1) * rawY +
                calibration_mtx(2, 2) * rawZ + calibration_mtx(2, 3);
-    now = (ushort)((env_params.f_xy * y + env_params.height / 2 * z) / z);
+    ushort v = (ushort)(env_params.height / 2 + env_params.f_xy * y / z);
+    if (0 <= v && v < env_params.height) {
+      now = v;
+      int uu = (int)(env_params.width / 2 + env_params.f_xy * x / z);
+      vs2.at<double>(position[0], position[1]) = now / 300.0;
+    }
   });
+
+  cv::imshow(to_string(target_layer_cnt), grid);
+  cv::imshow("A", hoge);
+  cv::waitKey();
+  cv::imshow("B", vs2);
+  cv::waitKey();
 }
