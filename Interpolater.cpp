@@ -72,12 +72,12 @@ int main(int argc, char* argv[]) {
         cloud.points[i].z = z;
       }
 
-      double time, ssim, mse, mre;
+      double time, ssim, mse, mre, f_val;
       interpolate(cloud, img, params_use, hyper_params, method_name, time, ssim,
-                  mse, mre, true);
+                  mse, mre, f_val, true);
 
       cout << name << "," << time << "," << ssim << "," << mse << "," << mre
-           << endl;
+           << "," << f_val << endl;
 
     } catch (int e) {
       switch (e) {

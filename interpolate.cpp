@@ -34,7 +34,7 @@ using namespace std;
 void interpolate(pcl::PointCloud<pcl::PointXYZ>& src_cloud, cv::Mat& img,
                  EnvParams env_params, HyperParams hyper_params,
                  string method_name, double& time, double& ssim, double& mse,
-                 double& mre, bool show_cloud = false) {
+                 double& mre, double& f_val, bool show_cloud = false) {
   cv::Mat blured;
   cv::GaussianBlur(img, blured, cv::Size(5, 5), 1.0);
 
@@ -53,11 +53,13 @@ void interpolate(pcl::PointCloud<pcl::PointXYZ>& src_cloud, cv::Mat& img,
   }
 
   cv::Mat original_grid, original_vs;
-  grid_pointcloud(src_cloud, -16.6, 16.6, env_params.height, env_params,
-                  original_grid, original_vs);
+  grid_pointcloud(src_cloud, -16.6, 16.6, 128, env_params, original_grid,
+                  original_vs);
 
-  double f_val;
-  // evaluate(interpolated, original_grid, env_params, ssim, mse, mre, f_val);
+  time = chrono::duration_cast<chrono::milliseconds>(
+             chrono::system_clock::now() - start)
+             .count();
+  evaluate(interpolated, original_grid, env_params, ssim, mse, mre, f_val);
 
   if (show_cloud) {
     cv::imshow("I", interpolated);

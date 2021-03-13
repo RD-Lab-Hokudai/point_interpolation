@@ -21,9 +21,9 @@ void grid_pointcloud(pcl::PointCloud<pcl::PointXYZ>& src_cloud,
   double delta_rad =
       (max_angle_degree - min_angle_degree) / (target_layer_cnt - 1) * PI / 180;
 
+  // キャリブレーション
   grid = cv::Mat::zeros(target_layer_cnt, env_params.width, CV_64FC1);
   vs = cv::Mat::zeros(target_layer_cnt, env_params.width, CV_16SC1);
-  cv::Mat vs2 = cv::Mat::zeros(target_layer_cnt, env_params.width, CV_64FC1);
 
   double rollVal = (env_params.roll - 500) / 1000.0;
   double pitchVal = (env_params.pitch - 500) / 1000.0;
@@ -60,7 +60,6 @@ void grid_pointcloud(pcl::PointCloud<pcl::PointXYZ>& src_cloud,
       if (0 <= u && u < env_params.width && 0 <= v && v < env_params.height) {
         grid.at<double>(v_idx, u) = z;
         vs.at<ushort>(v_idx, u) = (ushort)v;
-        vs2.at<double>(v_idx, u) = v / 300.0;
       }
     }
   }
