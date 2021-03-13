@@ -104,8 +104,6 @@ double eqm(Mat& img1, Mat& img2) {
     }
   }
 
-  cout << "Cannot cnt = " << cannot << endl;
-  cout << ground_cnt << " " << interpolate_cnt << endl;
   if (cnt == 0) {
     return 1e9;
   } else {
@@ -212,7 +210,6 @@ double f_value(Mat& img1, Mat& img2) {
     }
   }
 
-  cout << tp << " " << fp << " " << fn << " " << tn << endl;
   double precision = (0.0 + tp) / (tp + fp);
   double recall = (0.0 + tp) / (tp + fn);
   return 2 * precision * recall / (precision + recall);

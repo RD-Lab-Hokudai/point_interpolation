@@ -4,7 +4,7 @@
 #include <opencv2/opencv.hpp>
 
 #include "../models/env_params.cpp"
-#include "quality_metrics_OpenCV_2.cpp"
+#include "quality_metrics.cpp"
 
 using namespace std;
 

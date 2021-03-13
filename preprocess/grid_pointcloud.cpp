@@ -75,8 +75,4 @@ void grid_pointcloud(pcl::PointCloud<pcl::PointXYZ>& src_cloud,
       now = v;
     }
   });
-
-  cv::imshow(to_string(target_layer_cnt), grid);
-  cv::imshow("A", vs);
-  cv::waitKey();
 }
