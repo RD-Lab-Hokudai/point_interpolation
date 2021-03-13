@@ -31,11 +31,10 @@
 
 using namespace std;
 
-void interpolate(pcl::PointCloud<pcl::PointXYZ> &src_cloud, cv::Mat &img,
+void interpolate(pcl::PointCloud<pcl::PointXYZ>& src_cloud, cv::Mat& img,
                  EnvParams env_params, HyperParams hyper_params,
-                 string method_name, double &time, double &ssim, double &mse,
-                 double &mre, bool show_cloud = false)
-{
+                 string method_name, double& time, double& ssim, double& mse,
+                 double& mre, bool show_cloud = false) {
   cv::Mat blured;
   cv::GaussianBlur(img, blured, cv::Size(5, 5), 1.0);
 
@@ -45,32 +44,31 @@ void interpolate(pcl::PointCloud<pcl::PointXYZ> &src_cloud, cv::Mat &img,
   downsample(src_cloud, downsampled, -16.6, 16.6, 64, 16);
 
   cv::Mat grid, vs;
-  grid_pointcloud(downsampled, -16.6, 16.6, 64, env_params, grid, vs);
+  grid_pointcloud(downsampled, -16.6, 16.6, 128, env_params, grid, vs);
 
   cv::Mat interpolated;
 
-  if (method_name == "ip-basic")
-  {
+  if (method_name == "ip-basic") {
     ip_basic_cv(grid, interpolated, vs, env_params);
   }
 
   cv::Mat original_grid, original_vs;
-  grid_pointcloud(src_cloud, -16.6, 16.6, env_params.height, env_params, original_grid,
-                  original_vs);
+  grid_pointcloud(src_cloud, -16.6, 16.6, env_params.height, env_params,
+                  original_grid, original_vs);
 
   double f_val;
   // evaluate(interpolated, original_grid, env_params, ssim, mse, mre, f_val);
 
-  if (show_cloud)
-  {
+  if (show_cloud) {
+    cv::imshow("I", interpolated);
+    cv::waitKey();
     pcl::PointCloud<pcl::PointXYZ> dst_cloud;
-    restore_pointcloud(original_grid, original_vs, env_params, dst_cloud);
+    restore_pointcloud(interpolated, vs, env_params, dst_cloud);
     pcl::visualization::CloudViewer viewer("Point Cloud");
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ptr(
         new pcl::PointCloud<pcl::PointXYZ>(dst_cloud));
     viewer.showCloud(cloud_ptr);
-    while (!viewer.wasStopped())
-    {
+    while (!viewer.wasStopped()) {
     }
   }
 
