@@ -4,7 +4,6 @@
 #include <iostream>
 
 using namespace std;
-using namespace cv;
 
 // quality-metric
 namespace qm {
@@ -12,11 +11,11 @@ namespace qm {
 #define C2 (float)(0.03 * 100 * 0.03 * 100)
 
 // sigma on block_size
-double sigma(Mat& m, int i, int j, int block_size) {
+double sigma(cv::Mat& m, int i, int j, int block_size) {
   double sd = 0;
 
-  Mat m_tmp = m(Range(i, i + block_size), Range(j, j + block_size));
-  Mat m_squared(block_size, block_size, CV_64F);
+  cv::Mat m_tmp = m(cv::Range(i, i + block_size), cv::Range(j, j + block_size));
+  cv::Mat m_squared(block_size, block_size, CV_64F);
 
   multiply(m_tmp, m_tmp, m_squared);
 
@@ -31,10 +30,12 @@ double sigma(Mat& m, int i, int j, int block_size) {
 }
 
 // Covariance
-double cov(Mat& m1, Mat& m2, int i, int j, int block_size) {
-  Mat m3 = Mat::zeros(block_size, block_size, m1.depth());
-  Mat m1_tmp = m1(Range(i, i + block_size), Range(j, j + block_size));
-  Mat m2_tmp = m2(Range(i, i + block_size), Range(j, j + block_size));
+double cov(cv::Mat& m1, cv::Mat& m2, int i, int j, int block_size) {
+  cv::Mat m3 = cv::Mat::zeros(block_size, block_size, m1.depth());
+  cv::Mat m1_tmp =
+      m1(cv::Range(i, i + block_size), cv::Range(j, j + block_size));
+  cv::Mat m2_tmp =
+      m2(cv::Range(i, i + block_size), cv::Range(j, j + block_size));
 
   multiply(m1_tmp, m2_tmp, m3);
 
@@ -48,7 +49,7 @@ double cov(Mat& m1, Mat& m2, int i, int j, int block_size) {
 }
 
 // Mean reprojection error
-double mre(Mat& img1, Mat& img2) {
+double mre(cv::Mat& img1, cv::Mat& img2) {
   double error = 0;
   int height = img1.rows;
   int width = img1.cols;
@@ -75,7 +76,7 @@ double mre(Mat& img1, Mat& img2) {
 }
 
 // Mean squared error
-double eqm(Mat& img1, Mat& img2) {
+double eqm(cv::Mat& img1, cv::Mat& img2) {
   double eqm = 0;
   int height = img1.rows;
   int width = img1.cols;
@@ -114,7 +115,7 @@ double eqm(Mat& img1, Mat& img2) {
 /**
  *	Compute the PSNR between 2 images
  */
-double psnr(Mat& img_src, Mat& img_compressed, int block_size) {
+double psnr(cv::Mat& img_src, cv::Mat& img_compressed, int block_size) {
   int D = 255;
   return (10 * log10((D * D) / eqm(img_src, img_compressed)));
 }
@@ -122,7 +123,7 @@ double psnr(Mat& img_src, Mat& img_compressed, int block_size) {
 /**
  * Compute the SSIM between 2 images
  */
-double ssim(Mat& img1, Mat& img2, int block_size) {
+double ssim(cv::Mat& img1, cv::Mat& img2, int block_size) {
   double mssim = 0;
 
   int nbBlockPerHeight = img1.rows / block_size;
@@ -186,7 +187,7 @@ double ssim(Mat& img1, Mat& img2, int block_size) {
   }
 }
 
-double f_value(Mat& img1, Mat& img2) {
+double f_value(cv::Mat& img1, cv::Mat& img2) {
   int tp = 0;
   int fp = 0;
   int fn = 0;
@@ -213,45 +214,5 @@ double f_value(Mat& img1, Mat& img2) {
   double precision = (0.0 + tp) / (tp + fp);
   double recall = (0.0 + tp) / (tp + fn);
   return 2 * precision * recall / (precision + recall);
-}
-
-void compute_quality_metrics(char* file1, char* file2, int block_size) {
-  Mat img_src;
-  Mat img_compressed;
-
-  // Loading pictures
-  img_src = imread(file1, CV_LOAD_IMAGE_GRAYSCALE);
-  img_compressed = imread(file2, CV_LOAD_IMAGE_GRAYSCALE);
-
-  img_src.convertTo(img_src, CV_64F);
-  img_compressed.convertTo(img_compressed, CV_64F);
-
-  int height_o = img_src.rows;
-  int height_r = img_compressed.rows;
-  int width_o = img_src.cols;
-  int width_r = img_compressed.cols;
-
-  // Check pictures size
-  if (height_o != height_r || width_o != width_r) {
-    cout << "Images must have the same dimensions" << endl;
-    return;
-  }
-
-  // Check if the block size is a multiple of height / width
-  if (height_o % block_size != 0 || width_o % block_size != 0) {
-    cout << "WARNING : Image WIDTH and HEIGHT should be divisible by "
-            "BLOCK_SIZE for the maximum accuracy"
-         << endl
-         << "HEIGHT : " << height_o << endl
-         << "WIDTH : " << width_o << endl
-         << "BLOCK_SIZE : " << block_size << endl
-         << endl;
-  }
-
-  double ssim_val = ssim(img_src, img_compressed, block_size);
-  double psnr_val = psnr(img_src, img_compressed, block_size);
-
-  cout << "SSIM : " << ssim_val << endl;
-  cout << "PSNR : " << psnr_val << endl;
 }
 }  // namespace qm

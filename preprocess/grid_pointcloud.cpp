@@ -55,8 +55,8 @@ void grid_pointcloud(pcl::PointCloud<pcl::PointXYZ>& src_cloud,
     int v_idx = (int)((atan2(y, r) - min_rad) / delta_rad);
 
     if (z > 0) {
-      int u = (int)(env_params.width / 2 + env_params.f_xy * x / z);
-      int v = (int)(env_params.height / 2 + env_params.f_xy * y / z);
+      int u = round(env_params.width / 2 + env_params.f_xy * x / z);
+      int v = round(env_params.height / 2 + env_params.f_xy * y / z);
       if (0 <= u && u < env_params.width && 0 <= v && v < env_params.height) {
         grid.at<double>(v_idx, u) = z;
         vs.at<ushort>(v_idx, u) = (ushort)v;
@@ -69,7 +69,7 @@ void grid_pointcloud(pcl::PointCloud<pcl::PointXYZ>& src_cloud,
       return;
     }
 
-    int v = (int)(env_params.height / 2 +
+    int v = round(env_params.height / 2 +
                   env_params.f_xy * tan(min_rad + position[0] * delta_rad));
     if (0 <= v && v < env_params.height) {
       now = v;

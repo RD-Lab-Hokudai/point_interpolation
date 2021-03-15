@@ -28,6 +28,7 @@
 #include "postprocess/restore_pointcloud.cpp"
 #include "preprocess/downsample.cpp"
 #include "preprocess/grid_pointcloud.cpp"
+#include "preprocess/remove_noise.cpp"
 
 using namespace std;
 
@@ -40,25 +41,44 @@ void interpolate(pcl::PointCloud<pcl::PointXYZ>& src_cloud, cv::Mat& img,
 
   auto start = chrono::system_clock::now();
   pcl::PointCloud<pcl::PointXYZ> downsampled;
-  double PI = acos(-1);
-  downsample(src_cloud, downsampled, -16.6, 16.6, 64, 16);
+  int height = 64;
+  double min_angle_degree = -16.6;
+  double max_angle_degree = 16.6;
 
+  // 16レイヤーに変換　
+  downsample(src_cloud, downsampled, min_angle_degree, max_angle_degree, 64,
+             16);
+
+  // ２次元に変換
   cv::Mat grid, vs;
-  grid_pointcloud(downsampled, -16.6, 16.6, 128, env_params, grid, vs);
+  grid_pointcloud(downsampled, min_angle_degree, max_angle_degree, height,
+                  env_params, grid, vs);
+
+  // 悪天候ノイズ除去
+  cv::Mat removed;
+  remove_noise(grid, removed, vs, env_params);
+  grid = removed;
 
   cv::Mat interpolated;
 
+  // 補完
   if (method_name == "ip-basic") {
     ip_basic_cv(grid, interpolated, vs, env_params);
   }
 
-  cv::Mat original_grid, original_vs;
-  grid_pointcloud(src_cloud, -16.6, 16.6, 128, env_params, original_grid,
-                  original_vs);
+  // 補完ノイズ除去
+  cv::Mat removed2;
+  remove_noise(interpolated, removed2, vs, env_params);
+  interpolated = removed2;
 
+  // 評価
   time = chrono::duration_cast<chrono::milliseconds>(
              chrono::system_clock::now() - start)
              .count();
+
+  cv::Mat original_grid, original_vs;
+  grid_pointcloud(src_cloud, min_angle_degree, max_angle_degree, height,
+                  env_params, original_grid, original_vs);
   evaluate(interpolated, original_grid, env_params, ssim, mse, mre, f_val);
 
   if (show_cloud) {
