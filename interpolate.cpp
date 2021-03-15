@@ -9,9 +9,10 @@
 #include <opencv2/opencv.hpp>
 
 #include "data/load_params.cpp"
-#include "methods/ip_basic_cv.cpp"
-/*
+#include "methods/guided_filter.cpp"
+#include "methods/ip_basic.cpp"
 #include "methods/linear.cpp"
+/*
 #include "methods/mrf.cpp"
 #include "methods/original.cpp"
 #include "methods/pwas.cpp"
@@ -62,8 +63,14 @@ void interpolate(pcl::PointCloud<pcl::PointXYZ>& src_cloud, cv::Mat& img,
   cv::Mat interpolated;
 
   // 補完
+  if (method_name == "linear") {
+    linear(grid, interpolated, vs, env_params);
+  }
   if (method_name == "ip-basic") {
-    ip_basic_cv(grid, interpolated, vs, env_params);
+    ip_basic(grid, interpolated, vs, env_params);
+  }
+  if (method_name == "guided-filter") {
+    guided_filter(grid, interpolated, vs, env_params, blured);
   }
 
   // 補完ノイズ除去

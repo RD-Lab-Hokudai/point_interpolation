@@ -2,58 +2,64 @@
 #include <iostream>
 #include <vector>
 
-#include "../models/envParams.cpp"
+#include <opencv2/opencv.hpp>
+
+#include "../models/env_params.cpp"
 
 using namespace std;
 
-void linear(vector<vector<double>> &target_grid, vector<vector<double>> &base_grid, vector<vector<int>> &target_vs, vector<vector<int>> &base_vs, EnvParams envParams)
-{
-    // Linear interpolation
-    vector<vector<double>> full_grid(envParams.height, vector<double>(envParams.width, 0));
+void linear(cv::Mat& src_grid, cv::Mat& dst_grid, cv::Mat& vs,
+            EnvParams env_params) {
+  cv::Mat full_grid =
+      cv::Mat::zeros(env_params.height, env_params.width, CV_64FC1);
 
-    for (int j = 0; j < envParams.width; j++)
-    {
-        for (int k = 0; k < base_vs[0][j]; k++)
-        {
-            full_grid[k][j] = base_grid[0][j];
-        }
+  for (int j = 0; j < env_params.width; j++) {
+    ushort vNext = vs.at<ushort>(0, j);
+    for (int k = 0; k < vNext; k++) {
+      full_grid.at<double>(k, j) = src_grid.at<double>(0, j);
     }
+  }
+  cv::imshow("A", full_grid);
+  cv::imshow("B", src_grid);
+  cv::waitKey();
 
-    for (int i = 0; i + 1 < base_grid.size(); i++)
-    {
-        for (int j = 0; j < envParams.width; j++)
-        {
-            double zPrev = base_grid[i][j];
-            double zNext = base_grid[i + 1][j];
-            double yPrev = base_grid[i][j] * (base_vs[i][j] - envParams.height / 2) / envParams.f_xy;
-            double yNext = base_grid[i + 1][j] * (base_vs[i + 1][j] - envParams.height / 2) / envParams.f_xy;
-            double angle = (zNext - zPrev) / (yNext - yPrev);
+  for (int i = 0; i + 1 < vs.rows; i++) {
+    for (int j = 0; j < vs.cols; j++) {
+      double zPrev = src_grid.at<double>(i, j);
+      double zNext = src_grid.at<double>(i + 1, j);
+      ushort vPrev = vs.at<ushort>(i, j);
+      ushort vNext = vs.at<ushort>(i + 1, j);
+      double yPrev = zPrev * (vPrev - env_params.height / 2) / env_params.f_xy;
+      double yNext = zNext * (vNext - env_params.height / 2) / env_params.f_xy;
+      double angle = (zNext - zPrev) / (yNext - yPrev);  // 傾き
 
-            for (int k = 0; base_vs[i][j] + k < base_vs[i + 1][j]; k++)
-            {
-                int v = base_vs[i][j] + k;
-                double tan = (v - envParams.height / 2) / envParams.f_xy;
-                double z = (zPrev - angle * yPrev) / (1 - angle * tan);
-                full_grid[v][j] = z;
-            }
-        }
+      for (int k = 0; vPrev + k < vNext; k++) {
+        int v = vPrev + k;
+        double tan = (v - env_params.height / 2) / env_params.f_xy;
+        double z = (zPrev - angle * yPrev) / (1 - angle * tan);
+        full_grid.at<double>(v, j) = z;
+      }
     }
+  }
 
-    for (int j = 0; j < envParams.width; j++)
-    {
-        for (int k = 0; base_vs.back()[j] + k < envParams.height; k++)
-        {
-            int v = base_vs.back()[j] + k;
-            full_grid[v][j] = base_grid.back()[j];
-        }
-    }
+  cv::imshow("A", full_grid);
+  cv::imshow("B", src_grid);
+  cv::waitKey();
 
-    target_grid = vector<vector<double>>(target_vs.size(), vector<double>(envParams.width, 0));
-    for (int i = 0; i < target_grid.size(); i++)
-    {
-        for (int j = 0; j < envParams.width; j++)
-        {
-            target_grid[i][j] = full_grid[target_vs[i][j]][j];
-        }
+  for (int j = 0; j < env_params.width; j++) {
+    ushort vPrev = vs.at<ushort>(vs.rows - 1, j);
+    for (int k = 0; vPrev + k < env_params.height; k++) {
+      int v = vPrev + k;
+      full_grid.at<double>(v, j) = src_grid.at<double>(vs.rows - 1, j);
     }
+  }
+
+  dst_grid = cv::Mat::zeros(vs.rows, vs.cols, CV_64FC1);
+  dst_grid.forEach<double>(
+      [&vs, &full_grid](double& now, const int position[]) -> void {
+        now = full_grid.at<double>(vs.at<ushort>(position[0], position[1]),
+                                   position[1]);
+      });
+  cv::imshow("A", full_grid);
+  cv::waitKey();
 }
