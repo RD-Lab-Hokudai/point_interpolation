@@ -117,6 +117,4 @@ void linear(cv::Mat& src_grid, cv::Mat& dst_grid, cv::Mat& vs,
       prev_i = i;
     }
   }
-  cv::imshow("A", dst_grid);
-  cv::waitKey();
 }

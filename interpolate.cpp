@@ -12,8 +12,8 @@
 #include "methods/guided_filter.cpp"
 #include "methods/ip_basic.cpp"
 #include "methods/linear.cpp"
-/*
 #include "methods/mrf.cpp"
+/*
 #include "methods/original.cpp"
 #include "methods/pwas.cpp"
 */
@@ -71,6 +71,10 @@ void interpolate(pcl::PointCloud<pcl::PointXYZ>& src_cloud, cv::Mat& img,
   }
   if (method_name == "guided-filter") {
     guided_filter(grid, interpolated, vs, env_params, blured);
+  }
+  if (method_name == "mrf") {
+    mrf(grid, interpolated, vs, env_params, blured, hyper_params.mrf_k,
+        hyper_params.mrf_c);
   }
 
   // 補完ノイズ除去
