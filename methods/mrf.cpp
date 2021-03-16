@@ -29,7 +29,6 @@ void mrf(cv::Mat& src_grid, cv::Mat& dst_grid, cv::Mat& vs,
     }
   }
   W.setFromTriplets(W_triplets.begin(), W_triplets.end());
-  cout << "A" << endl;
 
   Eigen::SparseMatrix<double> S(length, length);
   vector<Eigen::Triplet<double>> S_triplets;
@@ -64,7 +63,6 @@ void mrf(cv::Mat& src_grid, cv::Mat& dst_grid, cv::Mat& vs,
       cg;
   cg.compute(A);
   Eigen::VectorXd y_res = cg.solve(b);
-  cout << "B" << endl;
 
   dst_grid = cv::Mat::zeros(vs.rows, vs.cols, CV_64FC1);
   dst_grid.forEach<double>(

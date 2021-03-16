@@ -13,17 +13,12 @@
 #include "methods/ip_basic.cpp"
 #include "methods/linear.cpp"
 #include "methods/mrf.cpp"
-/*
 #include "methods/original.cpp"
 #include "methods/pwas.cpp"
-*/
 #include "models/env_params.cpp"
 #include "models/hyper_params.cpp"
 /*
 #include "postprocess/generate_depth_image.cpp"
-#include "preprocess/downsample.cpp"
-#include "preprocess/find_neighbors.cpp"
-#include "preprocess/grid_pcd.cpp"
 */
 #include "postprocess/evaluate.cpp"
 #include "postprocess/restore_pointcloud.cpp"
@@ -75,6 +70,17 @@ void interpolate(pcl::PointCloud<pcl::PointXYZ>& src_cloud, cv::Mat& img,
   if (method_name == "mrf") {
     mrf(grid, interpolated, vs, env_params, blured, hyper_params.mrf_k,
         hyper_params.mrf_c);
+  }
+  if (method_name == "pwas") {
+    pwas(grid, interpolated, vs, blured, hyper_params.pwas_sigma_c,
+         hyper_params.pwas_sigma_s, hyper_params.pwas_sigma_r,
+         hyper_params.pwas_r);
+  }
+  if (method_name == "original") {
+    original(grid, interpolated, vs, env_params, blured,
+             hyper_params.original_color_segment_k,
+             hyper_params.original_sigma_s, hyper_params.original_r,
+             hyper_params.original_coef_s);
   }
 
   // 補完ノイズ除去
