@@ -10,56 +10,113 @@ using namespace std;
 
 void linear(cv::Mat& src_grid, cv::Mat& dst_grid, cv::Mat& vs,
             EnvParams env_params) {
-  cv::Mat full_grid =
-      cv::Mat::zeros(env_params.height, env_params.width, CV_64FC1);
-
-  for (int j = 0; j < env_params.width; j++) {
-    ushort vNext = vs.at<ushort>(0, j);
-    for (int k = 0; k < vNext; k++) {
-      full_grid.at<double>(k, j) = src_grid.at<double>(0, j);
-    }
-  }
-  cv::imshow("A", full_grid);
-  cv::imshow("B", src_grid);
-  cv::waitKey();
-
-  for (int i = 0; i + 1 < vs.rows; i++) {
-    for (int j = 0; j < vs.cols; j++) {
-      double zPrev = src_grid.at<double>(i, j);
-      double zNext = src_grid.at<double>(i + 1, j);
-      ushort vPrev = vs.at<ushort>(i, j);
-      ushort vNext = vs.at<ushort>(i + 1, j);
-      double yPrev = zPrev * (vPrev - env_params.height / 2) / env_params.f_xy;
-      double yNext = zNext * (vNext - env_params.height / 2) / env_params.f_xy;
-      double angle = (zNext - zPrev) / (yNext - yPrev);  // 傾き
-
-      for (int k = 0; vPrev + k < vNext; k++) {
-        int v = vPrev + k;
-        double tan = (v - env_params.height / 2) / env_params.f_xy;
-        double z = (zPrev - angle * yPrev) / (1 - angle * tan);
-        full_grid.at<double>(v, j) = z;
-      }
-    }
-  }
-
-  cv::imshow("A", full_grid);
-  cv::imshow("B", src_grid);
-  cv::waitKey();
-
-  for (int j = 0; j < env_params.width; j++) {
-    ushort vPrev = vs.at<ushort>(vs.rows - 1, j);
-    for (int k = 0; vPrev + k < env_params.height; k++) {
-      int v = vPrev + k;
-      full_grid.at<double>(v, j) = src_grid.at<double>(vs.rows - 1, j);
-    }
-  }
-
   dst_grid = cv::Mat::zeros(vs.rows, vs.cols, CV_64FC1);
-  dst_grid.forEach<double>(
-      [&vs, &full_grid](double& now, const int position[]) -> void {
-        now = full_grid.at<double>(vs.at<ushort>(position[0], position[1]),
-                                   position[1]);
-      });
-  cv::imshow("A", full_grid);
+
+  // Horizontal interpolation
+  for (int i = 0; i < vs.rows; i++) {
+    double* row = src_grid.ptr<double>(i);
+    double* dst_row = dst_grid.ptr<double>(i);
+
+    // Left
+    for (int j = 0; j < vs.cols; j++) {
+      if (row[j] <= 1e-9) {
+        continue;
+      }
+      for (int jj = 0; jj <= j; jj++) {
+        dst_row[jj] = row[j];
+      }
+      break;
+    }
+
+    // Right
+    for (int j = vs.cols - 1; j >= 0; j--) {
+      if (row[j] <= 1e-9) {
+        continue;
+      }
+
+      for (int jj = j; jj < vs.cols; jj++) {
+        dst_row[jj] = row[j];
+      }
+      break;
+    }
+
+    int prev_u = 0;
+    for (int j = 1; j < vs.cols; j++) {
+      if (dst_row[j] <= 1e-9) {
+        continue;
+      }
+
+      double prev_z = dst_row[prev_u];
+      double prev_x =
+          prev_z * (prev_u - env_params.width / 2) / env_params.f_xy;
+      double next_z = dst_row[j];
+      double next_x = next_z * (j - env_params.width / 2) / env_params.f_xy;
+      for (int jj = prev_u; jj <= j; jj++) {
+        double angle = (next_z - prev_z) / (next_x - prev_x);
+        double tan = (jj - env_params.width / 2) / env_params.f_xy;
+        double z = (prev_z - angle * prev_x) / (1 - tan * angle);
+        dst_row[jj] = z;
+      }
+      prev_u = j;
+    }
+  }
+
+  // Vertical interpolation
+  for (int j = 0; j < vs.cols; j++) {
+    // Up
+    for (int i = 0; i < vs.rows; i++) {
+      double now = dst_grid.at<double>(i, j);
+      if (now <= 1e-9) {
+        continue;
+      }
+      for (int ii = 0; ii <= i; ii++) {
+        dst_grid.at<double>(ii, j) = now;
+      }
+      break;
+    }
+
+    // Down
+    for (int i = vs.rows - 1; i >= 0; i--) {
+      double now = dst_grid.at<double>(i, j);
+      if (now <= 1e-9) {
+        continue;
+      }
+
+      for (int ii = i; ii < vs.rows; ii++) {
+        dst_grid.at<double>(ii, j) = now;
+      }
+      break;
+    }
+
+    int prev_i = 0;
+    for (int i = 1; i < vs.rows; i++) {
+      double now = dst_grid.at<double>(i, j);
+      if (now <= 1e-9) {
+        continue;
+      }
+
+      ushort prev_v = vs.at<ushort>(prev_i, j);
+      ushort next_v = vs.at<ushort>(i, j);
+      if (prev_v >= next_v) {
+        continue;
+      }
+
+      double prev_z = dst_grid.at<double>(prev_i, j);
+      double prev_y =
+          prev_z * (prev_v - env_params.height / 2) / env_params.f_xy;
+      double next_z = now;
+      double next_y =
+          next_z * (next_v - env_params.height / 2) / env_params.f_xy;
+      for (int ii = prev_i; ii <= i; ii++) {
+        ushort now_v = vs.at<ushort>(ii, j);
+        double angle = (next_z - prev_z) / (next_y - prev_y);
+        double tan = (now_v - env_params.height / 2) / env_params.f_xy;
+        double z = (prev_z - angle * prev_y) / (1 - tan * angle);
+        dst_grid.at<double>(ii, j) = z;
+      }
+      prev_i = i;
+    }
+  }
+  cv::imshow("A", dst_grid);
   cv::waitKey();
 }
