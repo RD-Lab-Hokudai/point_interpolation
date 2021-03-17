@@ -1,8 +1,6 @@
-#pragma once
 #include <map>
 
-#include "../models/env_params.cpp"
-#include "../models/hyper_params.cpp"
+#include "models.h"
 
 using namespace std;
 

@@ -1,15 +1,15 @@
-#pragma once
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
-#include <iostream>
+#include <vector>
+
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <opencv2/opencv.hpp>
+
+#include "models.h"
+#include "postprocess.h"
 
 using namespace std;
 
-// quality-metric
 namespace qm {
-#define C1 (float)(0.01 * 100 * 0.01 * 100)
-#define C2 (float)(0.03 * 100 * 0.03 * 100)
-
 // sigma on block_size
 double sigma(cv::Mat& m, int i, int j, int block_size) {
   double sd = 0;
@@ -112,19 +112,18 @@ double eqm(cv::Mat& img1, cv::Mat& img2) {
   }
 }
 
-/**
- *	Compute the PSNR between 2 images
- */
+// Compute the PSNR between 2 images
 double psnr(cv::Mat& img_src, cv::Mat& img_compressed, int block_size) {
   int D = 255;
   return (10 * log10((D * D) / eqm(img_src, img_compressed)));
 }
 
-/**
- * Compute the SSIM between 2 images
- */
+// Compute the SSIM between 2 images
 double ssim(cv::Mat& img1, cv::Mat& img2, int block_size) {
   double mssim = 0;
+
+  double C1 = 0.01 * 100 * 0.01 * 100;
+  double C2 = 0.03 * 100 * 0.03 * 100;
 
   int nbBlockPerHeight = img1.rows / block_size;
   int nbBlockPerWidth = img1.cols / block_size;
@@ -187,6 +186,7 @@ double ssim(cv::Mat& img1, cv::Mat& img2, int block_size) {
   }
 }
 
+// Compute the f value between img1 (original) and img2 (reference)
 double f_value(cv::Mat& img1, cv::Mat& img2) {
   int tp = 0;
   int fp = 0;
@@ -216,3 +216,31 @@ double f_value(cv::Mat& img1, cv::Mat& img2) {
   return 2 * precision * recall / (precision + recall);
 }
 }  // namespace qm
+
+void evaluate(cv::Mat& grid, cv::Mat& original_grid, EnvParams& env_params,
+              double& ssim, double& mse, double& mre, double& f_val) {
+  ssim = qm::ssim(original_grid, grid, 4);
+  mse = qm::eqm(original_grid, grid);
+  mre = qm::mre(original_grid, grid);
+  f_val = qm::f_value(original_grid, grid);
+}
+
+void restore_pointcloud(cv::Mat& grid, cv::Mat& vs, EnvParams env_params,
+                        pcl::PointCloud<pcl::PointXYZ>& dst_cloud) {
+  dst_cloud = pcl::PointCloud<pcl::PointXYZ>();
+
+  for (int i = 0; i < vs.rows; i++) {
+    double* row = grid.ptr<double>(i);
+    for (int j = 0; j < vs.cols; j++) {
+      double z = row[j];
+      if (z <= 0) {
+        // continue;
+      }
+
+      double x = z * (j - env_params.width / 2) / env_params.f_xy;
+      double y =
+          z * (vs.at<ushort>(i, j) - env_params.height / 2) / env_params.f_xy;
+      dst_cloud.points.push_back(pcl::PointXYZ(x, y, z));
+    }
+  }
+}
