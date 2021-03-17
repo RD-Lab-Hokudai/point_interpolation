@@ -8,20 +8,10 @@
 #include <time.h>
 #include <opencv2/opencv.hpp>
 
-#include "data/load_params.cpp"
-#include "methods/guided_filter.cpp"
-#include "methods/ip_basic.cpp"
-#include "methods/linear.cpp"
-#include "methods/mrf.cpp"
-#include "methods/original.cpp"
-#include "methods/pwas.cpp"
-#include "models/env_params.cpp"
-#include "models/hyper_params.cpp"
-#include "postprocess/evaluate.cpp"
-#include "postprocess/restore_pointcloud.cpp"
-#include "preprocess/downsample.cpp"
-#include "preprocess/grid_pointcloud.cpp"
-#include "preprocess/remove_noise.cpp"
+#include "methods.h"
+#include "models.h"
+#include "postprocess.h"
+#include "preprocess.h"
 
 using namespace std;
 

@@ -5,10 +5,8 @@
 #include <pcl/point_cloud.h>
 #include <opencv2/opencv.hpp>
 
-#include "data/load_params.cpp"
 #include "interpolate.cpp"
-#include "models/env_params.cpp"
-#include "models/hyper_params.cpp"
+#include "models.h"
 
 using namespace std;
 
@@ -40,6 +38,11 @@ int main(int argc, char* argv[]) {
   HyperParams hyper_params = load_default_hyper_params();
 
   string method_name = argv[3];
+  if (!(method_name == "pwas" || method_name == "original")) {
+    cout << "You must specify 'pwas' or 'original' as interpolation method name"
+         << endl;
+    return 1;
+  }
 
   vector<cv::Mat> imgs;
   vector<pcl::PointCloud<pcl::PointXYZ>> clouds;

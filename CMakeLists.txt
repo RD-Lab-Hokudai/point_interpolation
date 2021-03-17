@@ -8,10 +8,15 @@ find_package(PCL REQUIRED)
 
 add_definitions(-O3)
 
-link_directories(${PCL_LIBRARY_DIRS})
-link_libraries(${PCL_LIBRARIES} ${OpenCV_LIBS})
-include_directories(PUBLIC ${PCL_INCLUDE_DIRS})
+add_library(models include/models.h src/models.cpp)
+add_library(methods include/utils.h src/utils.cpp include/methods.h src/methods.cpp)
+add_library(preprocess include/preprocess.h src/preprocess.cpp)
+add_library(postprocess include/postprocess.h src/postprocess.cpp)
 
-add_executable(Interpolater Interpolater.cpp)
+link_directories(include ${PCL_LIBRARY_DIRS})
+include_directories(PUBLIC include ${PCL_INCLUDE_DIRS})
+link_libraries(${PCL_LIBRARIES} ${OpenCV_LIBS} models methods preprocess postprocess)
 
-add_executable(Tuner Tuner.cpp)
+add_executable(Interpolater src/Interpolater.cpp)
+
+add_executable(Tuner src/Tuner.cpp)

@@ -5,10 +5,8 @@
 #include <pcl/point_cloud.h>
 #include <opencv2/opencv.hpp>
 
-#include "data/load_params.cpp"
 #include "interpolate.cpp"
-#include "models/env_params.cpp"
-#include "models/hyper_params.cpp"
+#include "models.h"
 
 using namespace std;
 
