@@ -1,133 +1,186 @@
 #include <iostream>
 
-#include "models/envParams.cpp"
-#include "models/hyperParams.cpp"
-#include "data/loadParams.cpp"
+#include <dirent.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/point_cloud.h>
+#include <opencv2/opencv.hpp>
+
+#include "data/load_params.cpp"
 #include "interpolate.cpp"
+#include "models/env_params.cpp"
+#include "models/hyper_params.cpp"
 
 using namespace std;
-using namespace open3d;
 
-ofstream ofs;
+// Grid search
+int main(int argc, char* argv[]) {
+  if (argc < 4) {
+    cout << "You must specify data folder, calibration setting name and "
+            "interpolation method name"
+         << endl;
+    return 1;
+  }
 
-int main(int argc, char *argv[])
-{
-    EnvParams params_use = loadParams("miyanosawa_3_3_rgb_original_champ");
-    HyperParams hyperParams = getDefaultHyperParams(params_use.isRGB);
-
-    if (params_use.method == "pwas")
-    {
-        ofs = ofstream("pwas_tuning.csv", ios::app);
-        double best_mre_sum = 1000000;
-        double best_sigma_c = 1;
-        double best_sigma_s = 1;
-        double best_sigma_r = 1;
-        int best_r = 1;
-        // best params 2020/08/03 sigma_c:1000 sigma_s:1.99 sigma_r:19 r:7
-        // best params 2020/08/10 sigma_c:12000 sigma_s:1.6 sigma_r:19 r:7
-        // best params 2020/08/10 sigma_c:8000 sigma_s:1.6 sigma_r:19 r:7
-        // 2020/9/18 12 0.5 10 1
-        // 2020/10/6 10 0.7 91 7
-
-        for (double sigma_c = 10; sigma_c <= 100; sigma_c += 10)
-        {
-            for (double sigma_s = 0.5; sigma_s < 2.5; sigma_s += 0.5)
-            {
-                for (double sigma_r = 1; sigma_r < 10; sigma_r += 1)
-                {
-                    for (int r = 7; r < 9; r += 2)
-                    {
-                        double mre_sum = 0;
-                        hyperParams.pwas_sigma_c = sigma_c;
-                        hyperParams.pwas_sigma_s = sigma_s;
-                        hyperParams.pwas_sigma_r = sigma_r;
-                        hyperParams.pwas_r = r;
-                        for (int i = 0; i < params_use.data_ids.size(); i++)
-                        {
-                            double time, ssim, mse, mre;
-                            interpolate(params_use.data_ids[i], params_use, hyperParams, time, ssim, mse, mre, false, false);
-                            mre_sum += mre;
-                        }
-
-                        if (best_mre_sum > mre_sum)
-                        {
-                            best_mre_sum = mre_sum;
-                            best_sigma_c = sigma_c;
-                            best_sigma_s = sigma_s;
-                            best_sigma_r = sigma_r;
-                            best_r = r;
-                            cout << "Updated : " << mre_sum / params_use.data_ids.size() << endl;
-                            ofs << mre_sum / params_use.data_ids.size() << "," << sigma_c << "," << sigma_s << "," << sigma_r << "," << r << endl;
-                        }
-                    }
-                }
-            }
-        }
-
-        cout << "Sigma C = " << best_sigma_c << endl;
-        cout << "Sigma S = " << best_sigma_s << endl;
-        cout << "Sigma R = " << best_sigma_r << endl;
-        cout << "R = " << best_r << endl;
-        cout << "Mean error = " << best_mre_sum / params_use.data_ids.size() << endl;
+  string data_folder_path = argv[1];
+  DIR* dir;
+  struct dirent* diread;
+  set<string> file_names;
+  if ((dir = opendir(data_folder_path.c_str())) != nullptr) {
+    while ((diread = readdir(dir)) != nullptr) {
+      file_names.insert(diread->d_name);
     }
-    if (params_use.method == "original")
-    {
-        ofs = ofstream("original_tuning.csv", ios::app);
-        double best_mre_sum = 1000000;
-        double best_color_segment_k = 1;
-        double best_sigma_s = 1;
-        double best_sigma_r = 1;
-        int best_r = 1;
-        double best_coef_s = 1;
-        // 2020/12/17 MRE : 0.140269	440	1.6	19	7	0.32
-        // 2020/12/17 MRE : 0.0597379 820 1.6 inf(ignore) 7 0.03 thermal?
-        //110, 1.6, 19, 7, 0.7
+    closedir(dir);
+  } else {
+    cout << "Invalid folder path!" << endl;
+    return 1;
+  }
 
-        for (double color_segment_k = 400; color_segment_k <= 500; color_segment_k += 10)
-        {
-            for (double sigma_s = 1.6; sigma_s <= 1.6; sigma_s += 0.1)
-            {
-                for (double sigma_r = 19; sigma_r <= 19; sigma_r += 1)
-                {
-                    for (int r = 7; r <= 7; r += 2)
-                    {
-                        for (double coef_s = 0.2; coef_s <= 0.4; coef_s += 0.01)
-                        {
-                            double mre_sum = 0;
-                            hyperParams.original_color_segment_k = color_segment_k;
-                            hyperParams.original_sigma_s = sigma_s;
-                            hyperParams.original_sigma_r = sigma_r;
-                            hyperParams.original_r = r;
-                            hyperParams.original_coef_s = coef_s;
-                            for (int i = 0; i < params_use.data_ids.size(); i++)
-                            {
-                                double time, ssim, mse, mre;
-                                interpolate(params_use.data_ids[i], params_use, hyperParams, time, ssim, mse, mre, false, false);
-                                mre_sum += mre;
-                            }
+  string params_name = argv[2];
+  EnvParams params_use = load_env_params(params_name);
+  HyperParams hyper_params = load_default_hyper_params();
 
-                            if (best_mre_sum > mre_sum)
-                            {
-                                best_mre_sum = mre_sum;
-                                best_color_segment_k = color_segment_k;
-                                best_sigma_s = sigma_s;
-                                best_sigma_r = sigma_r;
-                                best_r = r;
-                                best_coef_s = coef_s;
-                                cout << "Updated : " << mre_sum / params_use.data_ids.size() << endl;
-                                ofs << mre_sum / params_use.data_ids.size() << "," << color_segment_k << "," << sigma_s << "," << sigma_r << "," << r << "," << coef_s << endl;
-                            }
-                        }
-                    }
-                }
-            }
-        }
+  string method_name = argv[3];
 
-        cout << "Sigma C = " << best_color_segment_k << endl;
-        cout << "Sigma S = " << best_sigma_s << endl;
-        cout << "Sigma R = " << best_sigma_r << endl;
-        cout << "R = " << best_r << endl;
-        cout << "Coef S = " << best_coef_s << endl;
-        cout << "Mean error = " << best_mre_sum / params_use.data_ids.size() << endl;
+  vector<cv::Mat> imgs;
+  vector<pcl::PointCloud<pcl::PointXYZ>> clouds;
+  for (auto it = file_names.begin(); it != file_names.end(); it++) {
+    string str = *it;
+
+    try {
+      string str = *it;
+      size_t found = str.find(".png");
+      if (found == string::npos) {
+        throw 1;
+      }
+
+      string name = str.substr(0, found);
+      string img_path = data_folder_path + name + ".png";
+      cv::Mat img = cv::imread(img_path);
+
+      string pcd_path = data_folder_path + name + ".pcd";
+      pcl::PointCloud<pcl::PointXYZ> cloud;
+      if (pcl::io::loadPCDFile<pcl::PointXYZ>(pcd_path, cloud) == -1) {
+        throw 2;
+      }
+
+      for (int i = 0; i < cloud.points.size(); i++) {
+        // Assign position for camera coordinates
+        // Right-handed coordinate system
+        double x = cloud.points[i].y;
+        double y = -cloud.points[i].z;
+        double z = -cloud.points[i].x;
+
+        cloud.points[i].x = x;
+        cloud.points[i].y = y;
+        cloud.points[i].z = z;
+      }
+
+      imgs.push_back(img);
+      clouds.push_back(cloud);
+    } catch (int e) {
+      switch (e) {
+        case 1:
+          break;
+        case 2:
+          cout << "Img " << str << ": The point cloud does not exist" << endl;
+          break;
+      }
     }
+  }
+
+  // 最大で20データまで使用
+  int inc = imgs.size() >= 10 ? imgs.size() / 10 : 1;
+
+  if (method_name == "pwas") {
+    double best_mre_sum = 1000000;
+    double best_sigma_c = 1;
+    double best_sigma_s = 1;
+    double best_sigma_r = 1;
+    int best_r = 1;
+
+    for (double sigma_c = 10; sigma_c <= 100; sigma_c += 10) {
+      for (double sigma_s = 0.5; sigma_s <= 2.5; sigma_s += 0.5) {
+        for (double sigma_r = 1; sigma_r <= 10; sigma_r += 1) {
+          for (int r = 7; r <= 7; r += 1) {
+            double mre_sum = 0;
+            hyper_params.pwas_sigma_c = sigma_c;
+            hyper_params.pwas_sigma_s = sigma_s;
+            hyper_params.pwas_sigma_r = sigma_r;
+            hyper_params.pwas_r = r;
+            for (int i = 0; i < imgs.size(); i += inc) {
+              double time, ssim, mse, mre, f_val;
+              interpolate(clouds[i], imgs[i], params_use, hyper_params,
+                          method_name, time, ssim, mse, mre, f_val, false);
+              mre_sum += mre;
+            }
+
+            if (best_mre_sum > mre_sum) {
+              best_mre_sum = mre_sum;
+              best_sigma_c = sigma_c;
+              best_sigma_s = sigma_s;
+              best_sigma_r = sigma_r;
+              best_r = r;
+              cout << "Updated : " << mre_sum / imgs.size() << "," << sigma_c
+                   << "," << sigma_s << "," << sigma_r << "," << r << endl;
+            }
+          }
+        }
+      }
+    }
+
+    cout << endl;
+    cout << "Done." << endl;
+    cout << "Mean error = " << best_mre_sum / imgs.size() << endl;
+    cout << "Sigma C = " << best_sigma_c << endl;
+    cout << "Sigma S = " << best_sigma_s << endl;
+    cout << "Sigma R = " << best_sigma_r << endl;
+    cout << "R = " << best_r << endl;
+  }
+  if (method_name == "original") {
+    double best_mre_sum = 1000000;
+    double best_color_segment_k = 1;
+    double best_sigma_s = 1;
+    int best_r = 1;
+    double best_coef_s = 1;
+
+    for (double color_segment_k = 400; color_segment_k <= 500;
+         color_segment_k += 10) {
+      for (double sigma_s = 1.6; sigma_s <= 1.6; sigma_s += 0.1) {
+        for (int r = 7; r <= 7; r += 2) {
+          for (double coef_s = 0.2; coef_s <= 0.4; coef_s += 0.01) {
+            double mre_sum = 0;
+            hyper_params.original_color_segment_k = color_segment_k;
+            hyper_params.original_sigma_s = sigma_s;
+            hyper_params.original_r = r;
+            hyper_params.original_coef_s = coef_s;
+            for (int i = 2; i < imgs.size(); i += inc) {
+              double time, ssim, mse, mre, f_val;
+              interpolate(clouds[i], imgs[i], params_use, hyper_params,
+                          method_name, time, ssim, mse, mre, f_val, false);
+              mre_sum += mre;
+            }
+
+            if (best_mre_sum > mre_sum) {
+              best_mre_sum = mre_sum;
+              best_color_segment_k = color_segment_k;
+              best_sigma_s = sigma_s;
+              best_r = r;
+              best_coef_s = coef_s;
+              cout << "Updated : " << mre_sum / imgs.size() << ","
+                   << color_segment_k << "," << sigma_s << "," << r << ","
+                   << best_coef_s << endl;
+            }
+          }
+        }
+      }
+    }
+
+    cout << endl;
+    cout << "Done." << endl;
+    cout << "Mean error = " << best_mre_sum / imgs.size() << endl;
+    cout << "Sigma C = " << best_color_segment_k << endl;
+    cout << "Sigma S = " << best_sigma_s << endl;
+    cout << "R = " << best_r << endl;
+    cout << "Coef S = " << best_coef_s << endl;
+  }
 }
