@@ -14,8 +14,4 @@ include_directories(PUBLIC ${PCL_INCLUDE_DIRS})
 
 add_executable(Interpolater Interpolater.cpp)
 
-# add_executable(Tuner Tuner.cpp)
-
-# add_executable(InterpolateKitti InterpolateKitti.cpp)
-
-add_executable(DistortionCorrector DistortionCorrector.cpp)
+add_executable(Tuner Tuner.cpp)

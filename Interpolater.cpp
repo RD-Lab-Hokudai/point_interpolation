@@ -13,9 +13,9 @@
 using namespace std;
 
 int main(int argc, char* argv[]) {
-  if (argc <= 3) {
-    cout << "You should specify data folder, calibration setting name and "
-            "interpolation method"
+  if (argc < 4) {
+    cout << "You must specify data folder, calibration setting name and "
+            "interpolation method name"
          << endl;
     return 1;
   }

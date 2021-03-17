@@ -12,7 +12,7 @@ using namespace std;
 Transform point cloud into depth image
 カメラ座標系でLiDARグリッドを構築する
 */
-void grid_pointcloud(pcl::PointCloud<pcl::PointXYZ>& src_cloud,
+void grid_pointcloud(const pcl::PointCloud<pcl::PointXYZ>& src_cloud,
                      double min_angle_degree, double max_angle_degree,
                      int target_layer_cnt, EnvParams& env_params, cv::Mat& grid,
                      cv::Mat& vs) {
@@ -57,7 +57,8 @@ void grid_pointcloud(pcl::PointCloud<pcl::PointXYZ>& src_cloud,
     if (z > 0) {
       int u = round(env_params.width / 2 + env_params.f_xy * x / z);
       int v = round(env_params.height / 2 + env_params.f_xy * y / z);
-      if (0 <= u && u < env_params.width && 0 <= v && v < env_params.height) {
+      if (0 <= u && u < env_params.width && 0 <= v && v < env_params.height &&
+          0 <= v_idx && v_idx < vs.rows) {
         grid.at<double>(v_idx, u) = z;
         vs.at<ushort>(v_idx, u) = (ushort)v;
       }
@@ -72,7 +73,7 @@ void grid_pointcloud(pcl::PointCloud<pcl::PointXYZ>& src_cloud,
     int v = round(env_params.height / 2 +
                   env_params.f_xy * tan(min_rad + position[0] * delta_rad));
     if (0 <= v && v < env_params.height) {
-      now = v;
+      now = (ushort)v;
     }
   });
 }

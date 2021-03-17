@@ -1,8 +1,10 @@
 {
-    "cmake.configureOnOpen": false,
+    "cmake.configureOnOpen": true,
     "files.associations": {
         "*.cpp": "cpp",
         "vector": "cpp",
-        "chrono": "cpp"
+        "chrono": "cpp",
+        "ostream": "cpp",
+        "iostream": "cpp"
     }
 }

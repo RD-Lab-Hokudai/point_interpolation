@@ -5,7 +5,7 @@ A point interpolation library for LiDAR using images.
 ### Features
 
 - Supports Linear, IP-Basic, Markov Random Field, Pixel weighted average strategy, Guided Filter, and Original method.
-- Interpolate 16-layers point cloud (pcd) upto 64-layers using images (png)
+- Interpolate point cloud (pcd) upto same resolution as the image (png)
 
 ### Requirements
 

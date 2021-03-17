@@ -17,9 +17,6 @@
 #include "methods/pwas.cpp"
 #include "models/env_params.cpp"
 #include "models/hyper_params.cpp"
-/*
-#include "postprocess/generate_depth_image.cpp"
-*/
 #include "postprocess/evaluate.cpp"
 #include "postprocess/restore_pointcloud.cpp"
 #include "preprocess/downsample.cpp"
@@ -44,7 +41,6 @@ void interpolate(pcl::PointCloud<pcl::PointXYZ>& src_cloud, cv::Mat& img,
   // 16レイヤーに変換　
   downsample(src_cloud, downsampled, min_angle_degree, max_angle_degree, 64,
              16);
-
   // ２次元に変換
   cv::Mat grid, vs;
   grid_pointcloud(downsampled, min_angle_degree, max_angle_degree, height,
@@ -53,50 +49,49 @@ void interpolate(pcl::PointCloud<pcl::PointXYZ>& src_cloud, cv::Mat& img,
   // 悪天候ノイズ除去
   cv::Mat removed;
   remove_noise(grid, removed, vs, env_params);
-  grid = removed;
 
   cv::Mat interpolated;
 
   // 補完
   if (method_name == "linear") {
-    linear(grid, interpolated, vs, env_params);
+    linear(removed, interpolated, vs, env_params);
   }
   if (method_name == "ip-basic") {
-    ip_basic(grid, interpolated, vs, env_params);
+    ip_basic(removed, interpolated, vs, env_params);
   }
   if (method_name == "guided-filter") {
-    guided_filter(grid, interpolated, vs, env_params, blured);
+    guided_filter(removed, interpolated, vs, env_params, blured);
   }
   if (method_name == "mrf") {
-    mrf(grid, interpolated, vs, env_params, blured, hyper_params.mrf_k,
+    mrf(removed, interpolated, vs, env_params, blured, hyper_params.mrf_k,
         hyper_params.mrf_c);
   }
   if (method_name == "pwas") {
-    pwas(grid, interpolated, vs, blured, hyper_params.pwas_sigma_c,
+    pwas(removed, interpolated, vs, blured, hyper_params.pwas_sigma_c,
          hyper_params.pwas_sigma_s, hyper_params.pwas_sigma_r,
          hyper_params.pwas_r);
   }
   if (method_name == "original") {
-    original(grid, interpolated, vs, env_params, blured,
+    original(removed, interpolated, vs, env_params, blured,
              hyper_params.original_color_segment_k,
              hyper_params.original_sigma_s, hyper_params.original_r,
              hyper_params.original_coef_s);
   }
+  // ここまではSegmentation faultなしで処理
 
   // 補完ノイズ除去
   cv::Mat removed2;
   remove_noise(interpolated, removed2, vs, env_params);
-  interpolated = removed2;
 
   // 評価
   time = chrono::duration_cast<chrono::milliseconds>(
              chrono::system_clock::now() - start)
              .count();
 
-  cv::Mat original_grid, original_vs;
+  cv::Mat gt_grid, gt_vs;
   grid_pointcloud(src_cloud, min_angle_degree, max_angle_degree, height,
-                  env_params, original_grid, original_vs);
-  evaluate(interpolated, original_grid, env_params, ssim, mse, mre, f_val);
+                  env_params, gt_grid, gt_vs);
+  evaluate(removed2, gt_grid, env_params, ssim, mse, mre, f_val);
 
   if (show_cloud) {
     pcl::PointCloud<pcl::PointXYZ> dst_cloud;

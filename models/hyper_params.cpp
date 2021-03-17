@@ -1,7 +1,5 @@
 #pragma once
 
-using namespace std;
-
 struct HyperParams {
   double mrf_k;
   double mrf_c;
