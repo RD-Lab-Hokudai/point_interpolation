@@ -61,3 +61,24 @@ ex)
 ```
 $ ./Interpolater ~/data miyanosawa_20200303 original
 ```
+
+#### Supported method names
+
+- linear
+- ip-basic
+- guided-filter
+- mrf
+- pwas
+- original
+
+### Tools
+
+For Pixel weighted average strategy and Original method, this project has hyper parameter tuner.
+
+After building, run command below.
+
+```
+$ ./Tuner <folder_path> > <calibration_id> <method_name>
+```
+
+Only "pwas" and "original" are supported for <method_name>.
