@@ -37,3 +37,5 @@ void evaluate(cv::Mat& grid, cv::Mat& original_grid, EnvParams& env_params,
 
 void restore_pointcloud(cv::Mat& grid, cv::Mat& vs, EnvParams env_params,
                         pcl::PointCloud<pcl::PointXYZ>& dst_cloud);
+
+void generate_depth_image(cv::Mat &grid, cv::Mat &img);

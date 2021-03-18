@@ -15,10 +15,11 @@
 
 using namespace std;
 
-void interpolate(pcl::PointCloud<pcl::PointXYZ>& src_cloud, cv::Mat& img,
+void interpolate(pcl::PointCloud<pcl::PointXYZ> &src_cloud, cv::Mat &img,
                  EnvParams env_params, HyperParams hyper_params,
-                 string method_name, double& time, double& ssim, double& mse,
-                 double& mre, double& f_val, bool show_cloud = false) {
+                 string method_name, double &time, double &ssim, double &mse,
+                 double &mre, double &f_val, bool show_cloud = false)
+{
   cv::Mat blured;
   cv::GaussianBlur(img, blured, cv::Size(5, 5), 1.0);
 
@@ -43,25 +44,31 @@ void interpolate(pcl::PointCloud<pcl::PointXYZ>& src_cloud, cv::Mat& img,
   cv::Mat interpolated;
 
   // 補完
-  if (method_name == "linear") {
+  if (method_name == "linear")
+  {
     linear(removed, interpolated, vs, env_params);
   }
-  if (method_name == "ip-basic") {
+  if (method_name == "ip-basic")
+  {
     ip_basic(removed, interpolated, vs, env_params);
   }
-  if (method_name == "guided-filter") {
+  if (method_name == "guided-filter")
+  {
     guided_filter(removed, interpolated, vs, env_params, blured);
   }
-  if (method_name == "mrf") {
+  if (method_name == "mrf")
+  {
     mrf(removed, interpolated, vs, env_params, blured, hyper_params.mrf_k,
         hyper_params.mrf_c);
   }
-  if (method_name == "pwas") {
+  if (method_name == "pwas")
+  {
     pwas(removed, interpolated, vs, blured, hyper_params.pwas_sigma_c,
          hyper_params.pwas_sigma_s, hyper_params.pwas_sigma_r,
          hyper_params.pwas_r);
   }
-  if (method_name == "original") {
+  if (method_name == "original")
+  {
     original(removed, interpolated, vs, env_params, blured,
              hyper_params.original_color_segment_k,
              hyper_params.original_sigma_s, hyper_params.original_r,
@@ -83,14 +90,16 @@ void interpolate(pcl::PointCloud<pcl::PointXYZ>& src_cloud, cv::Mat& img,
                   env_params, gt_grid, gt_vs);
   evaluate(removed2, gt_grid, env_params, ssim, mse, mre, f_val);
 
-  if (show_cloud) {
+  if (show_cloud)
+  {
     pcl::PointCloud<pcl::PointXYZ> dst_cloud;
     restore_pointcloud(interpolated, vs, env_params, dst_cloud);
     pcl::visualization::CloudViewer viewer("Point Cloud");
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ptr(
         new pcl::PointCloud<pcl::PointXYZ>(dst_cloud));
     viewer.showCloud(cloud_ptr);
-    while (!viewer.wasStopped()) {
+    while (!viewer.wasStopped())
+    {
     }
   }
 }
