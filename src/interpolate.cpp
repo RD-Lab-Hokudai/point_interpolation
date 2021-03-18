@@ -74,7 +74,6 @@ void interpolate(pcl::PointCloud<pcl::PointXYZ> &src_cloud, cv::Mat &img,
              hyper_params.original_sigma_s, hyper_params.original_r,
              hyper_params.original_coef_s);
   }
-  // ここまではSegmentation faultなしで処理
 
   // 補完ノイズ除去
   cv::Mat removed2;
